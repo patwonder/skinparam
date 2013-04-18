@@ -64,6 +64,7 @@
 #endif
 
 #pragma warning( disable : 4100 ) // disable unreference formal parameter warnings for /W4 builds
+#pragma warning( disable : 4005 ) // disable duplicate macro definition warnings for vs2012
 
 // Enable extra D3D debugging in debug builds if using the debug DirectX runtime.  
 // This makes D3D objects work well in the debugger watch window, but slows down 

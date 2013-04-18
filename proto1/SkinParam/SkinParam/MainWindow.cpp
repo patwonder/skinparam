@@ -4,8 +4,12 @@
 #include "stdafx.h"
 
 #include "MainWindow.h"
+#include "Renderer.h"
+
+#include "Triangle.h"
 
 using namespace Skin;
+using namespace Utils;
 
 namespace Skin {
 	CMainApp app;
@@ -47,7 +51,9 @@ BEGIN_MESSAGE_MAP(CMainWindow, CFrameWnd)
 	ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
-CMainWindow::CMainWindow() {
+CMainWindow::CMainWindow()
+	: m_camera(Vector(1, 0, 0), Vector(0, 0, 0), Vector(0, 0, 1))
+{
 	CSize resolution(800, 600);
 	Create(NULL, _APP_NAME_, WS_OVERLAPPEDWINDOW & (~WS_SIZEBOX) & (~WS_MAXIMIZEBOX), 
 		CRect(0, 0, resolution.cx, resolution.cy));
@@ -59,15 +65,41 @@ CMainWindow::CMainWindow() {
 	MoveWindow(windowRect.left, windowRect.top, resolution.cx + windowRect.Width() - m_rectClient.Width(), 
 		resolution.cy + windowRect.Height() - m_rectClient.Height());
 	GetClientRect(&m_rectClient);
+
+	m_pRenderer = new Renderer(m_hWnd, CRect(0, 0, resolution.cx, resolution.cy), &m_config, &m_camera);
+	m_pTriangle = new Triangle();
+	m_pRenderer->addRenderable(m_pTriangle);
 }
 
 CMainWindow::~CMainWindow()
 {
-	
+	m_pRenderer->removeAllRenderables();
+
+	delete m_pRenderer;
+	delete m_pTriangle;
+}
+
+void CMainWindow::showInfo() {
+	TStringStream tss;
+	tss << _APP_NAME_ << _T(" (FPS: ")
+		<< std::setiosflags(std::ios::fixed) << std::setprecision(1) << m_pRenderer->getFPS()
+		<< _T(")");
+	SetWindowText(tss.str().c_str());
 }
 
 BOOL CMainWindow::OnIdle(LONG lCount) {
-	return FALSE;
+	UNREFERENCED_PARAMETER(lCount);
+
+	// Stop doing work while minimized
+	if (IsIconic()) {
+		Sleep(100);
+		return TRUE;
+	}
+
+	m_pRenderer->render();
+
+	showInfo();
+	return TRUE;
 }
 
 BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {

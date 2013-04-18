@@ -4,8 +4,13 @@
 
 #pragma once
 
+#include "Config.h"
+#include "Camera.h"
+
 namespace Skin {
 	class CMainWindow;
+	class Renderer;
+	class Triangle;
 
 	class CMainApp : public CWinApp {
 	private:
@@ -18,6 +23,13 @@ namespace Skin {
 	class CMainWindow : public CFrameWnd {
 	private:
 		CRect m_rectClient;
+		Renderer* m_pRenderer;
+		Config m_config;
+		Camera m_camera;
+
+		Triangle* m_pTriangle;
+
+		void showInfo();
 
 		BOOL PreTranslateMessage(MSG* pMsg);
 		afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
