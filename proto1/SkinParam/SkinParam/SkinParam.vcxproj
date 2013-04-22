@@ -126,9 +126,11 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="D3DHelper.cpp" />
     <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="Renderable.cpp" />
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="ShaderGroup.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -162,9 +164,11 @@
     <ClInclude Include="DXUT\Optional\DXUTsettingsdlg.h" />
     <ClInclude Include="DXUT\Optional\DXUTShapes.h" />
     <ClInclude Include="DXUT\Optional\ImeUi.h" />
+    <ClInclude Include="D3DHelper.h" />
     <ClInclude Include="MainWindow.h" />
     <ClInclude Include="Renderable.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="ShaderGroup.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Triangle.h" />
     <ClInclude Include="Utils\FVector.h" />
@@ -178,6 +182,14 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
       </EntryPointName>
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\Phong.fx">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Shaders\Transform.fx">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

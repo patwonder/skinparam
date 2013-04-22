@@ -8,12 +8,10 @@
 
 using namespace Skin;
 using namespace Utils;
+using namespace D3DHelper;
 
 Triangle::Triangle()
-	: m_pVertexShader(nullptr),
-	  m_pPixelShader(nullptr),
-	  m_pInputLayout(nullptr),
-	  m_pVertexBuffer(nullptr)
+	: m_pVertexBuffer(nullptr)
 {
 }
 
@@ -21,57 +19,83 @@ Triangle::~Triangle() {
 	cleanup();
 }
 
+namespace Skin {
+	struct SimpleVertex {
+		XMFLOAT3 Pos;
+		XMFLOAT4 Color;
+	};
+}
+
 void Triangle::init(ID3D11Device* pDevice) {
-    // Define the input layout
-    D3D11_INPUT_ELEMENT_DESC layout[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-	UINT numElements = ARRAYSIZE(layout);
-
-	// Load shaders
-	checkFailure(loadVertexShaderAndLayout(pDevice, _T("Triangle.fx"), "VS", layout, numElements,
-		&m_pVertexShader, &m_pInputLayout),
-		_T("Failed to load vertex shader"));
-
-	checkFailure(loadPixelShader(pDevice, _T("Triangle.fx"), "PS", &m_pPixelShader),
-		_T("Failed to load pixel shader"));
-
     // Create vertex buffer
-    FVector vertices[] = {
-        FVector(0.0f, 0.5f, 0.5f),
-        FVector(0.5f, -0.5f, 0.5f),
-        FVector(-0.5f, -0.5f, 0.5f),
+    SimpleVertex vertices[] =
+    {
+        { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT4( 0.0f, 0.0f, 1.0f, 1.0f ) },
+        { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT4( 0.0f, 1.0f, 0.0f, 1.0f ) },
+        { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT4( 0.0f, 1.0f, 1.0f, 1.0f ) },
+        { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT4( 1.0f, 0.0f, 0.0f, 1.0f ) },
+        { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT4( 1.0f, 0.0f, 1.0f, 1.0f ) },
+        { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) },
+        { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ) },
+        { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT4( 0.0f, 0.0f, 0.0f, 1.0f ) },
     };
 	UINT numVertices = ARRAYSIZE(vertices);
 
 	checkFailure(createVertexBuffer(pDevice, vertices, numVertices, &m_pVertexBuffer),
 		_T("Failed to create vertex buffer"));
+
+	// Create index buffer
+    WORD indices[] =
+    {
+        3,1,0,
+        2,1,3,
+
+        0,5,4,
+        1,5,0,
+
+        3,4,7,
+        0,4,3,
+
+        1,6,5,
+        2,6,1,
+
+        2,7,6,
+        3,7,2,
+
+        6,4,5,
+        7,4,6,
+    };
+	UINT numIndices = ARRAYSIZE(indices);
+
+	checkFailure(createIndexBuffer(pDevice, indices, numIndices, &m_pIndexBuffer),
+		_T("Failed to create index buffer"));
 }
 
 void Triangle::render(ID3D11DeviceContext* pDeviceContext, const Camera& pCamera) {
-	pDeviceContext->IASetInputLayout(m_pInputLayout);
-
 	// Set vertex buffer
-    UINT stride = sizeof(FVector);
+    UINT stride = sizeof(SimpleVertex);
     UINT offset = 0;
     pDeviceContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
 	
+	// Set index buffer
+	pDeviceContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+
 	// Set primitive topology
     pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	pDeviceContext->VSSetShader(m_pVertexShader, NULL, 0);
-	pDeviceContext->PSSetShader(m_pPixelShader, NULL, 0);
-    pDeviceContext->Draw(3, 0);
+	// The draw call
+	pDeviceContext->DrawIndexed(36, 0, 0);
 }
 
 void Triangle::cleanup() {
 	IUnknown** ppUnknowns[] = {
-		(IUnknown**)&m_pVertexShader,
-		(IUnknown**)&m_pPixelShader,
-		(IUnknown**)&m_pInputLayout,
-		(IUnknown**)&m_pVertexBuffer
+		(IUnknown**)&m_pVertexBuffer,
+		(IUnknown**)&m_pIndexBuffer
 	};
-	UINT num = ARRAYSIZE(ppUnknowns);
 
-	releaseCOMObjs(ppUnknowns, num);
+	releaseCOMObjs(ppUnknowns);
+}
+
+XMMATRIX Triangle::getWorldMatrix() const {
+	return XMMatrixIdentity();
 }

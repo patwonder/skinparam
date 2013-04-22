@@ -52,7 +52,7 @@ BEGIN_MESSAGE_MAP(CMainWindow, CFrameWnd)
 END_MESSAGE_MAP()
 
 CMainWindow::CMainWindow()
-	: m_camera(Vector(1, 0, 0), Vector(0, 0, 0), Vector(0, 0, 1))
+	: m_camera(Vector(5, 5, 5), Vector(0, 0, 0), Vector(0, 0, 1))
 {
 	CSize resolution(800, 600);
 	Create(NULL, _APP_NAME_, WS_OVERLAPPEDWINDOW & (~WS_SIZEBOX) & (~WS_MAXIMIZEBOX), 

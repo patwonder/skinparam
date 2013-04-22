@@ -66,6 +66,8 @@
     </ClInclude>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Triangle.h" />
+    <ClInclude Include="D3DHelper.h" />
+    <ClInclude Include="ShaderGroup.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -113,10 +115,20 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Renderable.cpp" />
     <ClCompile Include="Triangle.cpp" />
+    <ClCompile Include="D3DHelper.cpp" />
+    <ClCompile Include="ShaderGroup.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Triangle.fx">
       <Filter>Shaders</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\Phong.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\Transform.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

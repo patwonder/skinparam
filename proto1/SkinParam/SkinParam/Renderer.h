@@ -10,6 +10,7 @@
 
 namespace Skin {
 	class Config;
+	class ShaderGroup;
 
 	class Renderer {
 	private:
@@ -29,9 +30,21 @@ namespace Skin {
 
 		std::vector<IUnknown**> m_vppCOMObjs;
 
+		// 3D Transformation
+		struct TransformConstantBuffer {
+			XMMATRIX g_matWorld;
+			XMMATRIX g_matViewProj;
+		};
+		ID3D11Buffer* m_pTransformConstantBuffer;
+		TransformConstantBuffer m_cbTransform;
+		XMMATRIX m_matProjection;
+
 		// Rendering
 		Camera* m_pCamera;
 		std::vector<Renderable*> m_vpRenderables;
+
+		ShaderGroup* m_psgTriangle;
+		ShaderGroup* m_psgPhong;
 
 		// Statistics
 		unsigned int m_nFrameCount;
@@ -41,11 +54,16 @@ namespace Skin {
 		HRESULT initDX();
 		HRESULT initStuff();
 
+		void loadShaders();
+		void unloadShaders();
+
+		void initTransform();
+		void updateTransform();
+		void updateProjection();
+
 		void computeStats();
 		void renderScene();
 
-		static HRESULT compileShader(const Utils::TString& strFileName, const char* szEntryPoint, const char* szShaderModel, ID3DBlob** ppBlobOut);
-		static void checkFailure(HRESULT hr, const Utils::TString& prompt);
 	public:
 		Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera);
 		~Renderer();

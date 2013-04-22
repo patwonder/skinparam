@@ -7,13 +7,15 @@
 #include "Renderer.h"
 #include "Config.h"
 #include "FVector.h"
+#include "ShaderGroup.h"
 
 using namespace Skin;
 using namespace Utils;
+using namespace D3DHelper;
 
 namespace Skin {
-	inline D3DXVECTOR3 DxVec(const Vector& v) {
-		return D3DXVECTOR3((float)v.x, (float)v.y, (float)v.z);
+	inline XMVECTOR XMVec(const Vector& v) {
+		return XMVectorSet((float)v.x, (float)v.y, (float)v.z, 0.0f);
 	}
 }
 
@@ -22,6 +24,9 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pDeviceContext(nullptr),
 	  m_pSwapChain(nullptr),
 	  m_pRenderTargetView(nullptr),
+	  m_pTransformConstantBuffer(nullptr),
+	  m_psgTriangle(nullptr),
+	  m_psgPhong(nullptr),
 	  m_hwnd(hwnd),
 	  m_rectView(rectView),
 	  m_pConfig(pConfig),
@@ -34,12 +39,18 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	m_vppCOMObjs.push_back((IUnknown**)&m_pDeviceContext);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pSwapChain);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pRenderTargetView);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pTransformConstantBuffer);
 
 	checkFailure(initDX(), _T("Failed to initialize DirectX 11"));
+
+	loadShaders();
+	initTransform();
+	updateProjection();
 }
 
 Renderer::~Renderer() {
 	removeAllRenderables();
+	unloadShaders();
 
 	if (m_pDeviceContext)
 		m_pDeviceContext->ClearState();
@@ -51,15 +62,6 @@ Renderer::~Renderer() {
 	}
 
 	m_vppCOMObjs.clear();
-}
-
-void Renderer::checkFailure(HRESULT hr, const TString& prompt) {
-	if (FAILED(hr)) {
-		TStringStream ss;
-		ss << (prompt) << _T("\nError description: ") << DXGetErrorDescription(hr);
-		::MessageBox(NULL, ss.str().c_str(), _T("Fatal Error"), MB_OK | MB_ICONERROR);
-		::exit(EXIT_FAILURE);
-	}
 }
 
 HRESULT Renderer::initDX() {
@@ -134,11 +136,6 @@ HRESULT Renderer::initDX() {
     return S_OK;
 }
 
-
-struct SimpleVertex {
-	FVector pos;
-};
-
 void Renderer::addRenderable(Renderable* renderable) {
 	renderable->init(m_pDevice);
 	m_vpRenderables.push_back(renderable);
@@ -161,13 +158,60 @@ void Renderer::removeAllRenderables() {
 	m_vpRenderables.clear();
 }
 
+
+void Renderer::loadShaders() {
+    D3D11_INPUT_ELEMENT_DESC tri_layout[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+	m_psgTriangle = new ShaderGroup(m_pDevice, _T("Triangle.fx"), tri_layout, ARRAYSIZE(tri_layout), "VS", "PS");
+
+	D3D11_INPUT_ELEMENT_DESC phong_layout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+	m_psgPhong = new ShaderGroup(m_pDevice, _T("Phong.fx"), phong_layout, ARRAYSIZE(phong_layout), "VS", "PS");
+
+}
+
+void Renderer::unloadShaders() {
+	delete m_psgTriangle; m_psgTriangle = nullptr;
+	delete m_psgPhong; m_psgPhong = nullptr;
+}
+
+void Renderer::initTransform() {
+	m_cbTransform.g_matWorld = XMMatrixIdentity();
+	m_cbTransform.g_matViewProj = XMMatrixIdentity();
+	checkFailure(createConstantBuffer(m_pDevice, &m_cbTransform, &m_pTransformConstantBuffer),
+		_T("Failed to create constant buffer"));
+}
+
+void Renderer::updateTransform() {
+	Vector vEye, vLookAt, vUp;
+	m_pCamera->look(vEye, vLookAt, vUp);
+
+	XMMATRIX matView = XMMatrixLookAtLH(XMVec(vEye), XMVec(vLookAt), XMVec(vUp));
+	XMMATRIX matViewProj = XMMatrixMultiply(matView, m_matProjection);
+	m_cbTransform.g_matViewProj = XMMatrixTranspose(matViewProj);
+
+	m_pDeviceContext->VSSetConstantBuffers(0, 1, &m_pTransformConstantBuffer);
+}
+
+void Renderer::updateProjection() {
+	m_matProjection = XMMatrixPerspectiveFovLH((float)(D3DX_PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 10000.0f);
+}
+
 void Renderer::render() {
     //
     // Clear the backbuffer
     //
-    float ClearColor[4] = { 0.8f, 0.4f, 0.0f, 1.0f }; // RGBA
+    //float ClearColor[4] = { 0.8f, 0.4f, 0.0f, 1.0f }; // RGBA
+	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
 	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, ClearColor);
     
+	m_psgPhong->use(m_pDeviceContext);
+	updateTransform();
+
 	renderScene();
 
 	m_pSwapChain->Present(m_pConfig->vsync ? 1 : 0, 0);
@@ -177,6 +221,10 @@ void Renderer::render() {
 
 void Renderer::renderScene() {
 	for (Renderable* renderable : m_vpRenderables) {
+		if (renderable->useTransform()) {
+			m_cbTransform.g_matWorld = XMMatrixTranspose(renderable->getWorldMatrix());
+			m_pDeviceContext->UpdateSubresource(m_pTransformConstantBuffer, 0, NULL, &m_cbTransform, 0, 0);
+		}
 		renderable->render(m_pDeviceContext, *m_pCamera);
 	}
 }
