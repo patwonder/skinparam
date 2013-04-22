@@ -32,8 +32,8 @@ namespace Skin {
 
 		// 3D Transformation
 		struct TransformConstantBuffer {
-			XMMATRIX g_matWorld;
-			XMMATRIX g_matViewProj;
+			XMFLOAT4X4 g_matWorld;
+			XMFLOAT4X4 g_matViewProj;
 		};
 		ID3D11Buffer* m_pTransformConstantBuffer;
 		TransformConstantBuffer m_cbTransform;

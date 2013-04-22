@@ -180,8 +180,8 @@ void Renderer::unloadShaders() {
 }
 
 void Renderer::initTransform() {
-	m_cbTransform.g_matWorld = XMMatrixIdentity();
-	m_cbTransform.g_matViewProj = XMMatrixIdentity();
+	XMStoreFloat4x4(&m_cbTransform.g_matWorld, XMMatrixIdentity());
+	XMStoreFloat4x4(&m_cbTransform.g_matViewProj, XMMatrixIdentity());
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbTransform, &m_pTransformConstantBuffer),
 		_T("Failed to create constant buffer"));
 }
@@ -192,7 +192,7 @@ void Renderer::updateTransform() {
 
 	XMMATRIX matView = XMMatrixLookAtLH(XMVec(vEye), XMVec(vLookAt), XMVec(vUp));
 	XMMATRIX matViewProj = XMMatrixMultiply(matView, XMLoadFloat4x4(&m_matProjection));
-	m_cbTransform.g_matViewProj = XMMatrixTranspose(matViewProj);
+	XMStoreFloat4x4(&m_cbTransform.g_matViewProj, XMMatrixTranspose(matViewProj));
 
 	m_pDeviceContext->VSSetConstantBuffers(0, 1, &m_pTransformConstantBuffer);
 }
@@ -223,7 +223,7 @@ void Renderer::render() {
 void Renderer::renderScene() {
 	for (Renderable* renderable : m_vpRenderables) {
 		if (renderable->useTransform()) {
-			m_cbTransform.g_matWorld = XMMatrixTranspose(renderable->getWorldMatrix());
+			XMStoreFloat4x4(&m_cbTransform.g_matWorld, XMMatrixTranspose(renderable->getWorldMatrix()));
 			m_pDeviceContext->UpdateSubresource(m_pTransformConstantBuffer, 0, NULL, &m_cbTransform, 0, 0);
 		}
 		renderable->render(m_pDeviceContext, *m_pCamera);
