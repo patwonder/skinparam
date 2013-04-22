@@ -37,7 +37,7 @@ namespace Skin {
 		};
 		ID3D11Buffer* m_pTransformConstantBuffer;
 		TransformConstantBuffer m_cbTransform;
-		XMMATRIX m_matProjection;
+		XMFLOAT4X4 m_matProjection; // use XMFLOAT4X4 instead of XMMATRIX to resolve alignment issues
 
 		// Rendering
 		Camera* m_pCamera;

@@ -191,14 +191,15 @@ void Renderer::updateTransform() {
 	m_pCamera->look(vEye, vLookAt, vUp);
 
 	XMMATRIX matView = XMMatrixLookAtLH(XMVec(vEye), XMVec(vLookAt), XMVec(vUp));
-	XMMATRIX matViewProj = XMMatrixMultiply(matView, m_matProjection);
+	XMMATRIX matViewProj = XMMatrixMultiply(matView, XMLoadFloat4x4(&m_matProjection));
 	m_cbTransform.g_matViewProj = XMMatrixTranspose(matViewProj);
 
 	m_pDeviceContext->VSSetConstantBuffers(0, 1, &m_pTransformConstantBuffer);
 }
 
 void Renderer::updateProjection() {
-	m_matProjection = XMMatrixPerspectiveFovLH((float)(D3DX_PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 10000.0f);
+	XMStoreFloat4x4(&m_matProjection,
+		XMMatrixPerspectiveFovLH((float)(D3DX_PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 10000.0f));
 }
 
 void Renderer::render() {
