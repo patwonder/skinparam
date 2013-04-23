@@ -128,6 +128,7 @@
     </ClCompile>
     <ClCompile Include="D3DHelper.cpp" />
     <ClCompile Include="MainWindow.cpp" />
+    <ClCompile Include="Material.cpp" />
     <ClCompile Include="Renderable.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="ShaderGroup.cpp" />
@@ -136,6 +137,9 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Triangle.cpp" />
+    <ClCompile Include="Utils\Color.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="Utils\FVector.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
@@ -165,12 +169,15 @@
     <ClInclude Include="DXUT\Optional\DXUTShapes.h" />
     <ClInclude Include="DXUT\Optional\ImeUi.h" />
     <ClInclude Include="D3DHelper.h" />
+    <ClInclude Include="Light.h" />
     <ClInclude Include="MainWindow.h" />
+    <ClInclude Include="Material.h" />
     <ClInclude Include="Renderable.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="ShaderGroup.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Triangle.h" />
+    <ClInclude Include="Utils\Color.h" />
     <ClInclude Include="Utils\FVector.h" />
     <ClInclude Include="Utils\ObjLoader.h" />
     <ClInclude Include="Utils\TString.h" />
@@ -189,7 +196,9 @@
     <None Include="Shaders\Phong.fx">
       <FileType>Document</FileType>
     </None>
-    <None Include="Shaders\Transform.fx">
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\Lighting.fx">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

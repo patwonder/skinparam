@@ -7,6 +7,7 @@
 #include "Camera.h"
 #include "TString.h"
 #include "D3DHelper.h"
+#include "Material.h"
 
 namespace Skin {
 	class Renderable /* interface */ {
@@ -20,6 +21,7 @@ namespace Skin {
 		/** auxillary features */
 		virtual bool useTransform() const { return false; }
 		virtual XMMATRIX getWorldMatrix() const;
+		virtual Material getMaterial() const;
 	};
 
 } // namespace Skin

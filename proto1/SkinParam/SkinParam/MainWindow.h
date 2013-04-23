@@ -11,6 +11,7 @@ namespace Skin {
 	class CMainWindow;
 	class Renderer;
 	class Triangle;
+	struct Light;
 
 	class CMainApp : public CWinApp {
 	private:
@@ -28,6 +29,8 @@ namespace Skin {
 		Camera m_camera;
 
 		Triangle* m_pTriangle;
+		Light* m_pLight1;
+		Light* m_pLight2;
 
 		void showInfo();
 

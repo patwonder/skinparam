@@ -68,6 +68,11 @@
     <ClInclude Include="Triangle.h" />
     <ClInclude Include="D3DHelper.h" />
     <ClInclude Include="ShaderGroup.h" />
+    <ClInclude Include="Light.h" />
+    <ClInclude Include="Utils\Color.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Material.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -117,6 +122,10 @@
     <ClCompile Include="Triangle.cpp" />
     <ClCompile Include="D3DHelper.cpp" />
     <ClCompile Include="ShaderGroup.cpp" />
+    <ClCompile Include="Utils\Color.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Material.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Triangle.fx">
@@ -127,7 +136,7 @@
     <FxCompile Include="Shaders\Phong.fx">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shaders\Transform.fx">
+    <FxCompile Include="Shaders\Lighting.fx">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

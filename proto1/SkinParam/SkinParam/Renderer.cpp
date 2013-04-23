@@ -8,6 +8,8 @@
 #include "Config.h"
 #include "FVector.h"
 #include "ShaderGroup.h"
+#include "Light.h"
+#include "Material.h"
 
 using namespace Skin;
 using namespace Utils;
@@ -17,6 +19,15 @@ namespace Skin {
 	inline XMVECTOR XMVec(const Vector& v) {
 		return XMVectorSet((float)v.x, (float)v.y, (float)v.z, 0.0f);
 	}
+	inline XMFLOAT4 XMColor(const Color& c) {
+		return XMFLOAT4(c.red, c.green, c.blue, c.alpha);
+	}
+	inline XMFLOAT3 XMColor3(const Color& c) {
+		return XMFLOAT3(c.red, c.green, c.blue);
+	}
+	inline XMFLOAT3 XMPos(const Vector& p) {
+		return XMFLOAT3((float)p.x, (float)p.y, (float)p.z);
+	}
 }
 
 Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
@@ -25,6 +36,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pSwapChain(nullptr),
 	  m_pRenderTargetView(nullptr),
 	  m_pTransformConstantBuffer(nullptr),
+	  m_pLightingConstantBuffer(nullptr),
+	  m_pMaterialConstantBuffer(nullptr),
 	  m_psgTriangle(nullptr),
 	  m_psgPhong(nullptr),
 	  m_hwnd(hwnd),
@@ -40,11 +53,15 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	m_vppCOMObjs.push_back((IUnknown**)&m_pSwapChain);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pRenderTargetView);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pTransformConstantBuffer);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pLightingConstantBuffer);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pMaterialConstantBuffer);
 
 	checkFailure(initDX(), _T("Failed to initialize DirectX 11"));
 
 	loadShaders();
 	initTransform();
+	initLighting();
+	initMaterial();
 	updateProjection();
 }
 
@@ -158,6 +175,22 @@ void Renderer::removeAllRenderables() {
 	m_vpRenderables.clear();
 }
 
+void Renderer::addLight(Light* light) {
+	m_vpLights.push_back(light);
+}
+
+void Renderer::removeLight(Light* light) {
+	for (size_t i = 0; i < m_vpLights.size(); i++) {
+		if (m_vpLights[i] == light) {
+			m_vpLights.erase(m_vpLights.begin() + i);
+			break;
+		}
+	}
+}
+
+void Renderer::removeAllLights() {
+	m_vpLights.clear();
+}
 
 void Renderer::loadShaders() {
     D3D11_INPUT_ELEMENT_DESC tri_layout[] = {
@@ -169,6 +202,7 @@ void Renderer::loadShaders() {
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	m_psgPhong = new ShaderGroup(m_pDevice, _T("Phong.fx"), phong_layout, ARRAYSIZE(phong_layout), "VS", "PS");
 
@@ -182,8 +216,9 @@ void Renderer::unloadShaders() {
 void Renderer::initTransform() {
 	XMStoreFloat4x4(&m_cbTransform.g_matWorld, XMMatrixIdentity());
 	XMStoreFloat4x4(&m_cbTransform.g_matViewProj, XMMatrixIdentity());
+	m_cbTransform.g_posEye = XMPos(Vector::ZERO);
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbTransform, &m_pTransformConstantBuffer),
-		_T("Failed to create constant buffer"));
+		_T("Failed to create transform constant buffer"));
 }
 
 void Renderer::updateTransform() {
@@ -194,12 +229,74 @@ void Renderer::updateTransform() {
 	XMMATRIX matViewProj = XMMatrixMultiply(matView, XMLoadFloat4x4(&m_matProjection));
 	XMStoreFloat4x4(&m_cbTransform.g_matViewProj, XMMatrixTranspose(matViewProj));
 
-	m_pDeviceContext->VSSetConstantBuffers(0, 1, &m_pTransformConstantBuffer);
+	m_cbTransform.g_posEye = XMPos(vEye);
+}
+
+void Renderer::setGlobalAmbient(const Color& coAmbient) {
+	m_cbLighting.g_ambient = XMColor3(coAmbient);
+}
+
+void Renderer::initLighting() {
+	m_cbLighting.g_ambient = XMColor3(Color::Black);
+	for (UINT i = 0; i < LightingConstantBuffer::NUM_LIGHTS; i++) {
+		RLight& l = m_cbLighting.g_lights[i];
+		l.ambient = XMColor3(Color::Black);
+		l.diffuse = XMColor3(Color::Black);
+		l.specular = XMColor3(Color::Black);
+		l.position = XMColor3(Color::Black);
+		l.attenuation = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	}
+
+	checkFailure(createConstantBuffer(m_pDevice, &m_cbLighting, &m_pLightingConstantBuffer),
+		_T("Failed to create lighting constant buffer"));
+}
+
+void Renderer::updateLighting() {
+	for (UINT i = 0; i < LightingConstantBuffer::NUM_LIGHTS && i < m_vpLights.size(); i++) {
+		RLight& rl = m_cbLighting.g_lights[i];
+		Light* l = m_vpLights[i];
+		rl.ambient = XMColor3(l->coAmbient);
+		rl.diffuse = XMColor3(l->coDiffuse);
+		rl.specular = XMColor3(l->coSpecular);
+		rl.position = XMPos(l->vecPosition);
+		rl.attenuation = XMFLOAT3(l->fAtten0, l->fAtten1, l->fAtten2);
+	}
+	for (UINT i = m_vpLights.size(); i < LightingConstantBuffer::NUM_LIGHTS; i++) {
+		RLight& l = m_cbLighting.g_lights[i];
+		l.ambient = XMColor3(Color::Black);
+		l.diffuse = XMColor3(Color::Black);
+		l.specular = XMColor3(Color::Black);
+		l.position = XMPos(Vector::ZERO);
+		l.attenuation = XMFLOAT3(1.0f, 0.0f, 0.0f);
+	}
+	m_pDeviceContext->UpdateSubresource(m_pLightingConstantBuffer, 0, NULL, &m_cbLighting, 0, 0);
+}
+
+void Renderer::initMaterial() {
+	m_cbMaterial.g_mtAmbient = XMColor3(Color::White);
+	m_cbMaterial.g_mtDiffuse = XMColor3(Color::White);
+	m_cbMaterial.g_mtSpecular = XMColor3(Color::White);
+	m_cbMaterial.g_mtEmmisive = XMColor3(Color::Black);
+	m_cbMaterial.g_mtShininess = 0.0f;
+
+	checkFailure(createConstantBuffer(m_pDevice, &m_cbMaterial, &m_pMaterialConstantBuffer),
+		_T("Failed to create material constant buffer"));
 }
 
 void Renderer::updateProjection() {
 	XMStoreFloat4x4(&m_matProjection,
 		XMMatrixPerspectiveFovLH((float)(D3DX_PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 10000.0f));
+}
+
+void Renderer::setConstantBuffers() {
+	ID3D11Buffer* buffers[] = {
+		m_pTransformConstantBuffer,
+		m_pLightingConstantBuffer,
+		m_pMaterialConstantBuffer
+	};
+
+	m_pDeviceContext->VSSetConstantBuffers(0, ARRAYSIZE(buffers), buffers);
+	m_pDeviceContext->PSSetConstantBuffers(0, ARRAYSIZE(buffers), buffers);
 }
 
 void Renderer::render() {
@@ -212,6 +309,8 @@ void Renderer::render() {
     
 	m_psgPhong->use(m_pDeviceContext);
 	updateTransform();
+	updateLighting();
+	setConstantBuffers();
 
 	renderScene();
 
@@ -225,6 +324,14 @@ void Renderer::renderScene() {
 		if (renderable->useTransform()) {
 			XMStoreFloat4x4(&m_cbTransform.g_matWorld, XMMatrixTranspose(renderable->getWorldMatrix()));
 			m_pDeviceContext->UpdateSubresource(m_pTransformConstantBuffer, 0, NULL, &m_cbTransform, 0, 0);
+
+			Material mt = renderable->getMaterial();
+			m_cbMaterial.g_mtAmbient = XMColor3(mt.coAmbient);
+			m_cbMaterial.g_mtDiffuse = XMColor3(mt.coDiffuse);
+			m_cbMaterial.g_mtSpecular = XMColor3(mt.coSpecular);
+			m_cbMaterial.g_mtEmmisive = XMColor3(mt.coEmmisive);
+			m_cbMaterial.g_mtShininess = mt.fShininess;
+			m_pDeviceContext->UpdateSubresource(m_pMaterialConstantBuffer, 0, NULL, &m_cbMaterial, 0, 0);
 		}
 		renderable->render(m_pDeviceContext, *m_pCamera);
 	}

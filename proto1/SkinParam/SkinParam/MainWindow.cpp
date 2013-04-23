@@ -7,6 +7,7 @@
 #include "Renderer.h"
 
 #include "Triangle.h"
+#include "Light.h"
 
 using namespace Skin;
 using namespace Utils;
@@ -52,7 +53,7 @@ BEGIN_MESSAGE_MAP(CMainWindow, CFrameWnd)
 END_MESSAGE_MAP()
 
 CMainWindow::CMainWindow()
-	: m_camera(Vector(5, 5, 5), Vector(0, 0, 0), Vector(0, 0, 1))
+	: m_camera(Vector(3, 3, 3), Vector(0, 0, 0), Vector(0, 0, 1))
 {
 	CSize resolution(800, 600);
 	Create(NULL, _APP_NAME_, WS_OVERLAPPEDWINDOW & (~WS_SIZEBOX) & (~WS_MAXIMIZEBOX), 
@@ -69,14 +70,23 @@ CMainWindow::CMainWindow()
 	m_pRenderer = new Renderer(m_hWnd, CRect(0, 0, resolution.cx, resolution.cy), &m_config, &m_camera);
 	m_pTriangle = new Triangle();
 	m_pRenderer->addRenderable(m_pTriangle);
+
+	m_pLight1 = new Light(Vector(5, 0, 5), Color::White * 0.2f, Color::White * 0.8f, Color::White * 0.3f, 1.0f, 0.03f, 0.0f);
+	m_pLight2 = new Light(Vector(0, 5, 5), Color::Blue * 0.2f, Color::Blue * 0.8f, Color::Blue * 0.3f, 1.0f, 0.03f, 0.0f);
+
+	m_pRenderer->addLight(m_pLight1);
+	m_pRenderer->addLight(m_pLight2);
 }
 
 CMainWindow::~CMainWindow()
 {
 	m_pRenderer->removeAllRenderables();
+	m_pRenderer->removeAllLights();
 
 	delete m_pRenderer;
 	delete m_pTriangle;
+	delete m_pLight1;
+	delete m_pLight2;
 }
 
 void CMainWindow::showInfo() {

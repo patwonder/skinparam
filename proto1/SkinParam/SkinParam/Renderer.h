@@ -7,10 +7,12 @@
 #include <vector>
 
 #include "Renderable.h"
+#include "Color.h"
 
 namespace Skin {
 	class Config;
 	class ShaderGroup;
+	struct Light;
 
 	class Renderer {
 	private:
@@ -34,14 +36,50 @@ namespace Skin {
 		struct TransformConstantBuffer {
 			XMFLOAT4X4 g_matWorld;
 			XMFLOAT4X4 g_matViewProj;
+			XMFLOAT3 g_posEye;
+			float pad;
+		};
+		struct RLight {
+			XMFLOAT3 ambient;
+			float pad1;
+			XMFLOAT3 diffuse;
+			float pad2;
+			XMFLOAT3 specular;
+			float pad3;
+			XMFLOAT3 attenuation;
+			float pad4;
+			XMFLOAT3 position;
+			float pad5;
+		};
+		struct LightingConstantBuffer {
+			static const UINT NUM_LIGHTS = 2;
+			RLight g_lights[NUM_LIGHTS];
+			XMFLOAT3 g_ambient;
+			float pad;
+		};
+		struct MaterialConstantBuffer {
+			XMFLOAT3 g_mtAmbient;
+			float pad1;
+			XMFLOAT3 g_mtDiffuse;
+			float pad2;
+			XMFLOAT3 g_mtSpecular;
+			float pad3;
+			XMFLOAT3 g_mtEmmisive;
+			float g_mtShininess;
 		};
 		ID3D11Buffer* m_pTransformConstantBuffer;
 		TransformConstantBuffer m_cbTransform;
+		ID3D11Buffer* m_pLightingConstantBuffer;
+		LightingConstantBuffer m_cbLighting;
+		ID3D11Buffer* m_pMaterialConstantBuffer;
+		MaterialConstantBuffer m_cbMaterial;
+
 		XMFLOAT4X4 m_matProjection; // use XMFLOAT4X4 instead of XMMATRIX to resolve alignment issues
 
 		// Rendering
 		Camera* m_pCamera;
 		std::vector<Renderable*> m_vpRenderables;
+		std::vector<Light*> m_vpLights;
 
 		ShaderGroup* m_psgTriangle;
 		ShaderGroup* m_psgPhong;
@@ -59,8 +97,12 @@ namespace Skin {
 
 		void initTransform();
 		void updateTransform();
+		void initLighting();
+		void updateLighting();
+		void initMaterial();
 		void updateProjection();
 
+		void setConstantBuffers();
 		void computeStats();
 		void renderScene();
 
@@ -71,6 +113,11 @@ namespace Skin {
 		void addRenderable(Renderable* renderable);
 		void removeRenderable(Renderable* renderable);
 		void removeAllRenderables();
+
+		void setGlobalAmbient(const Utils::Color& coAmbient);
+		void addLight(Light* light);
+		void removeLight(Light* light);
+		void removeAllLights();
 
 		void render();
 

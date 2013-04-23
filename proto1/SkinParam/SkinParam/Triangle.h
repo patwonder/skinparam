@@ -19,5 +19,6 @@ namespace Skin {
 
 		bool useTransform() const override { return true; }
 		XMMATRIX getWorldMatrix() const override;
+		Material getMaterial() const override;
 	};
 } // namespace Skin

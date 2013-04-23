@@ -35,7 +35,7 @@ HRESULT D3DHelper::compileShader(const TString& strFileName, const char* szEntry
         dwShaderFlags, 0, NULL, ppBlobOut, &pErrorBlob, NULL);
     if (FAILED(hr)) {
         if( pErrorBlob != NULL )
-            OutputDebugStringA((char*)pErrorBlob->GetBufferPointer());
+            MessageBoxA(NULL, (char*)pErrorBlob->GetBufferPointer(), "Error Compiling Shader", MB_OK);
         if( pErrorBlob ) pErrorBlob->Release();
         return hr;
     }
