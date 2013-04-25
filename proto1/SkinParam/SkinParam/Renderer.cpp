@@ -6,10 +6,11 @@
 
 #include "Renderer.h"
 #include "Config.h"
-#include "FVector.h"
 #include "ShaderGroup.h"
 #include "Light.h"
 #include "Material.h"
+
+#include "FVector.h"
 
 using namespace Skin;
 using namespace Utils;
@@ -35,6 +36,10 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pDeviceContext(nullptr),
 	  m_pSwapChain(nullptr),
 	  m_pRenderTargetView(nullptr),
+	  m_pDepthStencil(nullptr),
+	  m_pDepthStencilView(nullptr),
+	  m_pPlaceholderSamplerState(nullptr),
+	  m_pPlaceholderTexture(nullptr),
 	  m_pTransformConstantBuffer(nullptr),
 	  m_pLightingConstantBuffer(nullptr),
 	  m_pMaterialConstantBuffer(nullptr),
@@ -52,11 +57,17 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	m_vppCOMObjs.push_back((IUnknown**)&m_pDeviceContext);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pSwapChain);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pRenderTargetView);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pDepthStencil);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pDepthStencilView);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pTransformConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pLightingConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pMaterialConstantBuffer);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pPlaceholderSamplerState);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pPlaceholderTexture);
 
 	checkFailure(initDX(), _T("Failed to initialize DirectX 11"));
+
+	initMisc();
 
 	loadShaders();
 	initTransform();
@@ -119,7 +130,7 @@ HRESULT Renderer::initDX() {
 
     for (UINT driverTypeIndex = 0; driverTypeIndex < numDriverTypes; driverTypeIndex++) {
 		m_driverType = driverTypes[driverTypeIndex];
-        hr = D3D11CreateDeviceAndSwapChain(NULL, m_driverType, NULL, createDeviceFlags, featureLevels, numFeatureLevels,
+        hr = D3D11CreateDeviceAndSwapChain(nullptr, m_driverType, nullptr, createDeviceFlags, featureLevels, numFeatureLevels,
 			D3D11_SDK_VERSION, &sd, &m_pSwapChain, &m_pDevice, &m_featureLevel, &m_pDeviceContext);
         if (SUCCEEDED(hr))
             break;
@@ -128,19 +139,47 @@ HRESULT Renderer::initDX() {
         return hr;
 
     // Create a render target view
-    ID3D11Texture2D* pBackBuffer = NULL;
+    ID3D11Texture2D* pBackBuffer = nullptr;
 	hr = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
 	if (FAILED(hr))
 		return hr;
 
-	hr = m_pDevice->CreateRenderTargetView(pBackBuffer, NULL, &m_pRenderTargetView);
+	hr = m_pDevice->CreateRenderTargetView(pBackBuffer, nullptr, &m_pRenderTargetView);
 	pBackBuffer->Release();
 	if (FAILED(hr))
 		return hr;
 
-	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, NULL);
+    // Create depth stencil texture
+    D3D11_TEXTURE2D_DESC descDepth;
+    ZeroMemory(&descDepth, sizeof(descDepth));
+	descDepth.Width = m_rectView.Width();
+	descDepth.Height = m_rectView.Height();
+    descDepth.MipLevels = 1;
+    descDepth.ArraySize = 1;
+    descDepth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    descDepth.SampleDesc.Count = 1;
+    descDepth.SampleDesc.Quality = 0;
+    descDepth.Usage = D3D11_USAGE_DEFAULT;
+    descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    descDepth.CPUAccessFlags = 0;
+    descDepth.MiscFlags = 0;
+    hr = m_pDevice->CreateTexture2D(&descDepth, nullptr, &m_pDepthStencil);
+    if (FAILED(hr))
+        return hr;
 
-    // Setup the viewport
+    // Create the depth stencil view
+    D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
+    ZeroMemory(&descDSV, sizeof(descDSV));
+    descDSV.Format = descDepth.Format;
+    descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+    descDSV.Texture2D.MipSlice = 0;
+    hr = m_pDevice->CreateDepthStencilView(m_pDepthStencil, &descDSV, &m_pDepthStencilView);
+    if (FAILED(hr))
+        return hr;
+
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencilView);
+
+	// Setup the viewport
     D3D11_VIEWPORT vp;
 	vp.Width = (float)m_rectView.Width();
 	vp.Height = (float)m_rectView.Height();
@@ -151,6 +190,22 @@ HRESULT Renderer::initDX() {
     m_pDeviceContext->RSSetViewports(1, &vp);
 
     return S_OK;
+}
+
+void Renderer::initMisc() {
+	// Creates the placeholder texture for non-textured objects
+	checkFailure(createSamplerState(m_pDevice, D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP,
+		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pPlaceholderSamplerState),
+		_T("Failed to create placeholder sampler state"));
+
+	checkFailure(createTexture2D(m_pDevice, 1, 1, DXGI_FORMAT_R32G32B32A32_FLOAT, &m_pPlaceholderTexture),
+		_T("Failed to create placeholder texture"));
+
+	float initData[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	ID3D11Resource* pResource = nullptr;
+	m_pPlaceholderTexture->GetResource(&pResource);
+	m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 16, 0);
+	pResource->Release();
 }
 
 void Renderer::addRenderable(Renderable* renderable) {
@@ -203,6 +258,7 @@ void Renderer::loadShaders() {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	m_psgPhong = new ShaderGroup(m_pDevice, _T("Phong.fx"), phong_layout, ARRAYSIZE(phong_layout), "VS", "PS");
 
@@ -254,7 +310,7 @@ void Renderer::initLighting() {
 void Renderer::updateLighting() {
 	for (UINT i = 0; i < LightingConstantBuffer::NUM_LIGHTS && i < m_vpLights.size(); i++) {
 		RLight& rl = m_cbLighting.g_lights[i];
-		Light* l = m_vpLights[i];
+		const Light* l = m_vpLights[i];
 		rl.ambient = XMColor3(l->coAmbient);
 		rl.diffuse = XMColor3(l->coDiffuse);
 		rl.specular = XMColor3(l->coSpecular);
@@ -276,7 +332,7 @@ void Renderer::initMaterial() {
 	m_cbMaterial.g_mtAmbient = XMColor3(Color::White);
 	m_cbMaterial.g_mtDiffuse = XMColor3(Color::White);
 	m_cbMaterial.g_mtSpecular = XMColor3(Color::White);
-	m_cbMaterial.g_mtEmmisive = XMColor3(Color::Black);
+	m_cbMaterial.g_mtEmissive = XMColor3(Color::Black);
 	m_cbMaterial.g_mtShininess = 0.0f;
 
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbMaterial, &m_pMaterialConstantBuffer),
@@ -285,7 +341,7 @@ void Renderer::initMaterial() {
 
 void Renderer::updateProjection() {
 	XMStoreFloat4x4(&m_matProjection,
-		XMMatrixPerspectiveFovLH((float)(D3DX_PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 10000.0f));
+		XMMatrixPerspectiveFovLH((float)(Math::PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 10000.0f));
 }
 
 void Renderer::setConstantBuffers() {
@@ -306,7 +362,12 @@ void Renderer::render() {
     //float ClearColor[4] = { 0.8f, 0.4f, 0.0f, 1.0f }; // RGBA
 	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
 	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, ClearColor);
-    
+
+    //
+    // Clear the depth buffer to 1.0 (max depth)
+    //
+	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
 	m_psgPhong->use(m_pDeviceContext);
 	updateTransform();
 	updateLighting();
@@ -321,20 +382,27 @@ void Renderer::render() {
 
 void Renderer::renderScene() {
 	for (Renderable* renderable : m_vpRenderables) {
-		if (renderable->useTransform()) {
-			XMStoreFloat4x4(&m_cbTransform.g_matWorld, XMMatrixTranspose(renderable->getWorldMatrix()));
-			m_pDeviceContext->UpdateSubresource(m_pTransformConstantBuffer, 0, NULL, &m_cbTransform, 0, 0);
-
-			Material mt = renderable->getMaterial();
-			m_cbMaterial.g_mtAmbient = XMColor3(mt.coAmbient);
-			m_cbMaterial.g_mtDiffuse = XMColor3(mt.coDiffuse);
-			m_cbMaterial.g_mtSpecular = XMColor3(mt.coSpecular);
-			m_cbMaterial.g_mtEmmisive = XMColor3(mt.coEmmisive);
-			m_cbMaterial.g_mtShininess = mt.fShininess;
-			m_pDeviceContext->UpdateSubresource(m_pMaterialConstantBuffer, 0, NULL, &m_cbMaterial, 0, 0);
-		}
-		renderable->render(m_pDeviceContext, *m_pCamera);
+		renderable->render(m_pDeviceContext, this, *m_pCamera);
 	}
+}
+
+void Renderer::setMaterial(const Material& mt) {
+	m_cbMaterial.g_mtAmbient = XMColor3(mt.coAmbient);
+	m_cbMaterial.g_mtDiffuse = XMColor3(mt.coDiffuse);
+	m_cbMaterial.g_mtSpecular = XMColor3(mt.coSpecular);
+	m_cbMaterial.g_mtEmissive = XMColor3(mt.coEmissive);
+	m_cbMaterial.g_mtShininess = mt.fShininess;
+	m_pDeviceContext->UpdateSubresource(m_pMaterialConstantBuffer, 0, NULL, &m_cbMaterial, 0, 0);
+}
+
+void Renderer::setWorldMatrix(const XMMATRIX& matWorld) {
+	XMStoreFloat4x4(&m_cbTransform.g_matWorld, XMMatrixTranspose(matWorld));
+	m_pDeviceContext->UpdateSubresource(m_pTransformConstantBuffer, 0, NULL, &m_cbTransform, 0, 0);
+}
+
+void Renderer::usePlaceholderTexture() {
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pPlaceholderSamplerState);
+	m_pDeviceContext->PSSetShaderResources(0, 1, &m_pPlaceholderTexture);
 }
 
 void Renderer::computeStats() {

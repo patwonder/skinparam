@@ -53,6 +53,10 @@ const FVector FVector::operator-() const {
 	return FVector(-x, -y, -z);
 }
 
+FVector::operator bool() const {
+	return *this != ZERO;
+}
+
 float FVector::length() const {
 	return sqrt(x * x + y * y + z * z);
 }

@@ -18,6 +18,7 @@ struct FVector {
 	FVector& operator/=(float div);
 	const FVector operator+() const;
 	const FVector operator-() const;
+	operator bool () const;
 
 	float length() const;
 	const FVector normalize() const;

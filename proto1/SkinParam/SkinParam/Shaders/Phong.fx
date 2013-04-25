@@ -2,20 +2,29 @@
 
 #include "Lighting.fx"
 
+struct VS_INPUT {
+	float4 pos : POSITION;
+	float4 color : COLOR;
+	float3 normal : NORMAL;
+	float2 texCoord : TEXCOORD0;
+};
+
 struct VS_OUTPUT {
 	float4 pos : SV_POSITION;
 	float4 color : COLOR0;
 	float3 normal : TEXCOORD0;
 	float3 worldPos : TEXCOORD1;
+	float2 texCoord : TEXCOORD2;
 };
 
-VS_OUTPUT VS(float4 pos : POSITION, float4 color : COLOR, float3 normal : NORMAL) {
+VS_OUTPUT VS(VS_INPUT input) {
 	VS_OUTPUT output;
-	float4 wpos4 = mul(pos, g_matWorld);
+	float4 wpos4 = mul(input.pos, g_matWorld);
 	output.worldPos = wpos4.xyz / wpos4.w;
 	output.pos = mul(wpos4, g_matViewProj);
-	output.color = color;
-	output.normal = mul(float4(normal, 0.0), g_matWorld).xyz;
+	output.color = input.color;
+	output.normal = mul(float4(input.normal, 0.0), g_matWorld).xyz;
+	output.texCoord = input.texCoord;
 	return output;
 }
 
@@ -54,6 +63,8 @@ float3 phong_lighting(Material mt, float3 ambient, Light lights[NUM_LIGHTS],
 }
 
 float4 PS(VS_OUTPUT input) : SV_Target {
-	float3 color = phong_lighting(g_material, g_ambient, g_lights, g_posEye, input.worldPos, input.color.rgb, input.normal);
+	// texture
+	float3 tex = g_texture.Sample(g_samTexture, input.texCoord).rgb;
+	float3 color = phong_lighting(g_material, g_ambient, g_lights, g_posEye, input.worldPos, tex * input.color.rgb, input.normal);
 	return float4(color, 1.0);
 }

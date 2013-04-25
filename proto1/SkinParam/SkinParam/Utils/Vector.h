@@ -19,6 +19,7 @@ struct Vector {
 	Vector& operator/=(double div);
 	const Vector operator+() const;
 	const Vector operator-() const;
+	operator bool () const;
 
 	double length() const;
 	const Vector normalize() const;

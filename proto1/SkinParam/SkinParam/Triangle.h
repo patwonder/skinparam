@@ -13,12 +13,8 @@ namespace Skin {
 	public:
 		Triangle();
 		void init(ID3D11Device* pDevice) override;
-		void render(ID3D11DeviceContext* pDeviceContext, const Camera& pCamera) override;
+		void render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) override;
 		void cleanup() override;
 		~Triangle() override;
-
-		bool useTransform() const override { return true; }
-		XMMATRIX getWorldMatrix() const override;
-		Material getMaterial() const override;
 	};
 } // namespace Skin

@@ -7,6 +7,7 @@
 #include "Renderer.h"
 
 #include "Triangle.h"
+#include "Head.h"
 #include "Light.h"
 
 using namespace Skin;
@@ -52,8 +53,11 @@ BEGIN_MESSAGE_MAP(CMainWindow, CFrameWnd)
 	ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
+const double CMainWindow::CTRL_MINIFIER = 1 / 2.0;
+const double CMainWindow::SHIFT_MAGNIFIER = 2.0;
+
 CMainWindow::CMainWindow()
-	: m_camera(Vector(3, 3, 3), Vector(0, 0, 0), Vector(0, 0, 1))
+	: m_camera(Vector(0, -5, 0), Vector(0, 0, 0), Vector(0, 0, 1))
 {
 	CSize resolution(800, 600);
 	Create(NULL, _APP_NAME_, WS_OVERLAPPEDWINDOW & (~WS_SIZEBOX) & (~WS_MAXIMIZEBOX), 
@@ -69,22 +73,26 @@ CMainWindow::CMainWindow()
 
 	m_pRenderer = new Renderer(m_hWnd, CRect(0, 0, resolution.cx, resolution.cy), &m_config, &m_camera);
 	m_pTriangle = new Triangle();
-	m_pRenderer->addRenderable(m_pTriangle);
+	m_pHead = new Head();
+	//m_pRenderer->addRenderable(m_pTriangle);
+	m_pRenderer->addRenderable(m_pHead);
 
 	m_pLight1 = new Light(Vector(5, 0, 5), Color::White * 0.2f, Color::White * 0.8f, Color::White * 0.3f, 1.0f, 0.03f, 0.0f);
-	m_pLight2 = new Light(Vector(0, 5, 5), Color::Blue * 0.2f, Color::Blue * 0.8f, Color::Blue * 0.3f, 1.0f, 0.03f, 0.0f);
-
+	m_pLight2 = new Light(Vector(0, 5, 5), Color::Green * 0.0f, Color::Green * 0.2f, Color::Green * 0.05f, 1.0f, 0.03f, 0.0f);
 	m_pRenderer->addLight(m_pLight1);
-	m_pRenderer->addLight(m_pLight2);
+	//m_pRenderer->addLight(m_pLight2);
+
+	m_bChangingView = false;
+	m_camera.restrictView(3.0, 12.0);
 }
 
-CMainWindow::~CMainWindow()
-{
+CMainWindow::~CMainWindow() {
 	m_pRenderer->removeAllRenderables();
 	m_pRenderer->removeAllLights();
 
 	delete m_pRenderer;
 	delete m_pTriangle;
+	delete m_pHead;
 	delete m_pLight1;
 	delete m_pLight2;
 }
@@ -97,13 +105,20 @@ void CMainWindow::showInfo() {
 	SetWindowText(tss.str().c_str());
 }
 
+double CMainWindow::getViewModifier(UINT nFlags) {
+	if (nFlags & MK_CONTROL)
+		return CTRL_MINIFIER;
+	if (nFlags & MK_SHIFT)
+		return SHIFT_MAGNIFIER;
+	return 1.0;
+}
+
 BOOL CMainWindow::OnIdle(LONG lCount) {
 	UNREFERENCED_PARAMETER(lCount);
 
 	// Stop doing work while minimized
 	if (IsIconic()) {
-		Sleep(100);
-		return TRUE;
+		return FALSE;
 	}
 
 	m_pRenderer->render();
@@ -126,22 +141,37 @@ afx_msg void CMainWindow::OnLButtonDown(UINT nFlags, CPoint point) {
 }
 
 afx_msg void CMainWindow::OnRButtonDown(UINT nFlags, CPoint point) {
+	SetCapture();
+	m_bChangingView = true;
+	m_ptStart = point;
 }
 
 afx_msg void CMainWindow::OnLButtonUp(UINT nFlags, CPoint point) {
 }
 
 afx_msg void CMainWindow::OnRButtonUp(UINT nFlags, CPoint point) {
+	m_bChangingView = false;
+	ReleaseCapture();
 }
 
 afx_msg void CMainWindow::OnLButtonDblClk(UINT nFlags, CPoint point) {
 }
 
 afx_msg void CMainWindow::OnMouseMove(UINT nFlags, CPoint point) {
+	if (m_bChangingView) {
+		CPoint ptDist = (point - m_ptStart);
+		m_ptStart = point;
+
+		double modifier = getViewModifier(nFlags);
+		m_camera.changeView(modifier * ptDist.x * Math::PI / 720, modifier * ptDist.y * Math::PI / 720);
+	}
 }
 
 afx_msg BOOL CMainWindow::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt) {
-	return TRUE;
+	double delta = 0.2 / WHEEL_DELTA * zDelta;
+	m_camera.moveView(getViewModifier(nFlags) * delta);
+
+	return FALSE;
 }
 
 afx_msg void CMainWindow::OnClose() {

@@ -9,11 +9,3 @@
 
 using namespace Skin;
 using namespace Utils;
-
-XMMATRIX Renderable::getWorldMatrix() const {
-	return XMMatrixIdentity();
-}
-
-Material Renderable::getMaterial() const {
-	return Material::White;
-}

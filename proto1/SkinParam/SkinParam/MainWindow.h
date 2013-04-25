@@ -11,6 +11,7 @@ namespace Skin {
 	class CMainWindow;
 	class Renderer;
 	class Triangle;
+	class Head;
 	struct Light;
 
 	class CMainApp : public CWinApp {
@@ -29,8 +30,18 @@ namespace Skin {
 		Camera m_camera;
 
 		Triangle* m_pTriangle;
+		Head* m_pHead;
 		Light* m_pLight1;
 		Light* m_pLight2;
+
+		// mouse actions
+		bool m_bChangingView;
+		CPoint m_ptStart;
+
+		static double getViewModifier(UINT nFlags);
+
+		static const double CTRL_MINIFIER;
+		static const double SHIFT_MAGNIFIER;
 
 		void showInfo();
 

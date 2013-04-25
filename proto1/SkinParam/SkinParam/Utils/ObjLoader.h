@@ -48,12 +48,13 @@ namespace Utils {
 		float Diffuse[3];
 		float Specular[3];
 		float Shininess;
+		std::string TextureFileName;
 	};
 
 	struct ObjPart {
 		std::string MaterialName;
-		int VertexIdxMin;
-		int VertexIdxMax;
+		int TriIdxMin;
+		int TriIdxMax;
 	};
 
 	class ObjModel {

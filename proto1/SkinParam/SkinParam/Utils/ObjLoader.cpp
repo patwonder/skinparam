@@ -17,6 +17,17 @@ namespace Utils {
 	inline float atoff(const char* a) {
 		return (float)atof(a);
 	}
+
+	inline int nextslash(const string& str, size_t& offset) {
+		size_t sPos = offset;
+		size_t ePos = str.find_first_of("/", sPos);
+		if (ePos == string::npos)
+			offset = ePos = str.length();
+		else
+			offset = ePos + 1;
+		string temp = str.substr(sPos, ePos - sPos);
+		return atoi(temp.c_str());
+	}
 } // namespace Utils
 
 /*-----------------------------------------------------------------//
@@ -85,14 +96,14 @@ namespace Utils {
 		theObj->Normals.push_back(ObjNormal());
 		theObj->TexCoords.push_back(ObjTexCoord());
 
-		ObjPart currentPart = { "", 0, 0 };
+		ObjPart currentPart = { "", 1, 1 };
 		//get the hard data, and load up our arrays...
 		//read one line at a time of the file...
 		while( !input.eof() )  {
 			getline(input, buffer);
 			istringstream line(buffer);
 			string cmd;
-			string f1, f2, f3;
+			string f1, f2, f3, f4;
 
 			// skip empty lines
 			if (buffer.size() == 0) continue;
@@ -111,7 +122,7 @@ namespace Utils {
 			}				
 			else if(cmd == "vt")  {
 				line >> f1 >> f2;
-				ObjTexCoord texCoord = { atoff(f1.c_str()), atoff(f2.c_str()) };
+				ObjTexCoord texCoord = { atoff(f1.c_str()), 1.0f - atoff(f2.c_str()) };
 				theObj->TexCoords.push_back(texCoord);
 				//sscanf(buffer.c_str(), "vt %f %f", theObj->TexCoordArray[tC].U, 
 				//					   theObj->TexCoordArray[tC].V);
@@ -123,88 +134,62 @@ namespace Utils {
 				//					   theObj->VertexArray[vC].Y, theObj->VertexArray[vC].Z);
 			}
 			else if(cmd == "f")  {
-				line >> f1 >> f2 >> f3;
+				line >> f1 >> f2 >> f3 >> f4;
 
 				ObjTriangle triangle;
 				
-				int sPos = 0;
-				int ePos = sPos;
-				string temp;
-				ePos = f1.find_first_of("/");
-				//we have a line with the format of "f %d/%d/%d %d/%d/%d %d/%d/%d"
-				if(ePos != string::npos)  {
-					temp = f1.substr(sPos, ePos - sPos);
-					triangle.Vertex[0] = atoi(temp.c_str());
+				//we have a line with the format of "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d"
+				size_t offset = 0;
+				triangle.Vertex[0] = nextslash(f1, offset);
+				triangle.TexCoord[0] = nextslash(f1, offset);
+				triangle.Normal[0] = nextslash(f1, offset);
+	
+				offset = 0;
+				triangle.Vertex[1] = nextslash(f2, offset);
+				triangle.TexCoord[1] = nextslash(f2, offset);
+				triangle.Normal[1] = nextslash(f2, offset);
 
-					sPos = ePos+1;
-					ePos = f1.find("/", sPos);
-					temp = f1.substr(sPos, ePos - sPos);
-					triangle.TexCoord[0] = atoi(temp.c_str());
+				offset = 0;
+				triangle.Vertex[2] = nextslash(f3, offset);
+				triangle.TexCoord[2] = nextslash(f3, offset);
+				triangle.Normal[2] = nextslash(f3, offset);
 
-					sPos = ePos+1;
-					ePos = f1.length();
-					temp = f1.substr(sPos, ePos - sPos);
-					triangle.Normal[0] = atoi(temp.c_str());
-				}
-
-				sPos = 0;
-				ePos = f2.find_first_of("/");
-				//we have a line with the format of "f %d/%d/%d %d/%d/%d %d/%d/%d"
-				if(ePos != string::npos)  {
-					temp = f2.substr(sPos, ePos - sPos);
-					triangle.Vertex[1] = atoi(temp.c_str());
-
-					sPos = ePos + 1;
-					ePos = f2.find("/", sPos);
-					temp = f2.substr(sPos, ePos - sPos);
-					triangle.TexCoord[1] = atoi(temp.c_str());
-
-					sPos = ePos + 1;
-					ePos = f2.length();
-					temp = f2.substr(sPos, ePos - sPos);
-					triangle.Normal[1] = atoi(temp.c_str());
-				}
-
-				sPos = 0;
-				ePos = f3.find_first_of("/");
-				//we have a line with the format of "f %d/%d/%d %d/%d/%d %d/%d/%d"
-				if(ePos != string::npos)  {
-					temp = f3.substr(sPos, ePos - sPos);
-					triangle.Vertex[2] = atoi(temp.c_str());
-
-					sPos = ePos + 1;
-					ePos = f3.find("/", sPos);
-					temp = f3.substr(sPos, ePos - sPos);
-					triangle.TexCoord[2] = atoi(temp.c_str());
-
-					sPos = ePos + 1;
-					ePos = f3.length();
-					temp = f3.substr(sPos, ePos - sPos);
-					triangle.Normal[2] = atoi(temp.c_str());
-				}
 				theObj->Triangles.push_back(triangle);
+				
+				if (f4.length()) {
+					triangle.Vertex[1] = triangle.Vertex[2];
+					triangle.TexCoord[1] = triangle.TexCoord[2];
+					triangle.Normal[1] = triangle.Normal[2];
+
+					offset = 0;
+					triangle.Vertex[2] = nextslash(f4, offset);
+					triangle.TexCoord[2] = nextslash(f4, offset);
+					triangle.Normal[2] = nextslash(f4, offset);
+
+					theObj->Triangles.push_back(triangle);
+				}
 				//sscanf(buffer.c_str(), "f %d/%d/%d %d/%d/%d %d/%d/%d",
                 //          theObj->TriangleArray[fC].Vertex[0], theObj->TriangleArray[fC].TexCoord[0], theObj->TriangleArray[fC].Normal[0],
 				//     	  theObj->TriangleArray[fC].Vertex[1], theObj->TriangleArray[fC].TexCoord[1], theObj->TriangleArray[fC].Normal[1],
 				//		  theObj->TriangleArray[fC].Vertex[2], theObj->TriangleArray[fC].TexCoord[2], theObj->TriangleArray[fC].Normal[2]);
 			} else if (cmd == "usemtl") {
 				line >> f1;
-				if (theObj->Triangles.size() > (size_t)currentPart.VertexIdxMin) {
+				if (theObj->Triangles.size() > (size_t)currentPart.TriIdxMin) {
 					// only save new part if previous one actually consists of any triangle
-					currentPart.VertexIdxMax = theObj->Triangles.size();
+					currentPart.TriIdxMax = theObj->Triangles.size();
 					theObj->Parts.push_back(currentPart);
 				}
 				currentPart.MaterialName = f1;
-				currentPart.VertexIdxMin = theObj->Triangles.size();
+				currentPart.TriIdxMin = theObj->Triangles.size();
 			} else if (cmd == "mtllib") {
 				line >> f1;
 				ReadMtl("model\\" + f1);
 			}
 		}
 		// don't forget the last part of the object
-		if (theObj->Triangles.size() > (size_t)currentPart.VertexIdxMin) {
+		if (theObj->Triangles.size() > (size_t)currentPart.TriIdxMin) {
 			// only save new part if previous one actually consists of any triangle
-			currentPart.VertexIdxMax = theObj->Triangles.size();
+			currentPart.TriIdxMax = theObj->Triangles.size();
 			theObj->Parts.push_back(currentPart);
 		}
 		//all should be good
@@ -268,6 +253,9 @@ namespace Utils {
 					} else if (cmd == "Ns") {
 						line >> f1;
 						current->Shininess = atoff(f1.c_str());
+					} else if (cmd == "map_Kd") {
+						line >> f1;
+						current->TextureFileName = f1;
 					}
 				}
 			}

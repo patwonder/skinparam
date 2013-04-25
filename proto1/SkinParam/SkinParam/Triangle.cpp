@@ -24,6 +24,7 @@ namespace Skin {
 		XMFLOAT3 pos;
 		XMFLOAT4 color;
 		XMFLOAT3 normal;
+		XMFLOAT2 texCoord;
 	};
 }
 
@@ -54,6 +55,30 @@ void Triangle::init(ID3D11Device* pDevice) {
         { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT4( 0.0f, 0.0f, 0.0f, 1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
         { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT4( 0.0f, 0.0f, 0.0f, 1.0f ), XMFLOAT3(0.0f, -1.0f, 0.0f) },
         { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT4( 0.0f, 0.0f, 0.0f, 1.0f ), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+        //{ XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+        //{ XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+        //{ XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+        //{ XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+        //{ XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+        //{ XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+        //{ XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+        //{ XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+        //{ XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+        //{ XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+        //{ XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+        //{ XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+        //{ XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+        //{ XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+        //{ XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+        //{ XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+        //{ XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+        //{ XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+        //{ XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+        //{ XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+        //{ XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+        //{ XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+        //{ XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+        //{ XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 0.0f, 1.0f) },
     };
 	UINT numVertices = ARRAYSIZE(vertices);
 
@@ -87,7 +112,7 @@ void Triangle::init(ID3D11Device* pDevice) {
 		_T("Failed to create index buffer"));
 }
 
-void Triangle::render(ID3D11DeviceContext* pDeviceContext, const Camera& pCamera) {
+void Triangle::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) {
 	// Set vertex buffer
     UINT stride = sizeof(SimpleVertex);
     UINT offset = 0;
@@ -98,6 +123,10 @@ void Triangle::render(ID3D11DeviceContext* pDeviceContext, const Camera& pCamera
 
 	// Set primitive topology
     pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// Setup material and world matrix
+	pRenderer->setWorldMatrix(XMMatrixRotationAxis(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), 2 * (float)Math::PI * ((GetTickCount() % 30000) / 30000.0f)));
+	pRenderer->setMaterial(Material(Color::White, Color::White, Color::White, Color::Black, 5.0f));
 
 	// The draw call
 	pDeviceContext->DrawIndexed(36, 0, 0);
@@ -110,12 +139,4 @@ void Triangle::cleanup() {
 	};
 
 	releaseCOMObjs(ppUnknowns);
-}
-
-XMMATRIX Triangle::getWorldMatrix() const {
-	return XMMatrixRotationAxis(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), 2 * (float)D3DX_PI * ((GetTickCount() % 30000) / 30000.0f));
-}
-
-Material Triangle::getMaterial() const {
-	return Material(Color::White, Color::White, Color::White, Color::Black, 5.0f);
 }

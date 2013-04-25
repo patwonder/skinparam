@@ -14,7 +14,7 @@ namespace Skin {
 	class ShaderGroup;
 	struct Light;
 
-	class Renderer {
+	class Renderer : public IRenderer {
 	private:
 		// Parameters
 		HWND m_hwnd;
@@ -29,6 +29,10 @@ namespace Skin {
 		ID3D11DeviceContext* m_pDeviceContext;
 		IDXGISwapChain* m_pSwapChain;
 		ID3D11RenderTargetView* m_pRenderTargetView;
+		ID3D11Texture2D* m_pDepthStencil;
+		ID3D11DepthStencilView* m_pDepthStencilView;
+		ID3D11SamplerState* m_pPlaceholderSamplerState;
+		ID3D11ShaderResourceView* m_pPlaceholderTexture;
 
 		std::vector<IUnknown**> m_vppCOMObjs;
 
@@ -64,7 +68,7 @@ namespace Skin {
 			float pad2;
 			XMFLOAT3 g_mtSpecular;
 			float pad3;
-			XMFLOAT3 g_mtEmmisive;
+			XMFLOAT3 g_mtEmissive;
 			float g_mtShininess;
 		};
 		ID3D11Buffer* m_pTransformConstantBuffer;
@@ -90,7 +94,7 @@ namespace Skin {
 		float m_fps;
 
 		HRESULT initDX();
-		HRESULT initStuff();
+		void initMisc();
 
 		void loadShaders();
 		void unloadShaders();
@@ -123,6 +127,11 @@ namespace Skin {
 
 		// Statistics
 		float getFPS() const { return m_fps; }
+
+		// IRenderer implementation
+		void setWorldMatrix(const XMMATRIX& matWorld) override;
+		void setMaterial(const Material& material) override;
+		void usePlaceholderTexture() override;
 	};
 
 } // namespace Skin

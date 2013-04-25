@@ -73,6 +73,11 @@
       <Filter>Utils</Filter>
     </ClInclude>
     <ClInclude Include="Material.h" />
+    <ClInclude Include="MeshRenderable.h" />
+    <ClInclude Include="Head.h" />
+    <ClInclude Include="Utils\UMath.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -126,18 +131,24 @@
       <Filter>Utils</Filter>
     </ClCompile>
     <ClCompile Include="Material.cpp" />
+    <ClCompile Include="MeshRenderable.cpp" />
+    <ClCompile Include="Head.cpp" />
+    <ClCompile Include="Utils\TString.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\UMath.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Triangle.fx">
       <Filter>Shaders</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\Phong.fx">
+    <None Include="Shaders\Lighting.fx">
       <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Shaders\Lighting.fx">
+    </None>
+    <None Include="Shaders\Phong.fx">
       <Filter>Shaders</Filter>
-    </FxCompile>
+    </None>
   </ItemGroup>
 </Project>

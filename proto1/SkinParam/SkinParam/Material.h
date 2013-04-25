@@ -11,12 +11,12 @@ namespace Skin {
 		Utils::Color coAmbient;
 		Utils::Color coDiffuse;
 		Utils::Color coSpecular;
-		Utils::Color coEmmisive;
+		Utils::Color coEmissive;
 		float fShininess;
 
 		Material(const Utils::Color& coAmbient, const Utils::Color& coDiffuse, const Utils::Color& coSpecular,
-			const Utils::Color& coEmmisive, float fShininess)
-			: coAmbient(coAmbient), coDiffuse(coDiffuse), coSpecular(coSpecular), coEmmisive(coEmmisive),
+			const Utils::Color& coEmissive, float fShininess)
+			: coAmbient(coAmbient), coDiffuse(coDiffuse), coSpecular(coSpecular), coEmissive(coEmissive),
 			  fShininess(fShininess)
 		{
 		}

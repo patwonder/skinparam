@@ -19,6 +19,12 @@ namespace Skin {
 		HRESULT loadPixelShader(ID3D11Device* pDevice,
 			const Utils::TString& strFileName, const char* szEntryPoint,
 			ID3D11PixelShader** ppPixelShader);
+		// texture
+		HRESULT loadTexture(ID3D11Device* pDevice, const Utils::TString& strFileName, ID3D11ShaderResourceView** ppTexture);
+		HRESULT createSamplerState(ID3D11Device* pDevice, D3D11_FILTER filer, D3D11_TEXTURE_ADDRESS_MODE addressU,
+			D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, ID3D11SamplerState** ppSamplerState);
+		HRESULT createTexture2D(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
+			ID3D11ShaderResourceView** ppTexture);
 		// buffers
 		HRESULT createBuffer(ID3D11Device* pDevice, UINT byteWidth, UINT bindFlags, void* pData, ID3D11Buffer** ppVertexBuffer); // for internal use
 		template <class VertexType>

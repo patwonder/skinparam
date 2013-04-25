@@ -2,6 +2,9 @@
  * General buffer for 3D lighting and transform
  */
 
+Texture2D g_texture : register(t0);
+SamplerState g_samTexture : register(s0);
+
 struct Light {
 	float3 ambient;
 	float3 diffuse;

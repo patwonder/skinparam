@@ -53,6 +53,10 @@ const Vector Vector::operator-() const {
 	return Vector(-x, -y, -z);
 }
 
+Vector::operator bool() const {
+	return *this != ZERO;
+}
+
 double Vector::length() const {
 	return sqrt(x * x + y * y + z * z);
 }
