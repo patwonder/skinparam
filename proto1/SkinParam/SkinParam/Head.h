@@ -13,5 +13,7 @@ namespace Skin {
 	public:
 		Head();
 		~Head() override;
+
+		void render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) override;
 	};
 } // namespace Skin

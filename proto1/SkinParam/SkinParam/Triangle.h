@@ -12,9 +12,9 @@ namespace Skin {
 		ID3D11Buffer* m_pIndexBuffer;
 	public:
 		Triangle();
-		void init(ID3D11Device* pDevice) override;
+		void init(ID3D11Device* pDevice, IRenderer* pRenderer) override;
 		void render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) override;
-		void cleanup() override;
+		void cleanup(IRenderer* pRenderer) override;
 		~Triangle() override;
 	};
 } // namespace Skin

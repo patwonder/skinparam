@@ -15,6 +15,7 @@ namespace Skin {
 		virtual void setWorldMatrix(const XMMATRIX& matWorld) = 0;
 		virtual void setMaterial(const Material& material) = 0;
 		virtual void usePlaceholderTexture() = 0;
+		virtual void setTessellationFactor(float edge, float inside, float min, float desiredSize) = 0;
 	};
 
 	class Renderable /* interface */ {
@@ -22,9 +23,9 @@ namespace Skin {
 		Renderable() {}
 
 		/** must-implements */
-		virtual void init(ID3D11Device* pDevice) = 0;
+		virtual void init(ID3D11Device* pDevice, IRenderer* pRenderer) = 0;
 		virtual void render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) = 0;
-		virtual void cleanup() = 0;
+		virtual void cleanup(IRenderer* pRenderer) = 0;
 		virtual ~Renderable() {}
 	};
 

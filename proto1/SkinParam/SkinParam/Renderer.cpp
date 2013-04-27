@@ -43,6 +43,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pTransformConstantBuffer(nullptr),
 	  m_pLightingConstantBuffer(nullptr),
 	  m_pMaterialConstantBuffer(nullptr),
+	  m_pTessellationConstantBuffer(nullptr),
 	  m_psgTriangle(nullptr),
 	  m_psgPhong(nullptr),
 	  m_psgTesselatedPhong(nullptr),
@@ -60,11 +61,12 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	m_vppCOMObjs.push_back((IUnknown**)&m_pRenderTargetView);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pDepthStencil);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pDepthStencilView);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pPlaceholderSamplerState);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pPlaceholderTexture);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pTransformConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pLightingConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pMaterialConstantBuffer);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pPlaceholderSamplerState);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pPlaceholderTexture);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pTessellationConstantBuffer);
 
 	checkFailure(initDX(), _T("Failed to initialize DirectX 11"));
 
@@ -75,6 +77,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	initLighting();
 	initMaterial();
 	updateProjection();
+	initTessellation();
 }
 
 Renderer::~Renderer() {
@@ -220,7 +223,7 @@ void Renderer::initMisc() {
 }
 
 void Renderer::addRenderable(Renderable* renderable) {
-	renderable->init(m_pDevice);
+	renderable->init(m_pDevice, this);
 	m_vpRenderables.push_back(renderable);
 }
 
@@ -228,7 +231,7 @@ void Renderer::removeRenderable(Renderable* renderable) {
 	for (size_t i = 0; i < m_vpRenderables.size(); i++) {
 		if (m_vpRenderables[i] == renderable) {
 			m_vpRenderables.erase(m_vpRenderables.begin() + i);
-			renderable->cleanup();
+			renderable->cleanup(this);
 			break;
 		}
 	}
@@ -236,7 +239,7 @@ void Renderer::removeRenderable(Renderable* renderable) {
 
 void Renderer::removeAllRenderables() {
 	for (Renderable* pRenderable : m_vpRenderables) {
-		pRenderable->cleanup();
+		pRenderable->cleanup(this);
 	}
 	m_vpRenderables.clear();
 }
@@ -358,11 +361,21 @@ void Renderer::updateProjection() {
 		XMMatrixPerspectiveFovLH((float)(Math::PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 10000.0f));
 }
 
+void Renderer::initTessellation() {
+	// Edge, inside, minimum tessellation factor and 1/desired triangle size
+	m_cbTessellation.g_vTesselationFactor = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);
+	m_cbTessellation.g_fAspectRatio = (float)m_rectView.Width() / m_rectView.Height();
+
+	checkFailure(createConstantBuffer(m_pDevice, &m_cbTessellation, &m_pTessellationConstantBuffer),
+		_T("Failed to create tessellation constant buffer"));
+}
+
 void Renderer::setConstantBuffers() {
 	ID3D11Buffer* buffers[] = {
 		m_pTransformConstantBuffer,
 		m_pLightingConstantBuffer,
-		m_pMaterialConstantBuffer
+		m_pMaterialConstantBuffer,
+		m_pTessellationConstantBuffer
 	};
 
 	m_pDeviceContext->VSSetConstantBuffers(0, ARRAYSIZE(buffers), buffers);
@@ -410,7 +423,7 @@ void Renderer::toggleWireframe() {
 	// Use wireframe rendering
 	if (m_descRasterizerState.FillMode == D3D11_FILL_SOLID) {
 		m_descRasterizerState.FillMode = D3D11_FILL_WIREFRAME;
-		m_descRasterizerState.CullMode = D3D11_CULL_NONE;
+		m_descRasterizerState.CullMode = D3D11_CULL_BACK;
 	} else {
 		m_descRasterizerState.FillMode = D3D11_FILL_SOLID;
 		m_descRasterizerState.CullMode = D3D11_CULL_BACK;
@@ -442,6 +455,11 @@ void Renderer::setWorldMatrix(const XMMATRIX& matWorld) {
 void Renderer::usePlaceholderTexture() {
 	m_pDeviceContext->PSSetSamplers(0, 1, &m_pPlaceholderSamplerState);
 	m_pDeviceContext->PSSetShaderResources(0, 1, &m_pPlaceholderTexture);
+}
+
+void Renderer::setTessellationFactor(float edge, float inside, float min, float desiredSize) {
+	m_cbTessellation.g_vTesselationFactor = XMFLOAT4(edge, inside, min, desiredSize);
+	m_pDeviceContext->UpdateSubresource(m_pTessellationConstantBuffer, 0, NULL, &m_cbTessellation, 0, 0);
 }
 
 void Renderer::computeStats() {

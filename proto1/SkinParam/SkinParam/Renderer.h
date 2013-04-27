@@ -72,12 +72,19 @@ namespace Skin {
 			XMFLOAT3 g_mtEmissive;
 			float g_mtShininess;
 		};
+		struct TessellationConstantBuffer {
+			XMFLOAT4 g_vTesselationFactor;
+			float g_fAspectRatio;
+			float pad[3];
+		};
 		ID3D11Buffer* m_pTransformConstantBuffer;
 		TransformConstantBuffer m_cbTransform;
 		ID3D11Buffer* m_pLightingConstantBuffer;
 		LightingConstantBuffer m_cbLighting;
 		ID3D11Buffer* m_pMaterialConstantBuffer;
 		MaterialConstantBuffer m_cbMaterial;
+		ID3D11Buffer* m_pTessellationConstantBuffer;
+		TessellationConstantBuffer m_cbTessellation;
 
 		XMFLOAT4X4 m_matProjection; // use XMFLOAT4X4 instead of XMMATRIX to resolve alignment issues
 
@@ -110,6 +117,7 @@ namespace Skin {
 		void updateLighting();
 		void initMaterial();
 		void updateProjection();
+		void initTessellation();
 
 		void setConstantBuffers();
 		void computeStats();
@@ -140,6 +148,7 @@ namespace Skin {
 		void setWorldMatrix(const XMMATRIX& matWorld) override;
 		void setMaterial(const Material& material) override;
 		void usePlaceholderTexture() override;
+		void setTessellationFactor(float edge, float inside, float min, float desiredSize) override;
 	};
 
 } // namespace Skin

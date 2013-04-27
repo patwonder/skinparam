@@ -28,7 +28,7 @@ MeshRenderable::~MeshRenderable() {
 	delete m_pModel;
 }
 
-void MeshRenderable::init(ID3D11Device* pDevice) {
+void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 /**
  * The original rendering loop, for reference
  	for (std::vector<ObjPart>::const_iterator iter = m_objModel->Parts.begin();
@@ -186,7 +186,7 @@ void MeshRenderable::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRen
 	}
 }
 
-void MeshRenderable::cleanup() {
+void MeshRenderable::cleanup(IRenderer* pRenderer) {
 	IUnknown** ppUnknowns[] = {
 		(IUnknown**)&m_pVertexBuffer,
 		(IUnknown**)&m_pIndexBuffer,

@@ -16,7 +16,7 @@ Triangle::Triangle()
 }
 
 Triangle::~Triangle() {
-	cleanup();
+	
 }
 
 namespace Skin {
@@ -28,7 +28,7 @@ namespace Skin {
 	};
 }
 
-void Triangle::init(ID3D11Device* pDevice) {
+void Triangle::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
     // Create vertex buffer
     SimpleVertex vertices[] = {
         { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT4( 0.0f, 0.0f, 1.0f, 1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
@@ -129,7 +129,7 @@ void Triangle::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer,
 	pDeviceContext->DrawIndexed(36, 0, 0);
 }
 
-void Triangle::cleanup() {
+void Triangle::cleanup(IRenderer* pRenderer) {
 	IUnknown** ppUnknowns[] = {
 		(IUnknown**)&m_pVertexBuffer,
 		(IUnknown**)&m_pIndexBuffer

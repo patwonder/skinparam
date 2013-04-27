@@ -2,17 +2,22 @@
 
 #include "Lighting.fx"
 
+cbuffer Tessellation : register(c3) {
+	float4 g_vTessellationFactor; // Edge, inside, minimum tessellation factor and 1/desired triangle size
+	float g_fAspectRatio;
+};
+
 struct VS_INPUT {
-	float4 pos : POSITION;
+	float4 vPosOS : POSITION;
 	float4 color : COLOR;
-	float3 normal : NORMAL;
+	float3 vNormalOS : NORMAL;
 	float2 texCoord : TEXCOORD0;
 };
 
 struct HS_INPUT {
-	float4 pos : POSITION;
+	float3 vPosWS : WORLDPOS;
 	float4 color : COLOR;
-	float3 normal : NORMAL;
+	float3 vNormalWS : NORMAL;
 	float2 texCoord : TEXCOORD0;
 };
 
@@ -22,42 +27,54 @@ struct HSCF_OUTPUT {
 };
 
 struct DS_INPUT {
-	float4 pos : POSITION;
+	float3 vPosWS : WORLDPOS;
 	float4 color : COLOR;
-	float3 normal : NORMAL;
+	float3 vNormalWS : NORMAL;
 	float2 texCoord : TEXCOORD0;
 };
 
 struct PS_INPUT {
-	float4 pos : SV_POSITION;
+	float4 vPosPS : SV_POSITION;
 	float4 color : COLOR0;
-	float3 normal : TEXCOORD0;
-	float3 worldPos : TEXCOORD1;
-	float2 texCoord : TEXCOORD2;
+	float3 vNormalWS : NORMAL;
+	float3 vPosWS : WORLDPOS;
+	float2 texCoord : TEXCOORD0;
 };
 
-// Vertex shader : pass everything along
+// Vertex shader, do world transform only
 HS_INPUT VS(VS_INPUT input) {
 	HS_INPUT output;
-	output.pos = input.pos;
+	float4 wpos4 = mul(input.vPosOS, g_matWorld);
+	output.vPosWS = wpos4.xyz / wpos4.w;
 	output.color = input.color;
-	output.normal = input.normal;
+	output.vNormalWS = mul(input.vNormalOS, (float3x3)g_matWorld);
 	output.texCoord = input.texCoord;
 	return output;
+}
+
+float2 getScreenSpacePosition(float3 vPosWS, matrix matViewProj) {
+	float4 vPosPS4 = mul(float4(vPosWS, 1.0), matViewProj);
+	float2 vPosPS = vPosPS4.xy / vPosPS4.w;
+	vPosPS.x *= g_fAspectRatio;
+	return vPosPS;
 }
 
 // Hull shader patch constant function
 HSCF_OUTPUT HSCF(InputPatch<HS_INPUT, 3> patch, uint patchId : SV_PrimitiveID) {
     HSCF_OUTPUT output;
 
+	// Calcuate screen space positions for each vertex
+	float2 vPosPS0 = getScreenSpacePosition(patch[0].vPosWS, g_matViewProj);
+	float2 vPosPS1 = getScreenSpacePosition(patch[1].vPosWS, g_matViewProj);
+	float2 vPosPS2 = getScreenSpacePosition(patch[2].vPosWS, g_matViewProj);
+
     // Set the tessellation factors for the three edges of the triangle.
-	float tessellationAmount = 2.0;
-    output.edges[0] = tessellationAmount;
-    output.edges[1] = tessellationAmount;
-    output.edges[2] = tessellationAmount;
+    output.edges[0] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS2, vPosPS1));
+    output.edges[1] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS0, vPosPS2));
+    output.edges[2] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS1, vPosPS0));
 
     // Set the tessellation factor for tessallating inside the triangle.
-    output.inside = tessellationAmount;
+    output.inside = 0.333 * (output.edges[0] + output.edges[1] + output.edges[2]);
 
     return output;
 }
@@ -70,9 +87,9 @@ HSCF_OUTPUT HSCF(InputPatch<HS_INPUT, 3> patch, uint patchId : SV_PrimitiveID) {
 [patchconstantfunc("HSCF")]
 DS_INPUT HS(InputPatch<HS_INPUT, 3> patch, uint pointId : SV_OutputControlPointID, uint patchId : SV_PrimitiveID) {
 	DS_INPUT output;
-	output.pos = patch[pointId].pos;
+	output.vPosWS = patch[pointId].vPosWS;
 	output.color = patch[pointId].color;
-	output.normal = patch[pointId].normal;
+	output.vNormalWS = patch[pointId].vNormalWS;
 	output.texCoord = patch[pointId].texCoord;
 	return output;
 }
@@ -82,18 +99,17 @@ DS_INPUT HS(InputPatch<HS_INPUT, 3> patch, uint pointId : SV_OutputControlPointI
 PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPatch<DS_INPUT, 3> patch) {
 	// interpolate new point data
 	DS_INPUT input;
-	input.pos = uvwCoord.x * patch[0].pos + uvwCoord.y * patch[1].pos + uvwCoord.z * patch[2].pos;
+	input.vPosWS = uvwCoord.x * patch[0].vPosWS + uvwCoord.y * patch[1].vPosWS + uvwCoord.z * patch[2].vPosWS;
 	input.color = uvwCoord.x * patch[0].color + uvwCoord.y * patch[1].color + uvwCoord.z * patch[2].color;
-	input.normal = uvwCoord.x * patch[0].normal + uvwCoord.y * patch[1].normal + uvwCoord.z * patch[2].normal;
+	input.vNormalWS = uvwCoord.x * patch[0].vNormalWS + uvwCoord.y * patch[1].vNormalWS + uvwCoord.z * patch[2].vNormalWS;
 	input.texCoord = uvwCoord.x * patch[0].texCoord + uvwCoord.y * patch[1].texCoord + uvwCoord.z * patch[2].texCoord;
 
-	// do what should be typically done in the vertex shader
+	// do view projection transform
 	PS_INPUT output;
-	float4 wpos4 = mul(input.pos, g_matWorld);
-	output.worldPos = wpos4.xyz / wpos4.w;
-	output.pos = mul(wpos4, g_matViewProj);
+	output.vPosWS = input.vPosWS;
+	output.vPosPS = mul(float4(input.vPosWS, 1.0), g_matViewProj);
 	output.color = input.color;
-	output.normal = mul(input.normal, (float3x3)g_matWorld);
+	output.vNormalWS = input.vNormalWS;
 	output.texCoord = input.texCoord;
 	return output;
 }
@@ -102,6 +118,6 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 float4 PS(PS_INPUT input) : SV_Target {
 	// textured color
 	float3 tex_color = input.color.rgb * g_texture.Sample(g_samTexture, input.texCoord).rgb;
-	float3 color = phong_lighting(g_material, g_ambient, g_lights, g_posEye, input.worldPos, tex_color, input.normal);
+	float3 color = phong_lighting(g_material, g_ambient, g_lights, g_posEye, input.vPosWS, tex_color, input.vNormalWS);
 	return float4(color, 1.0);
 }
