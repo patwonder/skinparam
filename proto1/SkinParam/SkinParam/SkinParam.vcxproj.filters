@@ -153,5 +153,8 @@
     <None Include="Shaders\TessellatedPhong.fx">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\Culling.fx">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

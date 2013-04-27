@@ -5,6 +5,7 @@
 #include "stdafx.h"
 
 #include "D3DHelper.h"
+#include <cmath>
 
 using namespace Skin;
 using namespace Utils;
@@ -205,4 +206,72 @@ HRESULT D3DHelper::createTexture2D(ID3D11Device* pDevice, UINT width, UINT heigh
 		return hr;
 
 	return S_OK;
+}
+
+//--------------------------------------------------------------------------------------
+// Extract all 6 plane equations from frustum denoted by supplied matrix
+//--------------------------------------------------------------------------------------
+void D3DHelper::extractPlanesFromFrustum(XMFLOAT4 aPlaneEquation[6], const XMMATRIX& matrix, bool bNormalize)
+{
+    // Left clipping plane
+    aPlaneEquation[0].x = matrix._14 + matrix._11;
+    aPlaneEquation[0].y = matrix._24 + matrix._21;
+    aPlaneEquation[0].z = matrix._34 + matrix._31;
+    aPlaneEquation[0].w = matrix._44 + matrix._41;
+    
+    // Right clipping plane
+    aPlaneEquation[1].x = matrix._14 - matrix._11;
+    aPlaneEquation[1].y = matrix._24 - matrix._21;
+    aPlaneEquation[1].z = matrix._34 - matrix._31;
+    aPlaneEquation[1].w = matrix._44 - matrix._41;
+    
+    // Top clipping plane
+    aPlaneEquation[2].x = matrix._14 - matrix._12;
+    aPlaneEquation[2].y = matrix._24 - matrix._22;
+    aPlaneEquation[2].z = matrix._34 - matrix._32;
+    aPlaneEquation[2].w = matrix._44 - matrix._42;
+    
+    // Bottom clipping plane
+    aPlaneEquation[3].x = matrix._14 + matrix._12;
+    aPlaneEquation[3].y = matrix._24 + matrix._22;
+    aPlaneEquation[3].z = matrix._34 + matrix._32;
+    aPlaneEquation[3].w = matrix._44 + matrix._42;
+    
+    // Near clipping plane
+    aPlaneEquation[4].x = matrix._13;
+    aPlaneEquation[4].y = matrix._23;
+    aPlaneEquation[4].z = matrix._33;
+    aPlaneEquation[4].w = matrix._43;
+    
+    // Far clipping plane
+    aPlaneEquation[5].x = matrix._14 - matrix._13;
+    aPlaneEquation[5].y = matrix._24 - matrix._23;
+    aPlaneEquation[5].z = matrix._34 - matrix._33;
+    aPlaneEquation[5].w = matrix._44 - matrix._43;
+    
+    // Normalize the plane equations, if requested
+    if (bNormalize) {
+        normalizePlane(aPlaneEquation[0]);
+        normalizePlane(aPlaneEquation[1]);
+        normalizePlane(aPlaneEquation[2]);
+        normalizePlane(aPlaneEquation[3]);
+        normalizePlane(aPlaneEquation[4]);
+        normalizePlane(aPlaneEquation[5]);
+    }
+}
+
+//--------------------------------------------------------------------------------------
+// Helper function to normalize a plane
+//--------------------------------------------------------------------------------------
+void D3DHelper::normalizePlane(XMFLOAT4& planeEquation) {
+    float mag;
+    
+    mag = sqrt( planeEquation.x * planeEquation.x + 
+                planeEquation.y * planeEquation.y + 
+                planeEquation.z * planeEquation.z );
+    
+    planeEquation.x = planeEquation.x / mag;
+    planeEquation.y = planeEquation.y / mag;
+    planeEquation.z = planeEquation.z / mag;
+    planeEquation.w = planeEquation.w / mag;
 }

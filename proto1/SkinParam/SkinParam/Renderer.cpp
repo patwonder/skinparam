@@ -366,8 +366,24 @@ void Renderer::initTessellation() {
 	m_cbTessellation.g_vTesselationFactor = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);
 	m_cbTessellation.g_fAspectRatio = (float)m_rectView.Width() / m_rectView.Height();
 
+	XMFLOAT4 vFrustrumPlanes[4] = {
+		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),
+		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),
+		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),
+		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)
+	};
+	memcpy(m_cbTessellation.g_vFrustrumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTessellation.g_vFrustrumPlaneEquation));
+
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbTessellation, &m_pTessellationConstantBuffer),
 		_T("Failed to create tessellation constant buffer"));
+}
+
+void Renderer::updateTessellation() {
+	XMFLOAT4 vFrustrumPlanes[6];
+	extractPlanesFromFrustum(vFrustrumPlanes, XMMatrixTranspose(XMLoadFloat4x4(&m_cbTransform.g_matViewProj)), true);
+
+	memcpy(m_cbTessellation.g_vFrustrumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTessellation.g_vFrustrumPlaneEquation));
+	m_pDeviceContext->UpdateSubresource(m_pTessellationConstantBuffer, 0, NULL, &m_cbTessellation, 0, 0);
 }
 
 void Renderer::setConstantBuffers() {
@@ -404,6 +420,7 @@ void Renderer::render() {
 
 	updateTransform();
 	updateLighting();
+	updateTessellation();
 	setConstantBuffers();
 
 	renderScene();

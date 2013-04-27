@@ -1,10 +1,12 @@
 // Implements the phong shading model, with tesselation
 
 #include "Lighting.fx"
+#include "Culling.fx"
 
 cbuffer Tessellation : register(c3) {
 	float4 g_vTessellationFactor; // Edge, inside, minimum tessellation factor and 1/desired triangle size
 	float g_fAspectRatio;
+	float4 g_vFrustumPlaneEquation[4]; // View frustum plane equations : x*x0+y*y0+z*z0+w0=0
 };
 
 struct VS_INPUT {
@@ -75,6 +77,17 @@ HSCF_OUTPUT HSCF(InputPatch<HS_INPUT, 3> patch, uint patchId : SV_PrimitiveID) {
 
     // Set the tessellation factor for tessallating inside the triangle.
     output.inside = 0.333 * (output.edges[0] + output.edges[1] + output.edges[2]);
+
+    // View frustum culling
+    bool bViewFrustumCull = ViewFrustumCull(patch[0].vPosWS, patch[1].vPosWS, patch[2].vPosWS,
+											g_vFrustumPlaneEquation, 0.0f);
+    if (bViewFrustumCull) {
+        // Set all tessellation factors to 0 if frustum cull test succeeds
+        output.edges[0] = 0.0;
+        output.edges[1] = 0.0;
+        output.edges[2] = 0.0;
+        output.inside   = 0.0;
+    }
 
     return output;
 }

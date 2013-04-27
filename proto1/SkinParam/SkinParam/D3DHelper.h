@@ -42,6 +42,9 @@ namespace Skin {
 		// house keeping
 		template <UINT numUnknowns>
 		void releaseCOMObjs(IUnknown** (&appUnknowns)[numUnknowns]);
+		// utility functions
+		void extractPlanesFromFrustum(XMFLOAT4 aPlaneEquation[6], const XMMATRIX& matrix, bool bNormalize);
+		void normalizePlane(XMFLOAT4& planeEquation);
 
 		// template implementation
 		template <class VertexType>

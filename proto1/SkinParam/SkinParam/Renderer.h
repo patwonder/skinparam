@@ -76,6 +76,7 @@ namespace Skin {
 			XMFLOAT4 g_vTesselationFactor;
 			float g_fAspectRatio;
 			float pad[3];
+			XMFLOAT4 g_vFrustrumPlaneEquation[4];
 		};
 		ID3D11Buffer* m_pTransformConstantBuffer;
 		TransformConstantBuffer m_cbTransform;
@@ -118,6 +119,7 @@ namespace Skin {
 		void initMaterial();
 		void updateProjection();
 		void initTessellation();
+		void updateTessellation();
 
 		void setConstantBuffers();
 		void computeStats();
