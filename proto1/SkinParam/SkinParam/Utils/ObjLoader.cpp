@@ -227,7 +227,11 @@ namespace Utils {
 				line >> f1;
 				theObj->Materials[f1] = ObjMaterial();
 				current = &theObj->Materials[f1];
-				memset(current, 0, sizeof(ObjMaterial));
+				memset(current->Ambient, 0, sizeof(current->Ambient));
+				memset(current->Diffuse, 0, sizeof(current->Diffuse));
+				memset(current->Specular, 0, sizeof(current->Specular));
+				memset(current->Emission, 0, sizeof(current->Emission));
+				current->Shininess = 0.0f;
 			} else {
 				if (current) {
 					if (cmd == "Ke") {

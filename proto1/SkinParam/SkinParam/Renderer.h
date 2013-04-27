@@ -33,6 +33,7 @@ namespace Skin {
 		ID3D11DepthStencilView* m_pDepthStencilView;
 		ID3D11SamplerState* m_pPlaceholderSamplerState;
 		ID3D11ShaderResourceView* m_pPlaceholderTexture;
+		D3D11_RASTERIZER_DESC m_descRasterizerState;
 
 		std::vector<IUnknown**> m_vppCOMObjs;
 
@@ -87,6 +88,7 @@ namespace Skin {
 
 		ShaderGroup* m_psgTriangle;
 		ShaderGroup* m_psgPhong;
+		ShaderGroup* m_psgTesselatedPhong;
 
 		// Statistics
 		unsigned int m_nFrameCount;
@@ -109,7 +111,6 @@ namespace Skin {
 		void setConstantBuffers();
 		void computeStats();
 		void renderScene();
-
 	public:
 		Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera);
 		~Renderer();
@@ -127,6 +128,9 @@ namespace Skin {
 
 		// Statistics
 		float getFPS() const { return m_fps; }
+
+		// Toggleables
+		void toggleWireframe();
 
 		// IRenderer implementation
 		void setWorldMatrix(const XMMATRIX& matWorld) override;

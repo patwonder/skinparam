@@ -45,6 +45,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pMaterialConstantBuffer(nullptr),
 	  m_psgTriangle(nullptr),
 	  m_psgPhong(nullptr),
+	  m_psgTesselatedPhong(nullptr),
 	  m_hwnd(hwnd),
 	  m_rectView(rectView),
 	  m_pConfig(pConfig),
@@ -99,7 +100,7 @@ HRESULT Renderer::initDX() {
 #endif
 
     D3D_DRIVER_TYPE driverTypes[] = {
-        D3D_DRIVER_TYPE_HARDWARE,
+        //D3D_DRIVER_TYPE_HARDWARE,
         D3D_DRIVER_TYPE_WARP,
         D3D_DRIVER_TYPE_REFERENCE,
     };
@@ -189,6 +190,13 @@ HRESULT Renderer::initDX() {
 	vp.TopLeftY = (float)m_rectView.top;
     m_pDeviceContext->RSSetViewports(1, &vp);
 
+	// Create default rasterizer state
+	D3D11_RASTERIZER_DESC& desc = m_descRasterizerState;
+	ZeroMemory(&desc, sizeof(desc));
+	desc.FillMode = D3D11_FILL_SOLID;
+	desc.CullMode = D3D11_CULL_BACK;
+	desc.DepthClipEnable = TRUE;
+
     return S_OK;
 }
 
@@ -251,7 +259,7 @@ void Renderer::loadShaders() {
     D3D11_INPUT_ELEMENT_DESC tri_layout[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
-	m_psgTriangle = new ShaderGroup(m_pDevice, _T("Triangle.fx"), tri_layout, ARRAYSIZE(tri_layout), "VS", "PS");
+	m_psgTriangle = new ShaderGroup(m_pDevice, _T("Triangle.fx"), tri_layout, ARRAYSIZE(tri_layout), "VS", nullptr, nullptr, "PS");
 
 	D3D11_INPUT_ELEMENT_DESC phong_layout[] =
     {
@@ -260,13 +268,16 @@ void Renderer::loadShaders() {
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
-	m_psgPhong = new ShaderGroup(m_pDevice, _T("Phong.fx"), phong_layout, ARRAYSIZE(phong_layout), "VS", "PS");
+	m_psgPhong = new ShaderGroup(m_pDevice, _T("Phong.fx"), phong_layout, ARRAYSIZE(phong_layout), "VS", nullptr, nullptr, "PS");
 
+	m_psgTesselatedPhong = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
+		"VS", "HS", "DS", "PS");
 }
 
 void Renderer::unloadShaders() {
 	delete m_psgTriangle; m_psgTriangle = nullptr;
 	delete m_psgPhong; m_psgPhong = nullptr;
+	delete m_psgTesselatedPhong; m_psgTesselatedPhong = nullptr;
 }
 
 void Renderer::initTransform() {
@@ -352,6 +363,8 @@ void Renderer::setConstantBuffers() {
 	};
 
 	m_pDeviceContext->VSSetConstantBuffers(0, ARRAYSIZE(buffers), buffers);
+	m_pDeviceContext->HSSetConstantBuffers(0, ARRAYSIZE(buffers), buffers);
+	m_pDeviceContext->DSSetConstantBuffers(0, ARRAYSIZE(buffers), buffers);
 	m_pDeviceContext->PSSetConstantBuffers(0, ARRAYSIZE(buffers), buffers);
 }
 
@@ -368,7 +381,7 @@ void Renderer::render() {
     //
 	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-	m_psgPhong->use(m_pDeviceContext);
+	m_psgTesselatedPhong->use(m_pDeviceContext);
 	updateTransform();
 	updateLighting();
 	setConstantBuffers();
@@ -384,6 +397,21 @@ void Renderer::renderScene() {
 	for (Renderable* renderable : m_vpRenderables) {
 		renderable->render(m_pDeviceContext, this, *m_pCamera);
 	}
+}
+
+void Renderer::toggleWireframe() {
+	// Use wireframe rendering
+	if (m_descRasterizerState.FillMode == D3D11_FILL_SOLID) {
+		m_descRasterizerState.FillMode = D3D11_FILL_WIREFRAME;
+		m_descRasterizerState.CullMode = D3D11_CULL_NONE;
+	} else {
+		m_descRasterizerState.FillMode = D3D11_FILL_SOLID;
+		m_descRasterizerState.CullMode = D3D11_CULL_BACK;
+	}
+	ID3D11RasterizerState* pRS = nullptr;
+	m_pDevice->CreateRasterizerState(&m_descRasterizerState, &pRS);
+	m_pDeviceContext->RSSetState(pRS);
+	pRS->Release();
 }
 
 void Renderer::setMaterial(const Material& mt) {

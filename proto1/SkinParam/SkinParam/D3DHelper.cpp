@@ -51,7 +51,7 @@ HRESULT D3DHelper::loadVertexShaderAndLayout(ID3D11Device* pDevice,
 {
     // Compile the vertex shader
     ID3DBlob* pVSBlob = NULL;
-    HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, "vs_4_0", &pVSBlob);
+    HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, "vs_5_0", &pVSBlob);
     if (FAILED(hr))
         return hr;
 
@@ -78,13 +78,51 @@ HRESULT D3DHelper::loadPixelShader(ID3D11Device* pDevice,
 {
 	// Compile the pixel shader
 	ID3DBlob* pPSBlob = NULL;
-    HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, "ps_4_0", &pPSBlob);
+    HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, "ps_5_0", &pPSBlob);
     if (FAILED(hr))
         return hr;
 
 	// Create the pixel shader
 	hr = pDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, ppPixelShader);
 	pPSBlob->Release();
+    if (FAILED(hr))
+        return hr;
+
+	return S_OK;
+}
+
+HRESULT D3DHelper::loadHullShader(ID3D11Device* pDevice,
+	const Utils::TString& strFileName, const char* szEntryPoint,
+	ID3D11HullShader** ppHullShader)
+{
+	// Compile the hull shader
+	ID3DBlob* pHSBlob = NULL;
+    HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, "hs_5_0", &pHSBlob);
+    if (FAILED(hr))
+        return hr;
+
+	// Create the hull shader
+	hr = pDevice->CreateHullShader(pHSBlob->GetBufferPointer(), pHSBlob->GetBufferSize(), NULL, ppHullShader);
+	pHSBlob->Release();
+    if (FAILED(hr))
+        return hr;
+
+	return S_OK;
+}
+
+HRESULT D3DHelper::loadDomainShader(ID3D11Device* pDevice,
+	const Utils::TString& strFileName, const char* szEntryPoint,
+	ID3D11DomainShader** ppDomainShader)
+{
+	// Compile the hull shader
+	ID3DBlob* pDSBlob = NULL;
+    HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, "ds_5_0", &pDSBlob);
+    if (FAILED(hr))
+        return hr;
+
+	// Create the hull shader
+	hr = pDevice->CreateDomainShader(pDSBlob->GetBufferPointer(), pDSBlob->GetBufferSize(), NULL, ppDomainShader);
+	pDSBlob->Release();
     if (FAILED(hr))
         return hr;
 

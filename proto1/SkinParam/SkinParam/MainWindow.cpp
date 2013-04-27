@@ -23,6 +23,7 @@ CMainWindow* CMainApp::GetMainWindow()
 }
 
 BOOL CMainApp::InitInstance() {
+	//_crtBreakAlloc = 418;
 	SetRegistryKey(_APP_NAME_);
 
 	m_pMainWnd = NULL;
@@ -132,6 +133,8 @@ BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {
 }
 
 afx_msg void CMainWindow::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
+	if (nChar == 'F')
+		m_pRenderer->toggleWireframe();
 }
 
 afx_msg void CMainWindow::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags) {

@@ -28,40 +28,6 @@ VS_OUTPUT VS(VS_INPUT input) {
 	return output;
 }
 
-float3 phong_lighting(Material mt, float3 ambient, Light lights[NUM_LIGHTS],
-					  float3 eyePos, float3 worldPos, float3 color, float3 normal)
-{
-	// global ambient
-	float3 result = color * ambient * mt.ambient;
-	// emmisive
-	result += mt.emmisive;
-
-	float3 N = normalize(normal);
-	float3 V = normalize(eyePos - worldPos);
-	// lights
-	for (uint i = 0; i < NUM_LIGHTS; i++) {
-		Light l = lights[i];
-		// light vector & attenuation
-		float3 L = normalize(l.position - worldPos);
-		float NdotL = dot(N, L);
-		float atten = light_attenuation(worldPos, l);
-		// ambient
-		float3 ambient = l.ambient * mt.ambient;
-		// diffuse
-		float diffuseLight = max(NdotL, 0);
-		float3 diffuse = atten * l.diffuse * mt.diffuse * diffuseLight;
-		// specular
-		float3 H = normalize(L + V);
-		float specularLight = saturate(pow(max(dot(N, H), 0), mt.shininess));
-		float3 specular = atten * l.specular * mt.specular * specularLight;
-
-		// putting them together
-		result += color * (ambient + diffuse) + specular;
-	}
-
-	return result;
-}
-
 float4 PS(VS_OUTPUT input) : SV_Target {
 	// texture
 	float3 tex = g_texture.Sample(g_samTexture, input.texCoord).rgb;

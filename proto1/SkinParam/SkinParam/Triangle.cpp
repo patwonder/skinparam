@@ -122,7 +122,7 @@ void Triangle::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer,
 	pDeviceContext->IASetIndexBuffer(m_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 
 	// Set primitive topology
-    pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
 
 	// Setup material and world matrix
 	pRenderer->setWorldMatrix(XMMatrixRotationAxis(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), 2 * (float)Math::PI * ((GetTickCount() % 30000) / 30000.0f)));

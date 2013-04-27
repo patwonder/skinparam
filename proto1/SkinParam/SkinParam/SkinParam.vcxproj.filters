@@ -150,5 +150,8 @@
     <None Include="Shaders\Phong.fx">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\TesselatedPhong.fx">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
