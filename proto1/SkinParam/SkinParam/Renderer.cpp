@@ -197,6 +197,9 @@ HRESULT Renderer::initDX() {
 	desc.CullMode = D3D11_CULL_BACK;
 	desc.DepthClipEnable = TRUE;
 
+	// Init togglable states
+	m_bTessellation = true;
+
     return S_OK;
 }
 
@@ -381,7 +384,11 @@ void Renderer::render() {
     //
 	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-	m_psgTesselatedPhong->use(m_pDeviceContext);
+	(m_bTessellation ? m_psgTesselatedPhong : m_psgPhong)->use(m_pDeviceContext);
+	// Set primitive topology
+    m_pDeviceContext->IASetPrimitiveTopology(
+		m_bTessellation ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 	updateTransform();
 	updateLighting();
 	setConstantBuffers();
@@ -412,6 +419,10 @@ void Renderer::toggleWireframe() {
 	m_pDevice->CreateRasterizerState(&m_descRasterizerState, &pRS);
 	m_pDeviceContext->RSSetState(pRS);
 	pRS->Release();
+}
+
+void Renderer::toggleTessellation() {
+	m_bTessellation = !m_bTessellation;
 }
 
 void Renderer::setMaterial(const Material& mt) {

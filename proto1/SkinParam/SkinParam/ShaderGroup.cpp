@@ -59,6 +59,9 @@ void ShaderGroup::use(ID3D11DeviceContext* pDeviceContext) const {
 	if (pHullShader) {
 		pDeviceContext->HSSetShader(pHullShader, NULL, 0);
 		pDeviceContext->DSSetShader(pDomainShader, NULL, 0);
+	} else {
+		pDeviceContext->HSSetShader(NULL, NULL, 0);
+		pDeviceContext->DSSetShader(NULL, NULL, 0);
 	}
 	pDeviceContext->PSSetShader(pPixelShader, NULL, 0);
 }

@@ -133,8 +133,14 @@ BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {
 }
 
 afx_msg void CMainWindow::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
-	if (nChar == 'F')
+	switch (nChar) {
+	case 'F':
 		m_pRenderer->toggleWireframe();
+		break;
+	case 'T':
+		m_pRenderer->toggleTessellation();
+		break;
+	}
 }
 
 afx_msg void CMainWindow::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags) {

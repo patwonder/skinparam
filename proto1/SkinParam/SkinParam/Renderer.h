@@ -95,6 +95,9 @@ namespace Skin {
 		DWORD m_nStartTick;
 		float m_fps;
 
+		// toggleables
+		bool m_bTessellation;
+
 		HRESULT initDX();
 		void initMisc();
 
@@ -131,6 +134,7 @@ namespace Skin {
 
 		// Toggleables
 		void toggleWireframe();
+		void toggleTessellation();
 
 		// IRenderer implementation
 		void setWorldMatrix(const XMMATRIX& matWorld) override;

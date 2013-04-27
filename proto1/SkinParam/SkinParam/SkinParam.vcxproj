@@ -217,7 +217,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\TesselatedPhong.fx">
+    <None Include="Shaders\TessellatedPhong.fx">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

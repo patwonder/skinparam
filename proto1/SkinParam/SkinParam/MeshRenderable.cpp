@@ -153,9 +153,6 @@ void MeshRenderable::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRen
     UINT offset = 0;
     pDeviceContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
 	
-	// Set primitive topology
-    pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
-
 	// The draw calls
 	pRenderer->setWorldMatrix(getWorldMatrix());
 
