@@ -49,6 +49,8 @@ namespace Utils {
 		float Specular[3];
 		float Shininess;
 		std::string TextureFileName;
+		float BumpMultiplier;
+		std::string BumpMapFileName;
 	};
 
 	struct ObjPart {

@@ -16,6 +16,7 @@ namespace Skin {
 
 	class MeshRenderable : public Renderable {
 	private:
+		void removeDuplicateVertices();
 		void computeNormals();
 	protected:
 		struct Vertex {
@@ -31,6 +32,7 @@ namespace Skin {
 		ID3D11Buffer* m_pIndexBuffer;
 		ID3D11SamplerState* m_pSamplerState;
 		std::map<std::string, ID3D11ShaderResourceView*> m_vpTextures;
+		std::map<std::string, ID3D11ShaderResourceView*> m_vpBumpMaps;
 
 		MeshRenderable(const Utils::TString& strObjFilePath);
 		~MeshRenderable() override;

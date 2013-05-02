@@ -20,10 +20,14 @@ struct VS_OUTPUT {
 VS_OUTPUT VS(VS_INPUT input) {
 	VS_OUTPUT output;
 	float4 wpos4 = mul(input.pos, g_matWorld);
+	output.normal = normalize(mul(float4(input.normal, 0.0), g_matWorld).xyz);
+
+	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
+	wpos4.xyz += wpos4.w * bumpAmount * output.normal;
+
 	output.worldPos = wpos4.xyz / wpos4.w;
 	output.pos = mul(wpos4, g_matViewProj);
 	output.color = input.color;
-	output.normal = mul(float4(input.normal, 0.0), g_matWorld).xyz;
 	output.texCoord = input.texCoord;
 	return output;
 }

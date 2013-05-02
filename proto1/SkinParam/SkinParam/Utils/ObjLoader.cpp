@@ -260,6 +260,14 @@ namespace Utils {
 					} else if (cmd == "map_Kd") {
 						line >> f1;
 						current->TextureFileName = f1;
+					} else if (cmd == "map_bump") {
+						line >> f1;
+						if (f1 == "-bm") {
+							line >> f2 >> f3;
+							current->BumpMultiplier = atoff(f2.c_str());
+							current->BumpMapFileName = f3;
+						}
+						else current->BumpMapFileName = f1;
 					}
 				}
 			}

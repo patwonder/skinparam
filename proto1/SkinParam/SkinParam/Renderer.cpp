@@ -40,6 +40,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pDepthStencilView(nullptr),
 	  m_pPlaceholderSamplerState(nullptr),
 	  m_pPlaceholderTexture(nullptr),
+	  m_pBumpSamplerState(nullptr),
+	  m_pBumpTexture(nullptr),
 	  m_pTransformConstantBuffer(nullptr),
 	  m_pLightingConstantBuffer(nullptr),
 	  m_pMaterialConstantBuffer(nullptr),
@@ -63,6 +65,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	m_vppCOMObjs.push_back((IUnknown**)&m_pDepthStencilView);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pPlaceholderSamplerState);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pPlaceholderTexture);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pBumpSamplerState);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pBumpTexture);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pTransformConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pLightingConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pMaterialConstantBuffer);
@@ -215,11 +219,29 @@ void Renderer::initMisc() {
 	checkFailure(createTexture2D(m_pDevice, 1, 1, DXGI_FORMAT_R32G32B32A32_FLOAT, &m_pPlaceholderTexture),
 		_T("Failed to create placeholder texture"));
 
-	float initData[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	ID3D11Resource* pResource = nullptr;
-	m_pPlaceholderTexture->GetResource(&pResource);
-	m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 16, 0);
-	pResource->Release();
+	{
+		float initData[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		ID3D11Resource* pResource = nullptr;
+		m_pPlaceholderTexture->GetResource(&pResource);
+		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 16, 0);
+		pResource->Release();
+	}
+
+	// Creates the placeholder bump texture for non-bumpmapped objects
+	checkFailure(createSamplerState(m_pDevice, D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP,
+		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pBumpSamplerState),
+		_T("Failed to create placeholder bump sampler state"));
+
+	checkFailure(createTexture2D(m_pDevice, 1, 1, DXGI_FORMAT_R32G32B32A32_FLOAT, &m_pBumpTexture),
+		_T("Failed to create placeholder bump map"));
+
+	{
+		float initData[] = {0.5f, 0.5f, 0.5f, 0.5f };
+		ID3D11Resource* pResource = nullptr;
+		m_pBumpTexture->GetResource(&pResource);
+		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 16, 0);
+		pResource->Release();
+	}
 }
 
 void Renderer::addRenderable(Renderable* renderable) {
@@ -290,6 +312,17 @@ void Renderer::initTransform() {
 	XMStoreFloat4x4(&m_cbTransform.g_matWorld, XMMatrixIdentity());
 	XMStoreFloat4x4(&m_cbTransform.g_matViewProj, XMMatrixIdentity());
 	m_cbTransform.g_posEye = XMPos(Vector::ZERO);
+
+	m_cbTransform.g_fAspectRatio = (float)m_rectView.Width() / m_rectView.Height();
+
+	XMFLOAT4 vFrustrumPlanes[4] = {
+		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),
+		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),
+		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),
+		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)
+	};
+	memcpy(m_cbTransform.g_vFrustrumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTransform.g_vFrustrumPlaneEquation));
+
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbTransform, &m_pTransformConstantBuffer),
 		_T("Failed to create transform constant buffer"));
 }
@@ -303,6 +336,12 @@ void Renderer::updateTransform() {
 	XMStoreFloat4x4(&m_cbTransform.g_matViewProj, XMMatrixTranspose(matViewProj));
 
 	m_cbTransform.g_posEye = XMPos(vEye);
+
+	XMFLOAT4 vFrustrumPlanes[6];
+	extractPlanesFromFrustum(vFrustrumPlanes, XMMatrixTranspose(XMLoadFloat4x4(&m_cbTransform.g_matViewProj)), true);
+	memcpy(m_cbTransform.g_vFrustrumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTransform.g_vFrustrumPlaneEquation));
+
+	m_pDeviceContext->UpdateSubresource(m_pTransformConstantBuffer, 0, NULL, &m_cbTransform, 0, 0);
 }
 
 void Renderer::setGlobalAmbient(const Color& coAmbient) {
@@ -351,6 +390,7 @@ void Renderer::initMaterial() {
 	m_cbMaterial.g_mtSpecular = XMColor3(Color::White);
 	m_cbMaterial.g_mtEmissive = XMColor3(Color::Black);
 	m_cbMaterial.g_mtShininess = 0.0f;
+	m_cbMaterial.g_mtBumpMultiplier = 0.0f;
 
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbMaterial, &m_pMaterialConstantBuffer),
 		_T("Failed to create material constant buffer"));
@@ -362,28 +402,13 @@ void Renderer::updateProjection() {
 }
 
 void Renderer::initTessellation() {
-	// Edge, inside, minimum tessellation factor and 1/desired triangle size
+	// Edge, inside, minimum tessellation factor and (half screen height/desired triangle size)
 	m_cbTessellation.g_vTesselationFactor = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);
-	m_cbTessellation.g_fAspectRatio = (float)m_rectView.Width() / m_rectView.Height();
-
-	XMFLOAT4 vFrustrumPlanes[4] = {
-		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),
-		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),
-		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),
-		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)
-	};
-	memcpy(m_cbTessellation.g_vFrustrumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTessellation.g_vFrustrumPlaneEquation));
-
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbTessellation, &m_pTessellationConstantBuffer),
 		_T("Failed to create tessellation constant buffer"));
 }
 
 void Renderer::updateTessellation() {
-	XMFLOAT4 vFrustrumPlanes[6];
-	extractPlanesFromFrustum(vFrustrumPlanes, XMMatrixTranspose(XMLoadFloat4x4(&m_cbTransform.g_matViewProj)), true);
-
-	memcpy(m_cbTessellation.g_vFrustrumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTessellation.g_vFrustrumPlaneEquation));
-	m_pDeviceContext->UpdateSubresource(m_pTessellationConstantBuffer, 0, NULL, &m_cbTessellation, 0, 0);
 }
 
 void Renderer::setConstantBuffers() {
@@ -461,6 +486,7 @@ void Renderer::setMaterial(const Material& mt) {
 	m_cbMaterial.g_mtSpecular = XMColor3(mt.coSpecular);
 	m_cbMaterial.g_mtEmissive = XMColor3(mt.coEmissive);
 	m_cbMaterial.g_mtShininess = mt.fShininess;
+	m_cbMaterial.g_mtBumpMultiplier = mt.fBumpMultiplier;
 	m_pDeviceContext->UpdateSubresource(m_pMaterialConstantBuffer, 0, NULL, &m_cbMaterial, 0, 0);
 }
 
@@ -469,9 +495,32 @@ void Renderer::setWorldMatrix(const XMMATRIX& matWorld) {
 	m_pDeviceContext->UpdateSubresource(m_pTransformConstantBuffer, 0, NULL, &m_cbTransform, 0, 0);
 }
 
+void Renderer::useTexture(ID3D11SamplerState* pTextureSamplerState, ID3D11ShaderResourceView* pTexture) {
+	m_pDeviceContext->PSSetSamplers(SLOT_TEXTURE, 1, &pTextureSamplerState);
+	m_pDeviceContext->PSSetShaderResources(SLOT_TEXTURE, 1, &pTexture);
+}
+
 void Renderer::usePlaceholderTexture() {
-	m_pDeviceContext->PSSetSamplers(0, 1, &m_pPlaceholderSamplerState);
-	m_pDeviceContext->PSSetShaderResources(0, 1, &m_pPlaceholderTexture);
+	m_pDeviceContext->PSSetSamplers(SLOT_TEXTURE, 1, &m_pPlaceholderSamplerState);
+	m_pDeviceContext->PSSetShaderResources(SLOT_TEXTURE, 1, &m_pPlaceholderTexture);
+}
+
+void Renderer::useBumpMap(ID3D11SamplerState* pBumpMapSamplerState, ID3D11ShaderResourceView* pBumpMap) {
+	m_pDeviceContext->VSSetSamplers(SLOT_BUMPMAP, 1, &pBumpMapSamplerState);
+	m_pDeviceContext->VSSetShaderResources(SLOT_BUMPMAP, 1, &pBumpMap);
+	m_pDeviceContext->DSSetSamplers(SLOT_BUMPMAP, 1, &pBumpMapSamplerState);
+	m_pDeviceContext->DSSetShaderResources(SLOT_BUMPMAP, 1, &pBumpMap);
+	m_pDeviceContext->PSSetSamplers(SLOT_BUMPMAP, 1, &pBumpMapSamplerState);
+	m_pDeviceContext->PSSetShaderResources(SLOT_BUMPMAP, 1, &pBumpMap);
+}
+
+void Renderer::usePlaceholderBumpMap() {
+	m_pDeviceContext->VSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState);
+	m_pDeviceContext->VSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture);
+	m_pDeviceContext->DSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState);
+	m_pDeviceContext->DSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture);
+	m_pDeviceContext->PSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState);
+	m_pDeviceContext->PSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture);
 }
 
 void Renderer::setTessellationFactor(float edge, float inside, float min, float desiredSize) {

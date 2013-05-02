@@ -14,7 +14,10 @@ namespace Skin {
 	public:
 		virtual void setWorldMatrix(const XMMATRIX& matWorld) = 0;
 		virtual void setMaterial(const Material& material) = 0;
+		virtual void useTexture(ID3D11SamplerState* pTextureSamplerState, ID3D11ShaderResourceView* pTexture) = 0;
 		virtual void usePlaceholderTexture() = 0;
+		virtual void useBumpMap(ID3D11SamplerState* pBumpMapSamplerState, ID3D11ShaderResourceView* pBumpMap) = 0;
+		virtual void usePlaceholderBumpMap() = 0;
 		virtual void setTessellationFactor(float edge, float inside, float min, float desiredSize) = 0;
 	};
 

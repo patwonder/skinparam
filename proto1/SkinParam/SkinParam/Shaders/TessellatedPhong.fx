@@ -4,9 +4,7 @@
 #include "Culling.fx"
 
 cbuffer Tessellation : register(c3) {
-	float4 g_vTessellationFactor; // Edge, inside, minimum tessellation factor and 1/desired triangle size
-	float g_fAspectRatio;
-	float4 g_vFrustumPlaneEquation[4]; // View frustum plane equations : x*x0+y*y0+z*z0+w0=0
+	float4 g_vTessellationFactor; // Edge, inside, minimum tessellation factor and (half screen height/desired triangle size)
 };
 
 struct VS_INPUT {
@@ -72,15 +70,15 @@ HSCF_OUTPUT HSCF(InputPatch<HS_INPUT, 3> patch, uint patchId : SV_PrimitiveID) {
 
     // Set the tessellation factors for the three edges of the triangle.
     output.edges[0] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS2, vPosPS1));
-    output.edges[1] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS0, vPosPS2));
-    output.edges[2] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS1, vPosPS0));
+    output.edges[1] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS2, vPosPS0));
+    output.edges[2] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS0, vPosPS1));
 
     // Set the tessellation factor for tessallating inside the triangle.
     output.inside = 0.333 * (output.edges[0] + output.edges[1] + output.edges[2]);
 
     // View frustum culling
     bool bViewFrustumCull = ViewFrustumCull(patch[0].vPosWS, patch[1].vPosWS, patch[2].vPosWS,
-											g_vFrustumPlaneEquation, 0.0f);
+											g_vFrustumPlaneEquation, g_material.bump_multiplier);
     if (bViewFrustumCull) {
         // Set all tessellation factors to 0 if frustum cull test succeeds
         output.edges[0] = 0.0;
@@ -118,6 +116,10 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 	input.texCoord = uvwCoord.x * patch[0].texCoord + uvwCoord.y * patch[1].texCoord + uvwCoord.z * patch[2].texCoord;
 
 	// do view projection transform
+	input.vNormalWS = normalize(input.vNormalWS);
+	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
+	input.vPosWS += bumpAmount * input.vNormalWS;
+
 	PS_INPUT output;
 	output.vPosWS = input.vPosWS;
 	output.vPosPS = mul(float4(input.vPosWS, 1.0), g_matViewProj);

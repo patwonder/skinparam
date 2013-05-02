@@ -33,16 +33,22 @@ namespace Skin {
 		ID3D11DepthStencilView* m_pDepthStencilView;
 		ID3D11SamplerState* m_pPlaceholderSamplerState;
 		ID3D11ShaderResourceView* m_pPlaceholderTexture;
+		ID3D11SamplerState* m_pBumpSamplerState;
+		ID3D11ShaderResourceView* m_pBumpTexture;
 		D3D11_RASTERIZER_DESC m_descRasterizerState;
 
 		std::vector<IUnknown**> m_vppCOMObjs;
+
+		static const UINT SLOT_TEXTURE = 0;
+		static const UINT SLOT_BUMPMAP = 1;
 
 		// 3D Transformation
 		struct TransformConstantBuffer {
 			XMFLOAT4X4 g_matWorld;
 			XMFLOAT4X4 g_matViewProj;
 			XMFLOAT3 g_posEye;
-			float pad;
+			float g_fAspectRatio;
+			XMFLOAT4 g_vFrustrumPlaneEquation[4];
 		};
 		struct RLight {
 			XMFLOAT3 ambient;
@@ -68,15 +74,12 @@ namespace Skin {
 			XMFLOAT3 g_mtDiffuse;
 			float pad2;
 			XMFLOAT3 g_mtSpecular;
-			float pad3;
-			XMFLOAT3 g_mtEmissive;
 			float g_mtShininess;
+			XMFLOAT3 g_mtEmissive;
+			float g_mtBumpMultiplier;
 		};
 		struct TessellationConstantBuffer {
 			XMFLOAT4 g_vTesselationFactor;
-			float g_fAspectRatio;
-			float pad[3];
-			XMFLOAT4 g_vFrustrumPlaneEquation[4];
 		};
 		ID3D11Buffer* m_pTransformConstantBuffer;
 		TransformConstantBuffer m_cbTransform;
@@ -149,7 +152,10 @@ namespace Skin {
 		// IRenderer implementation
 		void setWorldMatrix(const XMMATRIX& matWorld) override;
 		void setMaterial(const Material& material) override;
+		void useTexture(ID3D11SamplerState* pTextureSamplerState, ID3D11ShaderResourceView* pTexture) override;
 		void usePlaceholderTexture() override;
+		void useBumpMap(ID3D11SamplerState* pBumpMapSamplerState, ID3D11ShaderResourceView* pBumpMap) override;
+		void usePlaceholderBumpMap() override;
 		void setTessellationFactor(float edge, float inside, float min, float desiredSize) override;
 	};
 

@@ -3,7 +3,9 @@
  */
 
 Texture2D g_texture : register(t0);
+Texture2D g_bump : register(t1);
 SamplerState g_samTexture : register(s0);
+SamplerState g_samBump : register(s1);
 
 struct Light {
 	float3 ambient;
@@ -17,6 +19,8 @@ cbuffer Transform : register(b0) {
 	matrix g_matWorld;
 	matrix g_matViewProj;
 	float3 g_posEye;
+	float g_fAspectRatio;
+	float4 g_vFrustumPlaneEquation[4]; // View frustum plane equations : x*x0+y*y0+z*z0+w0=0
 };
 
 static const uint NUM_LIGHTS = 2;
@@ -30,8 +34,9 @@ struct Material {
 	float3 ambient;
 	float3 diffuse;
 	float3 specular;
-	float3 emmisive;
 	float shininess;
+	float3 emmisive;
+	float bump_multiplier;
 };
 
 cbuffer Material : register(b2) {
