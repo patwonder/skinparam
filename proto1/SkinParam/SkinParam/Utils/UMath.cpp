@@ -7,4 +7,4 @@
 using namespace Utils;
 using namespace Math;
 
-const double Math::PI = 3.1451926535897932;
+const double Math::PI = 3.1415926535897932;

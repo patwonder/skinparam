@@ -55,7 +55,9 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pCamera(pCamera),
 	  m_nFrameCount(0),
 	  m_nStartTick(GetTickCount()),
-	  m_fps(0.0f)
+	  m_fps(0.0f),
+	  m_bTessellation(true),
+	  m_bBump(true)
 {
 	m_vppCOMObjs.push_back((IUnknown**)&m_pDevice);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pDeviceContext);
@@ -107,7 +109,7 @@ HRESULT Renderer::initDX() {
 #endif
 
     D3D_DRIVER_TYPE driverTypes[] = {
-        //D3D_DRIVER_TYPE_HARDWARE,
+        D3D_DRIVER_TYPE_HARDWARE,
         D3D_DRIVER_TYPE_WARP,
         D3D_DRIVER_TYPE_REFERENCE,
     };
@@ -115,8 +117,6 @@ HRESULT Renderer::initDX() {
 
     D3D_FEATURE_LEVEL featureLevels[] = {
         D3D_FEATURE_LEVEL_11_0,
-        D3D_FEATURE_LEVEL_10_1,
-        D3D_FEATURE_LEVEL_10_0,
     };
 	UINT numFeatureLevels = ARRAYSIZE(featureLevels);
 
@@ -204,9 +204,6 @@ HRESULT Renderer::initDX() {
 	desc.CullMode = D3D11_CULL_BACK;
 	desc.DepthClipEnable = TRUE;
 
-	// Init togglable states
-	m_bTessellation = true;
-
     return S_OK;
 }
 
@@ -292,9 +289,9 @@ void Renderer::loadShaders() {
 	D3D11_INPUT_ELEMENT_DESC phong_layout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	m_psgPhong = new ShaderGroup(m_pDevice, _T("Phong.fx"), phong_layout, ARRAYSIZE(phong_layout), "VS", nullptr, nullptr, "PS");
 
@@ -338,7 +335,7 @@ void Renderer::updateTransform() {
 	m_cbTransform.g_posEye = XMPos(vEye);
 
 	XMFLOAT4 vFrustrumPlanes[6];
-	extractPlanesFromFrustum(vFrustrumPlanes, XMMatrixTranspose(XMLoadFloat4x4(&m_cbTransform.g_matViewProj)), true);
+	extractPlanesFromFrustum(vFrustrumPlanes, matViewProj, true);
 	memcpy(m_cbTransform.g_vFrustrumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTransform.g_vFrustrumPlaneEquation));
 
 	m_pDeviceContext->UpdateSubresource(m_pTransformConstantBuffer, 0, NULL, &m_cbTransform, 0, 0);
@@ -476,6 +473,10 @@ void Renderer::toggleWireframe() {
 	pRS->Release();
 }
 
+void Renderer::toggleBump() {
+	m_bBump = !m_bBump;
+}
+
 void Renderer::toggleTessellation() {
 	m_bTessellation = !m_bTessellation;
 }
@@ -506,8 +507,14 @@ void Renderer::usePlaceholderTexture() {
 }
 
 void Renderer::useBumpMap(ID3D11SamplerState* pBumpMapSamplerState, ID3D11ShaderResourceView* pBumpMap) {
+	if (!m_bBump) {
+		usePlaceholderBumpMap();
+		return;
+	}
 	m_pDeviceContext->VSSetSamplers(SLOT_BUMPMAP, 1, &pBumpMapSamplerState);
 	m_pDeviceContext->VSSetShaderResources(SLOT_BUMPMAP, 1, &pBumpMap);
+	m_pDeviceContext->HSSetSamplers(SLOT_BUMPMAP, 1, &pBumpMapSamplerState);
+	m_pDeviceContext->HSSetShaderResources(SLOT_BUMPMAP, 1, &pBumpMap);
 	m_pDeviceContext->DSSetSamplers(SLOT_BUMPMAP, 1, &pBumpMapSamplerState);
 	m_pDeviceContext->DSSetShaderResources(SLOT_BUMPMAP, 1, &pBumpMap);
 	m_pDeviceContext->PSSetSamplers(SLOT_BUMPMAP, 1, &pBumpMapSamplerState);
@@ -517,6 +524,8 @@ void Renderer::useBumpMap(ID3D11SamplerState* pBumpMapSamplerState, ID3D11Shader
 void Renderer::usePlaceholderBumpMap() {
 	m_pDeviceContext->VSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState);
 	m_pDeviceContext->VSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture);
+	m_pDeviceContext->HSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState);
+	m_pDeviceContext->HSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture);
 	m_pDeviceContext->DSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState);
 	m_pDeviceContext->DSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture);
 	m_pDeviceContext->PSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState);

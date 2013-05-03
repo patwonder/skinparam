@@ -38,20 +38,20 @@ void Camera::changeView(double hAngleDelta, double vAngleDelta) {
 		hAngle += Math::PI;
 
 	hAngle -= hAngleDelta;
-	while (hAngle < 0.0f)
+	while (hAngle < 0.0)
 		hAngle += 2 * Math::PI;
 	while (hAngle > 2 * Math::PI) {
 		hAngle -= 2 * Math::PI;
 	}
 
 	vAngle += vAngleDelta;
-	if (vAngle < Math::PI / 180.0f)
-		vAngle = Math::PI / 180.0f;
-	if (vAngle > Math::PI * (1.0f - 1.0f / 180.0f))
-		vAngle = Math::PI * (1.0f - 1.0f / 180.0f);
+	if (vAngle < Math::PI / 180.0)
+		vAngle = Math::PI / 180.0;
+	if (vAngle > Math::PI * (1.0 - 1.0 / 180.0))
+		vAngle = Math::PI * (1.0 - 1.0 / 180.0);
 
-	vLookDir.z = 1.0f * cos(vAngle);
-	double len = 1.0f * sin(vAngle);
+	vLookDir.z = 1.0 * cos(vAngle);
+	double len = 1.0 * sin(vAngle);
 	vLookDir.x = len * cos(hAngle);
 	vLookDir.y = len * sin(hAngle);
 

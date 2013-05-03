@@ -108,6 +108,7 @@ namespace Skin {
 
 		// toggleables
 		bool m_bTessellation;
+		bool m_bBump;
 
 		HRESULT initDX();
 		void initMisc();
@@ -148,6 +149,7 @@ namespace Skin {
 		// Toggleables
 		void toggleWireframe();
 		void toggleTessellation();
+		void toggleBump();
 
 		// IRenderer implementation
 		void setWorldMatrix(const XMMATRIX& matWorld) override;

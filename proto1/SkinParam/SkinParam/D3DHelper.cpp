@@ -6,6 +6,7 @@
 
 #include "D3DHelper.h"
 #include <cmath>
+#include <cstring>
 
 using namespace Skin;
 using namespace Utils;
@@ -29,9 +30,15 @@ HRESULT D3DHelper::compileShader(const TString& strFileName, const char* szEntry
     // the shaders to be optimized and to run exactly the way they will run in 
     // the release configuration of this program.
     dwShaderFlags |= D3DCOMPILE_DEBUG;
+	dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_PREFER_FLOW_CONTROL;
+#else
+	// Might be a bug in d3dcompiler_43.dll, see https://gist.github.com/aras-p/3236705
+	// Hull shader optimization is bugged
+	if (_strnicmp(szShaderModel, "hs_", 3) == 0)
+		dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
-    ID3DBlob* pErrorBlob;
+    ID3DBlob* pErrorBlob = nullptr;
     hr = D3DX11CompileFromFile(strFileName.c_str(), NULL, NULL, szEntryPoint, szShaderModel, 
         dwShaderFlags, 0, NULL, ppBlobOut, &pErrorBlob, NULL);
     if (FAILED(hr)) {

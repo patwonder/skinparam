@@ -92,8 +92,8 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 	delete[] vertices;
 
 	// Create sampler state
-	checkFailure(createSamplerState(pDevice, D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_WRAP,
-		D3D11_TEXTURE_ADDRESS_WRAP, D3D11_TEXTURE_ADDRESS_WRAP, &m_pSamplerState),
+	checkFailure(createSamplerState(pDevice, D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP,
+		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pSamplerState),
 		_T("Failed to create sampler state"));
 
 	// Create textures for each material
@@ -199,7 +199,7 @@ void MeshRenderable::computeNormals() {
 	}
 
 	// calculate average normal
-	for (UINT i = 0; i < numVertices; i++) {
+	for (UINT i = 1; i <= numVertices; i++) {
 		if (normals[i])
 			normals[i] = normals[i].normalize();
 	}
@@ -248,10 +248,13 @@ void MeshRenderable::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRen
 			auto iterBump = m_vpBumpMaps.find(part.MaterialName);
 			if (iterBump != m_vpBumpMaps.end()) {
 				pRenderer->useBumpMap(m_pSamplerState, iterBump->second);
+			} else {
+				pRenderer->usePlaceholderBumpMap();
 			}
 		} else {
 			pRenderer->setMaterial(Material::White);
 			pRenderer->usePlaceholderTexture();
+			pRenderer->usePlaceholderBumpMap();
 		}
 
 		pDeviceContext->Draw(3 * (part.TriIdxMax - part.TriIdxMin), 3 * nTriDrawn);
