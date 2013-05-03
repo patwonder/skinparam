@@ -78,10 +78,10 @@ CMainWindow::CMainWindow()
 	//m_pRenderer->addRenderable(m_pTriangle);
 	m_pRenderer->addRenderable(m_pHead);
 
-	m_pLight1 = new Light(Vector(0, -5, 5), Color::White * 0.3f, Color::White * 1.3f, Color::White * 0.7f, 1.0f, 0.1f, 0.0f);
-	m_pLight2 = new Light(Vector(5, 0, 5), Color::Green * 0.0f, Color::Green * 0.2f, Color::Green * 0.05f, 1.0f, 0.03f, 0.0f);
+	m_pLight1 = new Light(Vector(0, -5, 5), Color::White * 0.15f, Color::White * 1.0f, Color::White * 0.7f, 1.0f, 0.1f, 0.0f);
+	m_pLight2 = new Light(Vector(0, 5, 5), Color::White * 0.15f, Color::White * 1.0f, Color::White * 0.7f, 1.0f, 0.1f, 0.0f);
 	m_pRenderer->addLight(m_pLight1);
-	//m_pRenderer->addLight(m_pLight2);
+	m_pRenderer->addLight(m_pLight2);
 
 	m_bChangingView = false;
 	m_camera.restrictView(3.0, 12.0);
