@@ -18,11 +18,14 @@ namespace Skin {
 	private:
 		void removeDuplicateVertices();
 		void computeNormals();
+		void computeTangentSpace();
 	protected:
 		struct Vertex {
 			XMFLOAT3 position;
 			XMFLOAT4 color;
 			XMFLOAT3 normal;
+			XMFLOAT3 tangent;
+			XMFLOAT3 binormal;
 			XMFLOAT2 texCoord;
 		};
 

@@ -1,9 +1,12 @@
 /*-----------------------------------------------------------------//
-// April 10, 2005												   //
-//                                Copyright ? 2005  Justin Walsh //
-//																   //
-//  This code is Released Under the GNU GPL                        //
-//       http://www.gnu.org/copyleft/gpl.html                      //
+// April 10, 2005                                                    //
+//                                Copyright ? 2005  Justin Walsh     //
+//                                                                   //
+//  This code is Released Under the GNU GPL                          //
+//       http://www.gnu.org/copyleft/gpl.html                        //
+//                                                                   //
+//  Contributor(s):                                                  //
+//    Yifan Wu (patwonder@163.com)  (May 6th, 2013)                  //
 //-----------------------------------------------------------------*/
 
 #include <fstream>
@@ -94,6 +97,8 @@ namespace Utils {
 		//hear are the counters...
 		theObj->Vertices.push_back(ObjVertex());
 		theObj->Normals.push_back(ObjNormal());
+		theObj->Tangents.push_back(ObjTangent());
+		theObj->Binormals.push_back(ObjBinormal());
 		theObj->TexCoords.push_back(ObjTexCoord());
 
 		ObjPart currentPart = { "", 1, 1 };

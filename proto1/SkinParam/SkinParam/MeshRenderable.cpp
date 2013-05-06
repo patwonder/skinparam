@@ -24,6 +24,7 @@ MeshRenderable::MeshRenderable(const TString& strObjFilePath)
 
 	m_pModel = loader.ReturnObj();
 	computeNormals();
+	computeTangentSpace();
 }
 
 MeshRenderable::~MeshRenderable() {
@@ -80,6 +81,8 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 				v.color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 				v.position = XMFLOAT3(m_pModel->Vertices[tri.Vertex[j]].toArray());
 				v.normal = XMFLOAT3(m_pModel->Normals[tri.Normal[j]].toArray());
+				v.binormal = XMFLOAT3(m_pModel->Binormals[tri.Vertex[j]].toArray());
+				v.tangent = XMFLOAT3(m_pModel->Tangents[tri.Vertex[j]].toArray());
 				v.texCoord = XMFLOAT2(&m_pModel->TexCoords[tri.TexCoord[j]].U);
 				i++;
 			}
@@ -212,6 +215,83 @@ void MeshRenderable::computeNormals() {
 				tri.Normal[j] = tri.Vertex[j];
 			}
 		}
+	}
+}
+
+void MeshRenderable::computeTangentSpace() {
+	// quit if there's already some tangents/binormals in the model
+	// note tangents/binormals (and vertices, texcoords) begin at index 1
+	if (m_pModel->Tangents.size() > 1 || m_pModel->Binormals.size() > 1) return;
+
+	UINT numVertices = m_pModel->Vertices.size() - 1;
+	
+	// initialization
+	std::vector<ObjNormal> normals;
+	auto& tangents = m_pModel->Tangents;
+	auto& binormals = m_pModel->Binormals;
+	normals.resize(m_pModel->Vertices.size());
+	tangents.resize(m_pModel->Vertices.size());
+	binormals.resize(m_pModel->Vertices.size());
+	// already zeroed when default constructors are called
+
+	// See http://www.terathon.com/code/binormal.html
+	for (const ObjPart& part : m_pModel->Parts) {
+		for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
+			const ObjTriangle& tri = m_pModel->Triangles[idxTri];
+			const ObjTexCoord& t0 = m_pModel->TexCoords[tri.TexCoord[0]];
+			const ObjTexCoord& t1 = m_pModel->TexCoords[tri.TexCoord[1]];
+			const ObjTexCoord& t2 = m_pModel->TexCoords[tri.TexCoord[2]];
+			const ObjVertex& v0 = m_pModel->Vertices[tri.Vertex[0]];
+			const ObjVertex& v1 = m_pModel->Vertices[tri.Vertex[1]];
+			const ObjVertex& v2 = m_pModel->Vertices[tri.Vertex[2]];
+
+			// deltas
+			ObjTexCoord dt1 = { t1.U - t0.U, t1.V - t0.V };
+			ObjTexCoord dt2 = { t2.U - t0.U, t2.V - t0.V };
+			FVector dv1 = v1 - v0;
+			FVector dv2 = v2 - v0;
+
+			// the formula
+			//
+			// | Tx Ty Tz |       1     |  t2 -t1 || Q1x Q1y Q1z |
+			// |          | = _________ |         ||             |
+			// | Bx By Bz |   s1t2-s2t1 | -s2  s1 || Q2x Q2y Q2z |
+			//
+
+			// triangle area * 2 in texture space
+			float invda = -1.0f / (dt1.U * dt2.V - dt1.V * dt2.U);
+			ObjTangent tan = ObjTangent(dt2.V * dv1.x - dt1.V * dv2.x, 
+										 dt2.V * dv1.y - dt1.V * dv2.y,
+										 dt2.V * dv1.z - dt1.V * dv2.z);
+			ObjBinormal bn = ObjBinormal(-dt2.U * dv1.x + dt1.U * dv2.x,
+										-dt2.U * dv1.y + dt1.U * dv2.y,
+										-dt2.U * dv1.z + dt1.U * dv2.z);
+			tan *= invda; bn *= invda;
+
+			tangents[tri.Vertex[0]] += tan;
+			tangents[tri.Vertex[1]] += tan;
+			tangents[tri.Vertex[2]] += tan;
+			binormals[tri.Vertex[0]] += bn;
+			binormals[tri.Vertex[1]] += bn;
+			binormals[tri.Vertex[2]] += bn;
+			normals[tri.Vertex[0]] += m_pModel->Normals[tri.Vertex[0]];
+			normals[tri.Vertex[1]] += m_pModel->Normals[tri.Vertex[1]];
+			normals[tri.Vertex[2]] += m_pModel->Normals[tri.Vertex[2]];
+		}
+	}
+
+	// averaging & orthogonalize
+	for (UINT i = 1; i <= numVertices; i++) {
+		ObjTangent& tan = tangents[i];
+		ObjBinormal& bn = binormals[i];
+		ObjNormal& n = normals[i];
+		n = n.normalize();
+
+		// Gram-Schmidt orthogonalize
+		ObjTangent tangent = (tan - n * (n * tan)).normalize();
+		bn = cross(n, tangent).normalize();
+		if ((cross(n, tan) * bn) < 0.0f) bn = -bn;
+		tan = tangent;
 	}
 }
 

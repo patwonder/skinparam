@@ -84,7 +84,7 @@ CMainWindow::CMainWindow()
 	m_pRenderer->addLight(m_pLight2);
 
 	m_bChangingView = false;
-	m_camera.restrictView(3.0, 12.0);
+	m_camera.restrictView(2.0, 12.0);
 }
 
 CMainWindow::~CMainWindow() {

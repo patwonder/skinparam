@@ -1,9 +1,12 @@
 /*-----------------------------------------------------------------//
-// April 10, 2005												   //
-//                                Copyright ? 2005  Justin Walsh //
-//																   //
-//  This code is Released Under the GNU GPL                        //
-//       http://www.gnu.org/copyleft/gpl.html                      //
+// April 10, 2005                                                    //
+//                                Copyright ? 2005  Justin Walsh     //
+//                                                                   //
+//  This code is Released Under the GNU GPL                          //
+//       http://www.gnu.org/copyleft/gpl.html                        //
+//                                                                   //
+//  Contributor(s):                                                  //
+//    Yifan Wu (patwonder@163.com)  (May 6th, 2013)                  //
 //-----------------------------------------------------------------*/
 
 #pragma once
@@ -32,6 +35,20 @@ namespace Utils {
 		ObjNormal(const FVector& v) : FVector(v) { }
 	};
 
+	struct ObjTangent : public FVector {
+		ObjTangent() { }
+		ObjTangent(float x, float y, float z)
+			: FVector(x, y, z) { }
+		ObjTangent(const FVector& v) : FVector(v) { }
+	};
+
+	struct ObjBinormal : public FVector {
+		ObjBinormal() { }
+		ObjBinormal(float x, float y, float z)
+			: FVector(x, y, z) { }
+		ObjBinormal(const FVector& v) : FVector(v) { }
+	};
+
 	struct ObjTexCoord {
 		 float U, V;
 	};
@@ -39,6 +56,8 @@ namespace Utils {
 	struct ObjTriangle{
 		int Vertex[3];
 		int Normal[3];
+		int Binormal[3];
+		int Tangent[3];
 		int TexCoord[3];
 	};
 
@@ -69,6 +88,8 @@ namespace Utils {
 
 			std::vector<ObjVertex> Vertices;
 			std::vector<ObjNormal> Normals;
+			std::vector<ObjTangent> Tangents;
+			std::vector<ObjBinormal> Binormals;
 			std::vector<ObjTexCoord> TexCoords;
 			std::vector<ObjTriangle> Triangles;
 			std::map<std::string, ObjMaterial> Materials;

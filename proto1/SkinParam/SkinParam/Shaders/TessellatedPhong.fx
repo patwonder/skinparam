@@ -11,6 +11,8 @@ struct VS_INPUT {
 	float4 vPosOS : POSITION;
 	float4 color : COLOR;
 	float3 vNormalOS : NORMAL;
+	float3 vTangentOS : TANGENT;
+	float3 vBinormalOS : BINORMAL;
 	float2 texCoord : TEXCOORD0;
 };
 
@@ -18,6 +20,8 @@ struct HS_INPUT {
 	float3 vPosWS : WORLDPOS;
 	float4 color : COLOR;
 	float3 vNormalWS : NORMAL;
+	float3 vTangentWS : TANGENT;
+	float3 vBinormalWS : BINORMAL;
 	float2 texCoord : TEXCOORD0;
 };
 
@@ -30,6 +34,8 @@ struct DS_INPUT {
 	float3 vPosWS : WORLDPOS;
 	float4 color : COLOR;
 	float3 vNormalWS : NORMAL;
+	float3 vTangentWS : TANGENT;
+	float3 vBinormalWS : BINORMAL;
 	float2 texCoord : TEXCOORD0;
 };
 
@@ -37,6 +43,8 @@ struct PS_INPUT {
 	float4 vPosPS : SV_POSITION;
 	float4 color : COLOR0;
 	float3 vNormalWS : NORMAL;
+	float3 vTangentWS : TANGENT;
+	float3 vBinormalWS : BINORMAL;
 	float3 vPosWS : WORLDPOS;
 	float2 texCoord : TEXCOORD0;
 };
@@ -48,6 +56,8 @@ HS_INPUT VS(VS_INPUT input) {
 	output.vPosWS = wpos4.xyz / wpos4.w;
 	output.color = input.color;
 	output.vNormalWS = mul(input.vNormalOS, (float3x3)g_matWorld);
+	output.vTangentWS = mul(input.vTangentOS, (float3x3)g_matWorld);
+	output.vBinormalWS = mul(input.vBinormalOS, (float3x3)g_matWorld);
 	output.texCoord = input.texCoord;
 	return output;
 }
@@ -102,6 +112,8 @@ DS_INPUT HS(InputPatch<HS_INPUT, 3> patch, uint pointId : SV_OutputControlPointI
 	output.vPosWS = patch[pointId].vPosWS;
 	output.color = patch[pointId].color;
 	output.vNormalWS = patch[pointId].vNormalWS;
+	output.vTangentWS = patch[pointId].vTangentWS;
+	output.vBinormalWS = patch[pointId].vBinormalWS;
 	output.texCoord = patch[pointId].texCoord;
 	return output;
 }
@@ -114,10 +126,14 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 	input.vPosWS = uvwCoord.x * patch[0].vPosWS + uvwCoord.y * patch[1].vPosWS + uvwCoord.z * patch[2].vPosWS;
 	input.color = uvwCoord.x * patch[0].color + uvwCoord.y * patch[1].color + uvwCoord.z * patch[2].color;
 	input.vNormalWS = uvwCoord.x * patch[0].vNormalWS + uvwCoord.y * patch[1].vNormalWS + uvwCoord.z * patch[2].vNormalWS;
+	input.vBinormalWS = uvwCoord.x * patch[0].vBinormalWS + uvwCoord.y * patch[1].vBinormalWS + uvwCoord.z * patch[2].vBinormalWS;
+	input.vTangentWS = uvwCoord.x * patch[0].vTangentWS + uvwCoord.y * patch[1].vTangentWS + uvwCoord.z * patch[2].vTangentWS;
 	input.texCoord = uvwCoord.x * patch[0].texCoord + uvwCoord.y * patch[1].texCoord + uvwCoord.z * patch[2].texCoord;
 
 	// do view projection transform
 	input.vNormalWS = normalize(input.vNormalWS);
+	input.vTangentWS = normalize(input.vTangentWS);
+	input.vBinormalWS = normalize(input.vBinormalWS);
 	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
 	input.vPosWS += bumpAmount * input.vNormalWS;
 
@@ -126,14 +142,35 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 	output.vPosPS = mul(float4(input.vPosWS, 1.0), g_matViewProj);
 	output.color = input.color;
 	output.vNormalWS = input.vNormalWS;
+	output.vTangentWS = input.vTangentWS;
+	output.vBinormalWS = input.vBinormalWS;
 	output.texCoord = input.texCoord;
 	return output;
 }
+
+static const float BUMP_SIZE = 2048;
+static const float BUMP_PIXEL_DIST = 0.05;
 
 // Pixel shader
 float4 PS(PS_INPUT input) : SV_Target {
 	// textured color
 	float3 tex_color = input.color.rgb * g_texture.Sample(g_samTexture, input.texCoord).rgb;
-	float3 color = phong_lighting(g_material, g_ambient, g_lights, g_posEye, input.vPosWS, tex_color, input.vNormalWS);
+
+	// calculated pertubated normal
+	input.vNormalWS = normalize(input.vNormalWS);
+	input.vTangentWS = normalize(input.vTangentWS);
+	input.vBinormalWS = normalize(input.vBinormalWS);
+	float3x3 matTanToWorld = float3x3(input.vTangentWS, input.vBinormalWS, input.vNormalWS);
+
+	float bump11 = g_bump.Sample(g_samBump, input.texCoord).r;
+	float3 bump01 = float3(-BUMP_PIXEL_DIST, 0, g_bump.Sample(g_samBump, input.texCoord + float2(-1.0 / BUMP_SIZE, 0)).r - bump11);
+	float3 bump21 = float3(BUMP_PIXEL_DIST, 0, g_bump.Sample(g_samBump, input.texCoord + float2(1.0 / BUMP_SIZE, 0)).r - bump11);
+	float3 bump10 = float3(0, -BUMP_PIXEL_DIST, g_bump.Sample(g_samBump, input.texCoord + float2(0, -1.0 / BUMP_SIZE)).r - bump11);
+	float3 bump12 = float3(0, BUMP_PIXEL_DIST, g_bump.Sample(g_samBump, input.texCoord + float2(0, 1.0 / BUMP_SIZE)).r - bump11);
+	float3 vNormalTS = cross(bump01, bump10) + cross(bump10, bump21) + cross(bump21, bump12) + cross(bump12, bump01);
+	float3 vNormalWS = mul(vNormalTS, matTanToWorld);
+	
+	// shading
+	float3 color = phong_lighting(g_material, g_ambient, g_lights, g_posEye, input.vPosWS, tex_color, vNormalWS);
 	return float4(color, 1.0);
 }
