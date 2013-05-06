@@ -2,6 +2,7 @@
 
 #include "Lighting.fx"
 #include "Culling.fx"
+#include "Bump.fx"
 
 cbuffer Tessellation : register(c3) {
 	float4 g_vTessellationFactor; // Edge, inside, minimum tessellation factor and (half screen height/desired triangle size)
@@ -148,27 +149,13 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 	return output;
 }
 
-static const float BUMP_SIZE = 2048;
-static const float BUMP_PIXEL_DIST = 0.05;
-
 // Pixel shader
 float4 PS(PS_INPUT input) : SV_Target {
 	// textured color
 	float3 tex_color = input.color.rgb * g_texture.Sample(g_samTexture, input.texCoord).rgb;
 
 	// calculated pertubated normal
-	input.vNormalWS = normalize(input.vNormalWS);
-	input.vTangentWS = normalize(input.vTangentWS);
-	input.vBinormalWS = normalize(input.vBinormalWS);
-	float3x3 matTanToWorld = float3x3(input.vTangentWS, input.vBinormalWS, input.vNormalWS);
-
-	float bump11 = g_bump.Sample(g_samBump, input.texCoord).r;
-	float3 bump01 = float3(-BUMP_PIXEL_DIST, 0, g_bump.Sample(g_samBump, input.texCoord + float2(-1.0 / BUMP_SIZE, 0)).r - bump11);
-	float3 bump21 = float3(BUMP_PIXEL_DIST, 0, g_bump.Sample(g_samBump, input.texCoord + float2(1.0 / BUMP_SIZE, 0)).r - bump11);
-	float3 bump10 = float3(0, -BUMP_PIXEL_DIST, g_bump.Sample(g_samBump, input.texCoord + float2(0, -1.0 / BUMP_SIZE)).r - bump11);
-	float3 bump12 = float3(0, BUMP_PIXEL_DIST, g_bump.Sample(g_samBump, input.texCoord + float2(0, 1.0 / BUMP_SIZE)).r - bump11);
-	float3 vNormalTS = cross(bump01, bump10) + cross(bump10, bump21) + cross(bump21, bump12) + cross(bump12, bump01);
-	float3 vNormalWS = mul(vNormalTS, matTanToWorld);
+	float3 vNormalWS = calcNormalWS(g_samBump, g_bump, input.texCoord, input.vNormalWS, input.vTangentWS, input.vBinormalWS);
 	
 	// shading
 	float3 color = phong_lighting(g_material, g_ambient, g_lights, g_posEye, input.vPosWS, tex_color, vNormalWS);

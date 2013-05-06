@@ -156,5 +156,8 @@
     <None Include="Shaders\Culling.fx">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\Bump.fx">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
