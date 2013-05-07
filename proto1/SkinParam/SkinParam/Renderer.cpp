@@ -42,13 +42,17 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pPlaceholderTexture(nullptr),
 	  m_pBumpSamplerState(nullptr),
 	  m_pBumpTexture(nullptr),
+	  m_pNormalTexture(nullptr),
+	  m_pLinearSamplerState(nullptr),
+	  m_pShadowMapDepthStencilView(nullptr),
 	  m_pTransformConstantBuffer(nullptr),
 	  m_pLightingConstantBuffer(nullptr),
 	  m_pMaterialConstantBuffer(nullptr),
 	  m_pTessellationConstantBuffer(nullptr),
 	  m_psgTriangle(nullptr),
 	  m_psgPhong(nullptr),
-	  m_psgTesselatedPhong(nullptr),
+	  m_psgTessellatedPhong(nullptr),
+	  m_psgTessellatedShadow(nullptr),
 	  m_hwnd(hwnd),
 	  m_rectView(rectView),
 	  m_pConfig(pConfig),
@@ -59,6 +63,9 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_bTessellation(true),
 	  m_bBump(true)
 {
+	memset(m_apRTShadowMaps, 0, sizeof(m_apRTShadowMaps));
+	memset(m_apSRVShadowMaps, 0, sizeof(m_apSRVShadowMaps));
+
 	m_vppCOMObjs.push_back((IUnknown**)&m_pDevice);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pDeviceContext);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pSwapChain);
@@ -69,10 +76,17 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	m_vppCOMObjs.push_back((IUnknown**)&m_pPlaceholderTexture);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pBumpSamplerState);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pBumpTexture);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pNormalTexture);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pLinearSamplerState);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pShadowMapDepthStencilView);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pTransformConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pLightingConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pMaterialConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pTessellationConstantBuffer);
+	for (UINT i = 0; i < NUM_LIGHTS; i++) {
+		m_vppCOMObjs.push_back((IUnknown**)m_apRTShadowMaps + i);
+		m_vppCOMObjs.push_back((IUnknown**)m_apSRVShadowMaps + i);
+	}
 
 	checkFailure(initDX(), _T("Failed to initialize DirectX 11"));
 
@@ -84,6 +98,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	initMaterial();
 	updateProjection();
 	initTessellation();
+	initShadowMaps();
 }
 
 Renderer::~Renderer() {
@@ -188,7 +203,7 @@ HRESULT Renderer::initDX() {
 	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencilView);
 
 	// Setup the viewport
-    D3D11_VIEWPORT vp;
+    D3D11_VIEWPORT& vp = m_vpScreen;
 	vp.Width = (float)m_rectView.Width();
 	vp.Height = (float)m_rectView.Height();
     vp.MinDepth = 0.0f;
@@ -213,14 +228,14 @@ void Renderer::initMisc() {
 		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pPlaceholderSamplerState),
 		_T("Failed to create placeholder sampler state"));
 
-	checkFailure(createTexture2D(m_pDevice, 1, 1, DXGI_FORMAT_R32G32B32A32_FLOAT, &m_pPlaceholderTexture),
+	checkFailure(createTextureResourceView(m_pDevice, 1, 1, DXGI_FORMAT_R32_FLOAT, &m_pPlaceholderTexture),
 		_T("Failed to create placeholder texture"));
 
 	{
-		float initData[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		float initData[] = { 1.0f };
 		ID3D11Resource* pResource = nullptr;
 		m_pPlaceholderTexture->GetResource(&pResource);
-		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 16, 0);
+		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 4, 0);
 		pResource->Release();
 	}
 
@@ -229,16 +244,32 @@ void Renderer::initMisc() {
 		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pBumpSamplerState),
 		_T("Failed to create placeholder bump sampler state"));
 
-	checkFailure(createTexture2D(m_pDevice, 1, 1, DXGI_FORMAT_R32G32B32A32_FLOAT, &m_pBumpTexture),
+	checkFailure(createTextureResourceView(m_pDevice, 1, 1, DXGI_FORMAT_R32_FLOAT, &m_pBumpTexture),
 		_T("Failed to create placeholder bump map"));
 
 	{
-		float initData[] = {0.5f, 0.5f, 0.5f, 0.5f };
+		float initData[] = { 0.5f };
 		ID3D11Resource* pResource = nullptr;
 		m_pBumpTexture->GetResource(&pResource);
-		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 16, 0);
+		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 4, 0);
 		pResource->Release();
 	}
+
+	// Creates the placeholder normal texture for non-normalmapped objects
+	checkFailure(createTextureResourceView(m_pDevice, 1, 1, DXGI_FORMAT_R32G32_FLOAT, &m_pNormalTexture),
+		_T("Failed to create placeholder normal map"));
+	{
+		float initData[] = { 0.0f, 0.0f };
+		ID3D11Resource* pResource = nullptr;
+		m_pNormalTexture->GetResource(&pResource);
+		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 8, 0);
+		pResource->Release();
+	}
+
+	// Creates a linear sampler state for shadow maps
+	checkFailure(createSamplerState(m_pDevice, D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP,
+		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pLinearSamplerState),
+		_T("Failed to create linear sampler state"));
 }
 
 void Renderer::addRenderable(Renderable* renderable) {
@@ -297,14 +328,18 @@ void Renderer::loadShaders() {
 	};
 	m_psgPhong = new ShaderGroup(m_pDevice, _T("Phong.fx"), phong_layout, ARRAYSIZE(phong_layout), "VS", nullptr, nullptr, "PS");
 
-	m_psgTesselatedPhong = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
+	m_psgTessellatedPhong = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
+		"VS", "HS", "DS", "PS");
+
+	m_psgTessellatedShadow = new ShaderGroup(m_pDevice, _T("TessellatedShadow.fx"), phong_layout, ARRAYSIZE(phong_layout),
 		"VS", "HS", "DS", "PS");
 }
 
 void Renderer::unloadShaders() {
 	delete m_psgTriangle; m_psgTriangle = nullptr;
 	delete m_psgPhong; m_psgPhong = nullptr;
-	delete m_psgTesselatedPhong; m_psgTesselatedPhong = nullptr;
+	delete m_psgTessellatedPhong; m_psgTessellatedPhong = nullptr;
+	delete m_psgTessellatedShadow; m_psgTessellatedShadow = nullptr;
 }
 
 void Renderer::initTransform() {
@@ -322,23 +357,55 @@ void Renderer::initTransform() {
 	};
 	memcpy(m_cbTransform.g_vFrustrumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTransform.g_vFrustrumPlaneEquation));
 
+	XMStoreFloat4x4(&m_cbTransform.g_matViewProjCamera, XMMatrixIdentity());
+	for (UINT i = 0; i < NUM_LIGHTS; i++) {
+		XMStoreFloat4x4(m_cbTransform.g_matViewProjLights + i, XMMatrixIdentity());
+	}
+
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbTransform, &m_pTransformConstantBuffer),
 		_T("Failed to create transform constant buffer"));
 }
 
-void Renderer::updateTransform() {
+XMMATRIX Renderer::getViewProjMatrix(const Camera& camera, const XMMATRIX& matProjection) {
 	Vector vEye, vLookAt, vUp;
-	m_pCamera->look(vEye, vLookAt, vUp);
+	camera.look(vEye, vLookAt, vUp);
 
 	XMMATRIX matView = XMMatrixLookAtLH(XMVec(vEye), XMVec(vLookAt), XMVec(vUp));
-	XMMATRIX matViewProj = XMMatrixMultiply(matView, XMLoadFloat4x4(&m_matProjection));
+	return XMMatrixMultiply(matView, matProjection);
+}
+
+Camera Renderer::getLightCamera(const Light& light) {
+	return Camera(light.vecPosition, Vector::ZERO, Vector(0, 0, 1));
+}
+
+void Renderer::updateTransform() {
+	updateTransform(*m_pCamera, XMLoadFloat4x4(&m_matProjection));
+}
+
+void Renderer::updateTransformForLight(const Light& light) {
+	updateTransform(getLightCamera(light), XMLoadFloat4x4(&m_matLightProjection));
+}
+
+void Renderer::updateTransform(const Camera& camera, const XMMATRIX& matProjection) {
+	XMMATRIX matViewProj = getViewProjMatrix(camera, matProjection);
 	XMStoreFloat4x4(&m_cbTransform.g_matViewProj, XMMatrixTranspose(matViewProj));
 
-	m_cbTransform.g_posEye = XMPos(vEye);
+	m_cbTransform.g_posEye = XMPos(camera.getVecEye());
 
 	XMFLOAT4 vFrustrumPlanes[6];
 	extractPlanesFromFrustum(vFrustrumPlanes, matViewProj, true);
 	memcpy(m_cbTransform.g_vFrustrumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTransform.g_vFrustrumPlaneEquation));
+
+	// param-independent data
+	XMStoreFloat4x4(&m_cbTransform.g_matViewProjCamera, 
+		XMMatrixTranspose(getViewProjMatrix(*m_pCamera, XMLoadFloat4x4(&m_matProjection))));
+
+	for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
+		const Light* l = m_vpLights[i];
+		XMMATRIX matViewProj = getViewProjMatrix(getLightCamera(*l),
+			XMLoadFloat4x4(&m_matLightProjection));
+		XMStoreFloat4x4(m_cbTransform.g_matViewProjLights + i, XMMatrixTranspose(matViewProj));
+	}
 
 	m_pDeviceContext->UpdateSubresource(m_pTransformConstantBuffer, 0, NULL, &m_cbTransform, 0, 0);
 }
@@ -349,7 +416,7 @@ void Renderer::setGlobalAmbient(const Color& coAmbient) {
 
 void Renderer::initLighting() {
 	m_cbLighting.g_ambient = XMColor3(Color::Black);
-	for (UINT i = 0; i < LightingConstantBuffer::NUM_LIGHTS; i++) {
+	for (UINT i = 0; i < NUM_LIGHTS; i++) {
 		RLight& l = m_cbLighting.g_lights[i];
 		l.ambient = XMColor3(Color::Black);
 		l.diffuse = XMColor3(Color::Black);
@@ -363,7 +430,7 @@ void Renderer::initLighting() {
 }
 
 void Renderer::updateLighting() {
-	for (UINT i = 0; i < LightingConstantBuffer::NUM_LIGHTS && i < m_vpLights.size(); i++) {
+	for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
 		RLight& rl = m_cbLighting.g_lights[i];
 		const Light* l = m_vpLights[i];
 		rl.ambient = XMColor3(l->coAmbient);
@@ -372,7 +439,7 @@ void Renderer::updateLighting() {
 		rl.position = XMPos(l->vecPosition);
 		rl.attenuation = XMFLOAT3(l->fAtten0, l->fAtten1, l->fAtten2);
 	}
-	for (UINT i = m_vpLights.size(); i < LightingConstantBuffer::NUM_LIGHTS; i++) {
+	for (UINT i = m_vpLights.size(); i < NUM_LIGHTS; i++) {
 		RLight& l = m_cbLighting.g_lights[i];
 		l.ambient = XMColor3(Color::Black);
 		l.diffuse = XMColor3(Color::Black);
@@ -397,7 +464,9 @@ void Renderer::initMaterial() {
 
 void Renderer::updateProjection() {
 	XMStoreFloat4x4(&m_matProjection,
-		XMMatrixPerspectiveFovLH((float)(Math::PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 10000.0f));
+		XMMatrixPerspectiveFovLH((float)(Math::PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 100.0f));
+	XMStoreFloat4x4(&m_matLightProjection,
+		XMMatrixPerspectiveFovLH((float)(Math::PI / 4), 1.0f, 0.1f, 100.0f));
 }
 
 void Renderer::initTessellation() {
@@ -408,6 +477,59 @@ void Renderer::initTessellation() {
 }
 
 void Renderer::updateTessellation() {
+}
+
+void Renderer::initShadowMaps() {
+	for (UINT i = 0; i < NUM_LIGHTS; i++) {
+		ID3D11Texture2D* pTexture2D = nullptr;
+		DXGI_FORMAT format = DXGI_FORMAT_R32_FLOAT;
+		checkFailure(createTexture2D(m_pDevice, SM_SIZE, SM_SIZE, format,
+			&pTexture2D, (D3D11_BIND_FLAG)(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)),
+			_T("Failed to create shadow map texture"));
+
+		checkFailure(createShaderResourceView(m_pDevice, pTexture2D, format, m_apSRVShadowMaps + i),
+			_T("Failed to create SRV for shadow map"));
+
+		checkFailure(createRenderTargetView(m_pDevice, pTexture2D, format, m_apRTShadowMaps + i),
+			_T("Failed to create RTV for shadow map"));
+
+		pTexture2D->Release();
+	}
+
+	// Create depth stencil view for shadow maps
+	ID3D11Texture2D* pTexture2D = nullptr;
+	checkFailure(createTexture2D(m_pDevice, SM_SIZE, SM_SIZE, DXGI_FORMAT_D24_UNORM_S8_UINT,
+		&pTexture2D, D3D11_BIND_DEPTH_STENCIL),
+		_T("Failed to create depth stencil texture for shadow maps"));
+
+    D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
+    ZeroMemory(&descDSV, sizeof(descDSV));
+    descDSV.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+    descDSV.Texture2D.MipSlice = 0;
+	checkFailure(m_pDevice->CreateDepthStencilView(pTexture2D, &descDSV, &m_pShadowMapDepthStencilView),
+		_T("Failed to create depth stencil view for shadow maps"));
+
+	pTexture2D->Release();
+
+	// Initialize shadow map view port
+	D3D11_VIEWPORT& vp = m_vpShadowMap;
+	vp.Width = SM_SIZE;
+	vp.Height = SM_SIZE;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
+	vp.TopLeftX = 0.0f;
+	vp.TopLeftY = 0.0f;
+}
+
+void Renderer::bindShadowMaps() {
+	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAP, 1, &m_pBumpSamplerState);
+	m_pDeviceContext->PSSetShaderResources(SLOT_SHADOWMAP, NUM_LIGHTS, m_apSRVShadowMaps);
+}
+
+void Renderer::unbindShadowMaps() {
+	ID3D11ShaderResourceView* pNullSRVs[NUM_LIGHTS] = { nullptr };
+	m_pDeviceContext->PSSetShaderResources(SLOT_SHADOWMAP, NUM_LIGHTS, pNullSRVs);
 }
 
 void Renderer::setConstantBuffers() {
@@ -425,28 +547,41 @@ void Renderer::setConstantBuffers() {
 }
 
 void Renderer::render() {
-    //
-    // Clear the backbuffer
-    //
-    //float ClearColor[4] = { 0.8f, 0.4f, 0.0f, 1.0f }; // RGBA
-	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
-	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, ClearColor);
-
-    //
-    // Clear the depth buffer to 1.0 (max depth)
-    //
-	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
-	(m_bTessellation ? m_psgTesselatedPhong : m_psgPhong)->use(m_pDeviceContext);
 	// Set primitive topology
     m_pDeviceContext->IASetPrimitiveTopology(
-		m_bTessellation ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		true ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	updateTransform();
 	updateLighting();
 	updateTessellation();
 	setConstantBuffers();
 
+	// Render shadow maps
+	m_pDeviceContext->RSSetViewports(1, &m_vpShadowMap);
+	unbindShadowMaps();
+	m_psgTessellatedShadow->use(m_pDeviceContext);
+	for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
+		m_pDeviceContext->OMSetRenderTargets(1, m_apRTShadowMaps + i, m_pShadowMapDepthStencilView);
+		// Clear render target view & depth stencil
+		float ClearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f }; // RGBA
+		m_pDeviceContext->ClearRenderTargetView(m_apRTShadowMaps[i], ClearColor);
+		m_pDeviceContext->ClearDepthStencilView(m_pShadowMapDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+		const Light& l = *m_vpLights[i];
+		updateTransformForLight(l);
+		renderScene();
+	}
+
+	// Render the scene
+	m_pDeviceContext->RSSetViewports(1, &m_vpScreen);
+	m_psgTessellatedPhong->use(m_pDeviceContext);
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencilView);
+	// Clear render target view & depth stencil
+	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
+	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, ClearColor);
+	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	updateTransform();
+	bindShadowMaps();
 	renderScene();
 
 	m_pSwapChain->Present(m_pConfig->vsync ? 1 : 0, 0);
@@ -481,6 +616,14 @@ void Renderer::toggleBump() {
 
 void Renderer::toggleTessellation() {
 	m_bTessellation = !m_bTessellation;
+}
+
+ID3D11Device* Renderer::getDevice() const {
+	return m_pDevice;
+}
+
+ID3D11DeviceContext* Renderer::getDeviceContext() const {
+	return m_pDeviceContext;
 }
 
 void Renderer::setMaterial(const Material& mt) {
@@ -532,6 +675,16 @@ void Renderer::usePlaceholderBumpMap() {
 	m_pDeviceContext->DSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture);
 	m_pDeviceContext->PSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState);
 	m_pDeviceContext->PSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture);
+}
+
+void Renderer::useNormalMap(ID3D11SamplerState* pNormalMapSamplerState, ID3D11ShaderResourceView* pNormalMap) {
+	m_pDeviceContext->PSSetSamplers(SLOT_NORMALMAP, 1, &pNormalMapSamplerState);
+	m_pDeviceContext->PSSetShaderResources(SLOT_NORMALMAP, 1, &pNormalMap);
+}
+
+void Renderer::usePlaceholderNormalMap() {
+	m_pDeviceContext->PSSetSamplers(SLOT_NORMALMAP, 1, &m_pBumpSamplerState); // use bump map's point sampler
+	m_pDeviceContext->PSSetShaderResources(SLOT_NORMALMAP, 1, &m_pNormalTexture);
 }
 
 void Renderer::setTessellationFactor(float edge, float inside, float min, float desiredSize) {

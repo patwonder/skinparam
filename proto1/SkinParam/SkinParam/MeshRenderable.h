@@ -19,6 +19,16 @@ namespace Skin {
 		void removeDuplicateVertices();
 		void computeNormals();
 		void computeTangentSpace();
+		void computeNormalMaps(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext);
+
+		typedef UINT16 BTT;
+		static const DXGI_FORMAT BumpTexFormat = DXGI_FORMAT_R16_UNORM;
+		static const BTT BTTUpper = 65535;
+		typedef XMFLOAT2 NTT;
+		static const DXGI_FORMAT NormTexFormat = DXGI_FORMAT_R32G32_FLOAT;
+		static const float NormalDistance;
+
+		void computeNormalMap(const BTT* pBumpTextureData, UINT width, UINT height, NTT* pNormalMapData);
 	protected:
 		struct Vertex {
 			XMFLOAT3 position;
@@ -36,6 +46,7 @@ namespace Skin {
 		ID3D11SamplerState* m_pSamplerState;
 		std::map<std::string, ID3D11ShaderResourceView*> m_vpTextures;
 		std::map<std::string, ID3D11ShaderResourceView*> m_vpBumpMaps;
+		std::map<std::string, ID3D11ShaderResourceView*> m_vpNormalMaps;
 
 		MeshRenderable(const Utils::TString& strObjFilePath);
 		~MeshRenderable() override;

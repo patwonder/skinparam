@@ -14,6 +14,8 @@ using namespace Skin;
 using namespace Utils;
 using namespace D3DHelper;
 
+const float MeshRenderable::NormalDistance = 0.03f;
+
 MeshRenderable::MeshRenderable(const TString& strObjFilePath)
 	: m_pVertexBuffer(nullptr), m_pIndexBuffer(nullptr), m_pSamplerState(nullptr)
 {
@@ -104,15 +106,19 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 		const ObjMaterial& objMt = objMtPair.second;
 		if (objMt.TextureFileName.length()) {
 			ID3D11ShaderResourceView* pTexture = nullptr;
-			loadTexture(pDevice, _T("model\\") + TStringFromANSIString(objMt.TextureFileName), &pTexture);
+			checkFailure(loadTexture(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.TextureFileName), &pTexture),
+				_T("Unable to load texture ") + TStringFromANSIString(objMt.TextureFileName));
 			m_vpTextures[objMtPair.first] = pTexture;
 		}
 		if (objMt.BumpMapFileName.length()) {
 			ID3D11ShaderResourceView* pBumpMap = nullptr;
-			loadTexture(pDevice, _T("model\\") + TStringFromANSIString(objMt.BumpMapFileName), &pBumpMap);
+			checkFailure(loadTexture(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.BumpMapFileName), &pBumpMap),
+				_T("Unable to load bump map ") + TStringFromANSIString(objMt.BumpMapFileName));
 			m_vpBumpMaps[objMtPair.first] = pBumpMap;
 		}
 	}
+
+	//computeNormalMaps(pDevice, pRenderer->getDeviceContext());
 }
 
 namespace Skin {
@@ -295,6 +301,65 @@ void MeshRenderable::computeTangentSpace() {
 	}
 }
 
+void MeshRenderable::computeNormalMaps(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext) {
+	for (auto& texPair : m_vpBumpMaps) {
+		ID3D11ShaderResourceView* pTSRV = texPair.second;
+		ID3D11Texture2D* pBumpMap = nullptr;
+		pTSRV->GetResource((ID3D11Resource**)&pBumpMap);
+		D3D11_TEXTURE2D_DESC desc;
+		pBumpMap->GetDesc(&desc);
+		pBumpMap->Release();
+		if (desc.Format != BumpTexFormat)
+			checkFailure(E_UNEXPECTED, _T("Unsupported bump map type"));
+
+		UINT bumpTextureSize = desc.Width * desc.Height;
+		BTT* pBumpTextureData = new BTT[bumpTextureSize];
+		NTT* pNormalMapData = new NTT[bumpTextureSize];
+
+		checkFailure(loadImageData(_T("model\\") + TStringFromANSIString(m_pModel->Materials[texPair.first].BumpMapFileName),
+			pBumpTextureData, desc.Width * sizeof(BTT), bumpTextureSize * sizeof(BTT)),
+			_T("Failed to load image data from ") + TStringFromANSIString(m_pModel->Materials[texPair.first].BumpMapFileName));
+
+		computeNormalMap(pBumpTextureData, desc.Width, desc.Height, pNormalMapData);
+		delete [] pBumpTextureData;
+
+		ID3D11ShaderResourceView* pNormalMapView = nullptr;
+		checkFailure(loadTextureFromMemory(pDevice, pDeviceContext, pNormalMapData, desc.Width, desc.Height, NormTexFormat,
+			desc.Width * sizeof(NTT), &pNormalMapView),
+			_T("Failed to create normal map for material ") + TStringFromANSIString(texPair.first));
+		delete [] pNormalMapData;
+		m_vpNormalMaps[texPair.first] = pNormalMapView;
+	}
+}
+
+void MeshRenderable::computeNormalMap(const BTT* pBumpTextureData, UINT width, UINT height, NTT* pNormalMapData) {
+	const BTT* p = pBumpTextureData;
+	for (UINT y = 1; y < height - 1; y++) {
+		for (UINT x = 1; x < width - 1; x++) {
+			BTT center = p[y * width + x];
+			BTT up = p[(y - 1) * width + x];
+			BTT down = p[(y + 1) * width + x];
+			BTT left = p[y * width + x - 1];
+			BTT right = p[y * width + x + 1];
+
+			FVector vUp = FVector(0, -NormalDistance, (float)((int)up - (int)center) / BTTUpper);
+			FVector vDown = FVector(0, NormalDistance, (float)((int)down - (int)center) / BTTUpper);
+			FVector vLeft = FVector(-NormalDistance, 0, (float)((int)left - (int)center) / BTTUpper);
+			FVector vRight = FVector(NormalDistance, 0, (float)((int)right - (int)center) / BTTUpper);
+
+			FVector vNorm = cross(vUp, vRight) + cross(vRight, vDown) + cross(vDown, vLeft) + cross(vLeft, vUp);
+			vNorm /= vNorm.z;
+			pNormalMapData[y * width + x] = XMFLOAT2(vNorm.x, vNorm.y);
+		}
+	}
+	for (UINT y = 0; y < height; y++) {
+		pNormalMapData[y * width] = pNormalMapData[y * width + width - 1] = XMFLOAT2(0.0, 0.0);
+	}
+	for (UINT x = 0; x < width; x++) {
+		pNormalMapData[x] = pNormalMapData[(height - 1) * width + x] = XMFLOAT2(0.0, 0.0);
+	}
+}
+
 void MeshRenderable::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) {
 	// Set vertex buffer
     UINT stride = sizeof(Vertex);
@@ -331,10 +396,17 @@ void MeshRenderable::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRen
 			} else {
 				pRenderer->usePlaceholderBumpMap();
 			}
+			auto iterNormal = m_vpNormalMaps.find(part.MaterialName);
+			if (iterNormal != m_vpNormalMaps.end()) {
+				pRenderer->useNormalMap(m_pSamplerState, iterNormal->second);
+			} else {
+				pRenderer->usePlaceholderNormalMap();
+			}
 		} else {
 			pRenderer->setMaterial(Material::White);
 			pRenderer->usePlaceholderTexture();
 			pRenderer->usePlaceholderBumpMap();
+			pRenderer->usePlaceholderNormalMap();
 		}
 
 		pDeviceContext->Draw(3 * (part.TriIdxMax - part.TriIdxMin), 3 * nTriDrawn);
@@ -360,4 +432,9 @@ void MeshRenderable::cleanup(IRenderer* pRenderer) {
 		pBumpMapPair.second->Release();
 	}
 	m_vpBumpMaps.clear();
+
+	for (auto& pNormalMapPair : m_vpNormalMaps) {
+		pNormalMapPair.second->Release();
+	}
+	m_vpNormalMaps.clear();
 }

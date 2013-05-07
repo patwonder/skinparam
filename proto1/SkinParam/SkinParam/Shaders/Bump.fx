@@ -24,5 +24,24 @@ float3 calcNormalWS(SamplerState samBump, Texture2D bump, float2 texCoord, float
 	// transform to world space
 	float3 vFinalNormalWS = mul(vNormalTS, matTanToWorld);
 
+	return vNormalWS;vFinalNormalWS;
+}
+
+float3 calcNormalFromNormalMap(SamplerState samNormal, Texture2D normal, float2 texCoord, float3 vNormalWS, float3 vTangentWS, float3 vBinormalWS) {
+	// normalize stuff
+	vNormalWS = normalize(vNormalWS);
+	vTangentWS = normalize(vTangentWS);
+	vBinormalWS = normalize(vBinormalWS);
+
+	// matrix to transform vectors from tangent space to world space
+	// (assume orthorgonalized normal, tangent and binormal vectors)
+	float3x3 matTanToWorld = float3x3(vTangentWS, vBinormalWS, vNormalWS);
+
+	// calculate tangent space normal by sampling the normal map
+	float3 vNormalTS = float3(normal.Sample(samNormal, texCoord).rg, 1.0);
+
+	// transform to world space
+	float3 vFinalNormalWS = mul(vNormalTS, matTanToWorld);
+
 	return vFinalNormalWS;
 }

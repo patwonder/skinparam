@@ -78,6 +78,7 @@
     <ClInclude Include="Utils\UMath.h">
       <Filter>Utils</Filter>
     </ClInclude>
+    <ClInclude Include="WICTextureLoader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -139,6 +140,7 @@
     <ClCompile Include="Utils\UMath.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
+    <ClCompile Include="WICTextureLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Triangle.fx">
@@ -159,5 +161,10 @@
     <None Include="Shaders\Bump.fx">
       <Filter>Shaders</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\TessellatedShadow.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

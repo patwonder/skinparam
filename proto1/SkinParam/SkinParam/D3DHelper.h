@@ -26,11 +26,20 @@ namespace Skin {
 			const Utils::TString& strFileName, const char* szEntryPoint,
 			ID3D11DomainShader** ppDomainShader);
 		// texture
-		HRESULT loadTexture(ID3D11Device* pDevice, const Utils::TString& strFileName, ID3D11ShaderResourceView** ppTexture);
+		HRESULT loadTexture(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName, ID3D11ShaderResourceView** ppTexture);
+		HRESULT loadTextureFromMemory(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, void* pData, UINT width, UINT height, DXGI_FORMAT format, UINT rowPitch,
+			ID3D11ShaderResourceView** ppTexture, bool autogen = true);
+		HRESULT loadImageData(const Utils::TString& strFileName, void* pData, UINT stride, UINT size);
 		HRESULT createSamplerState(ID3D11Device* pDevice, D3D11_FILTER filer, D3D11_TEXTURE_ADDRESS_MODE addressU,
 			D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, ID3D11SamplerState** ppSamplerState);
 		HRESULT createTexture2D(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
-			ID3D11ShaderResourceView** ppTexture);
+			ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags = D3D11_BIND_SHADER_RESOURCE);
+		HRESULT createShaderResourceView(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
+			ID3D11ShaderResourceView** ppShaderResourceView);
+		HRESULT createTextureResourceView(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
+			ID3D11ShaderResourceView** ppTextureResourceView, D3D11_BIND_FLAG bindFlags = D3D11_BIND_SHADER_RESOURCE);
+		HRESULT createRenderTargetView(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
+			ID3D11RenderTargetView** ppRenderTargetView);
 		// buffers
 		HRESULT createBuffer(ID3D11Device* pDevice, UINT byteWidth, UINT bindFlags, void* pData, ID3D11Buffer** ppVertexBuffer); // for internal use
 		template <class VertexType>

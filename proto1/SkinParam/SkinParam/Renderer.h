@@ -35,17 +35,25 @@ namespace Skin {
 		ID3D11ShaderResourceView* m_pPlaceholderTexture;
 		ID3D11SamplerState* m_pBumpSamplerState;
 		ID3D11ShaderResourceView* m_pBumpTexture;
+		ID3D11ShaderResourceView* m_pNormalTexture;
+		ID3D11SamplerState* m_pLinearSamplerState;
 		D3D11_RASTERIZER_DESC m_descRasterizerState;
+		D3D11_VIEWPORT m_vpScreen;
 
 		std::vector<IUnknown**> m_vppCOMObjs;
 
 		static const UINT SLOT_TEXTURE = 0;
 		static const UINT SLOT_BUMPMAP = 1;
+		static const UINT SLOT_NORMALMAP = 2;
+		static const UINT SLOT_SHADOWMAP = 3;
 
+		static const UINT NUM_LIGHTS = 2;
 		// 3D Transformation
 		struct TransformConstantBuffer {
 			XMFLOAT4X4 g_matWorld;
 			XMFLOAT4X4 g_matViewProj;
+			XMFLOAT4X4 g_matViewProjLights[NUM_LIGHTS];
+			XMFLOAT4X4 g_matViewProjCamera;
 			XMFLOAT3 g_posEye;
 			float g_fAspectRatio;
 			XMFLOAT4 g_vFrustrumPlaneEquation[4];
@@ -63,7 +71,6 @@ namespace Skin {
 			float pad5;
 		};
 		struct LightingConstantBuffer {
-			static const UINT NUM_LIGHTS = 2;
 			RLight g_lights[NUM_LIGHTS];
 			XMFLOAT3 g_ambient;
 			float pad;
@@ -91,6 +98,14 @@ namespace Skin {
 		TessellationConstantBuffer m_cbTessellation;
 
 		XMFLOAT4X4 m_matProjection; // use XMFLOAT4X4 instead of XMMATRIX to resolve alignment issues
+		XMFLOAT4X4 m_matLightProjection; // light projection matrix
+
+		// Shadow mapping
+		static const UINT SM_SIZE = 2048;
+		D3D11_VIEWPORT m_vpShadowMap;
+		ID3D11RenderTargetView* m_apRTShadowMaps[NUM_LIGHTS];
+		ID3D11ShaderResourceView* m_apSRVShadowMaps[NUM_LIGHTS];
+		ID3D11DepthStencilView* m_pShadowMapDepthStencilView;
 
 		// Rendering
 		Camera* m_pCamera;
@@ -99,7 +114,8 @@ namespace Skin {
 
 		ShaderGroup* m_psgTriangle;
 		ShaderGroup* m_psgPhong;
-		ShaderGroup* m_psgTesselatedPhong;
+		ShaderGroup* m_psgTessellatedPhong;
+		ShaderGroup* m_psgTessellatedShadow;
 
 		// Statistics
 		unsigned int m_nFrameCount;
@@ -117,13 +133,20 @@ namespace Skin {
 		void unloadShaders();
 
 		void initTransform();
+		XMMATRIX getViewProjMatrix(const Camera& camera, const XMMATRIX& matProjection);
+		Camera getLightCamera(const Light& light);
 		void updateTransform();
+		void updateTransformForLight(const Light& light);
+		void updateTransform(const Camera& camera, const XMMATRIX& matProjection);
 		void initLighting();
 		void updateLighting();
 		void initMaterial();
 		void updateProjection();
 		void initTessellation();
 		void updateTessellation();
+		void initShadowMaps();
+		void bindShadowMaps();
+		void unbindShadowMaps();
 
 		void setConstantBuffers();
 		void computeStats();
@@ -152,12 +175,16 @@ namespace Skin {
 		void toggleBump();
 
 		// IRenderer implementation
+		ID3D11Device* getDevice() const override;
+		ID3D11DeviceContext* getDeviceContext() const override;
 		void setWorldMatrix(const XMMATRIX& matWorld) override;
 		void setMaterial(const Material& material) override;
 		void useTexture(ID3D11SamplerState* pTextureSamplerState, ID3D11ShaderResourceView* pTexture) override;
 		void usePlaceholderTexture() override;
 		void useBumpMap(ID3D11SamplerState* pBumpMapSamplerState, ID3D11ShaderResourceView* pBumpMap) override;
 		void usePlaceholderBumpMap() override;
+		void useNormalMap(ID3D11SamplerState* pNormalMapSamplerState, ID3D11ShaderResourceView* pNormalMap) override;
+		void usePlaceholderNormalMap() override;
 		void setTessellationFactor(float edge, float inside, float min, float desiredSize) override;
 	};
 
