@@ -21,6 +21,9 @@ namespace Utils {
 		static const Color Red;
 		static const Color Green;
 		static const Color Blue;
+		static const Color Aqua;
+		static const Color Purple;
+		static const Color Yellow;
 		static const Color Transparent;
 
 		// Scalar multiplication/division

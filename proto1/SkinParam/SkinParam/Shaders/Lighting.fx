@@ -2,9 +2,11 @@
  * General buffer for 3D lighting and transform
  */
 
+#include "CookTorrance.fx"
+
 static const uint NUM_LIGHTS = 2;
 static const uint SM_SIZE = 2048;
-static const float SHADOW_EPSILON = 1e-4;
+static const float SHADOW_EPSILON = 8e-5;
 
 Texture2D g_texture : register(t0);
 Texture2D g_bump : register(t1);
@@ -112,7 +114,7 @@ float3 phong_shadow(Material mt, float3 ambient, Light lights[NUM_LIGHTS],
 		float3 diffuse = atten * l.diffuse * mt.diffuse * diffuseLight;
 		// specular
 		float3 H = normalize(L + V);
-		float specularLight = saturate(pow(max(dot(N, H), 0), mt.shininess));
+		float specularLight = CookTorrance(N, V, L, H, 0.20);//saturate(pow(max(dot(N, H), 0), mt.shininess));
 		float3 specular = atten * l.specular * mt.specular * specularLight;
 		// look up shadow map for light amount
 		float lightAmount = light_amount(worldPos, shadowMaps[i], samShadow, matViewProjLights[i]);

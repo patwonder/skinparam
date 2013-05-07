@@ -161,10 +161,9 @@
     <None Include="Shaders\Bump.fx">
       <Filter>Shaders</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\TessellatedShadow.fx">
+    <None Include="Shaders\TessellatedShadow.fx" />
+    <None Include="Shaders\CookTorrance.fx">
       <Filter>Shaders</Filter>
-    </FxCompile>
+    </None>
   </ItemGroup>
 </Project>
