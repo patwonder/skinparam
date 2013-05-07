@@ -375,7 +375,7 @@ XMMATRIX Renderer::getViewProjMatrix(const Camera& camera, const XMMATRIX& matPr
 }
 
 Camera Renderer::getLightCamera(const Light& light) {
-	return Camera(light.vecPosition, Vector::ZERO, Vector(0, 0, 1));
+	return Camera(light.vecPosition, Vector(0, 0, -0.5), Vector(0, 0, 1));
 }
 
 void Renderer::updateTransform() {
@@ -464,9 +464,9 @@ void Renderer::initMaterial() {
 
 void Renderer::updateProjection() {
 	XMStoreFloat4x4(&m_matProjection,
-		XMMatrixPerspectiveFovLH((float)(Math::PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 100.0f));
+		XMMatrixPerspectiveFovLH((float)(Math::PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 30.0f));
 	XMStoreFloat4x4(&m_matLightProjection,
-		XMMatrixPerspectiveFovLH((float)(Math::PI / 4), 1.0f, 0.1f, 100.0f));
+		XMMatrixPerspectiveFovLH((float)(Math::PI * 5 / 18), 1.0f, 0.1f, 30.0f));
 }
 
 void Renderer::initTessellation() {

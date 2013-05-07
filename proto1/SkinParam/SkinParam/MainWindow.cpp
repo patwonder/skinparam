@@ -79,8 +79,8 @@ CMainWindow::CMainWindow()
 	//m_pRenderer->addRenderable(m_pTriangle);
 	m_pRenderer->addRenderable(m_pHead);
 
-	m_pLight1 = new Light(Vector(0, -5, 5), Color::White * 0.15f, Color::White * 1.0f, Color::White * 0.7f, 1.0f, 0.1f, 0.0f);
-	m_pLight2 = new Light(Vector(0, 5, -5), Color::White * 0.15f, Color::White * 1.0f, Color::White * 0.7f, 1.0f, 0.1f, 0.0f);
+	m_pLight1 = new Light(Vector(5, -4, 2), Color::White * 0.15f, Color::White * 1.0f, Color::White * 0.7f, 1.0f, 0.1f, 0.0f);
+	m_pLight2 = new Light(Vector(0, 7, 0), Color::White * 0.15f, Color::White * 1.0f, Color::White * 0.7f, 1.0f, 0.1f, 0.0f);
 	m_pRenderer->addLight(m_pLight1);
 	m_pRenderer->addLight(m_pLight2);
 
