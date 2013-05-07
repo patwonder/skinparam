@@ -24,7 +24,7 @@ float3 calcNormalWS(SamplerState samBump, Texture2D bump, float2 texCoord, float
 	// transform to world space
 	float3 vFinalNormalWS = mul(vNormalTS, matTanToWorld);
 
-	return vNormalWS;vFinalNormalWS;
+	return vFinalNormalWS;
 }
 
 float3 calcNormalFromNormalMap(SamplerState samNormal, Texture2D normal, float2 texCoord, float3 vNormalWS, float3 vTangentWS, float3 vBinormalWS) {
