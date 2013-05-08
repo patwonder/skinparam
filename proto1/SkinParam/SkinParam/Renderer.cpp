@@ -31,6 +31,19 @@ namespace Skin {
 	}
 }
 
+const float Renderer::SSS_GAUSSIAN_KERNEL_SIGMA[NUM_SSS_GAUSSIANS] = {
+	0.0064f, 0.0484f, 0.187f, 0.567f, 1.99f, 7.41f
+};
+
+const float Renderer::SSS_GAUSSIAN_WEIGHTS[NUM_SSS_GAUSSIANS][3] = {
+	{ 0.233f, 0.455f, 0.649f },
+	{ 0.100f, 0.336f, 0.344f },
+	{ 0.118f, 0.198f, 0.000f },
+	{ 0.113f, 0.007f, 0.007f },
+	{ 0.358f, 0.004f, 0.000f },
+	{ 0.078f, 0.000f, 0.000f }
+};
+
 Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	: m_pDevice(nullptr),
 	  m_pDeviceContext(nullptr),
@@ -49,10 +62,16 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pLightingConstantBuffer(nullptr),
 	  m_pMaterialConstantBuffer(nullptr),
 	  m_pTessellationConstantBuffer(nullptr),
+	  m_pGaussianConstantBuffer(nullptr),
+	  m_pCombineConstantBuffer(nullptr),
 	  m_psgTriangle(nullptr),
 	  m_psgPhong(nullptr),
 	  m_psgTessellatedPhong(nullptr),
 	  m_psgTessellatedShadow(nullptr),
+	  m_psgSSSIrradiance(nullptr),
+	  m_psgSSSGausianVertical(nullptr),
+	  m_psgSSSGausianHorizontal(nullptr),
+	  m_psgSSSCombine(nullptr),
 	  m_hwnd(hwnd),
 	  m_rectView(rectView),
 	  m_pConfig(pConfig),
@@ -65,6 +84,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 {
 	memset(m_apRTShadowMaps, 0, sizeof(m_apRTShadowMaps));
 	memset(m_apSRVShadowMaps, 0, sizeof(m_apSRVShadowMaps));
+	memset(m_apRTSSS, 0, sizeof(m_apRTSSS));
+	memset(m_apSRVSSS, 0, sizeof(m_apSRVSSS));
 
 	m_vppCOMObjs.push_back((IUnknown**)&m_pDevice);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pDeviceContext);
@@ -83,9 +104,15 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	m_vppCOMObjs.push_back((IUnknown**)&m_pLightingConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pMaterialConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pTessellationConstantBuffer);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pGaussianConstantBuffer);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pCombineConstantBuffer);
 	for (UINT i = 0; i < NUM_LIGHTS; i++) {
 		m_vppCOMObjs.push_back((IUnknown**)m_apRTShadowMaps + i);
 		m_vppCOMObjs.push_back((IUnknown**)m_apSRVShadowMaps + i);
+	}
+	for (UINT i = 0; i < NUM_SSS_VIEWS; i++) {
+		m_vppCOMObjs.push_back((IUnknown**)m_apRTSSS + i);
+		m_vppCOMObjs.push_back((IUnknown**)m_apSRVSSS + i);
 	}
 
 	checkFailure(initDX(), _T("Failed to initialize DirectX 11"));
@@ -99,6 +126,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	updateProjection();
 	initTessellation();
 	initShadowMaps();
+
+	initSSS();
 }
 
 Renderer::~Renderer() {
@@ -333,6 +362,15 @@ void Renderer::loadShaders() {
 
 	m_psgTessellatedShadow = new ShaderGroup(m_pDevice, _T("TessellatedShadow.fx"), phong_layout, ARRAYSIZE(phong_layout),
 		"VS", "HS", "DS", "PS");
+
+	// SSS
+	m_psgSSSIrradiance = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
+		"VS", "HS", "DS_Irradiance", "PS_Irradiance");
+
+	D3D11_INPUT_ELEMENT_DESC empty_layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 } };
+	m_psgSSSGausianVertical = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
+	m_psgSSSGausianVertical = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
+	m_psgSSSCombine = new ShaderGroup(m_pDevice, _T("Combine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
 }
 
 void Renderer::unloadShaders() {
@@ -340,6 +378,10 @@ void Renderer::unloadShaders() {
 	delete m_psgPhong; m_psgPhong = nullptr;
 	delete m_psgTessellatedPhong; m_psgTessellatedPhong = nullptr;
 	delete m_psgTessellatedShadow; m_psgTessellatedShadow = nullptr;
+	delete m_psgSSSIrradiance; m_psgSSSIrradiance = nullptr;
+	delete m_psgSSSGausianVertical; m_psgSSSGausianVertical = nullptr;
+	delete m_psgSSSGausianHorizontal; m_psgSSSGausianHorizontal = nullptr;
+	delete m_psgSSSCombine; m_psgSSSCombine = nullptr;
 }
 
 void Renderer::initTransform() {
@@ -530,6 +572,37 @@ void Renderer::bindShadowMaps() {
 void Renderer::unbindShadowMaps() {
 	ID3D11ShaderResourceView* pNullSRVs[NUM_LIGHTS] = { nullptr };
 	m_pDeviceContext->PSSetShaderResources(SLOT_SHADOWMAP, NUM_LIGHTS, pNullSRVs);
+}
+
+void Renderer::initSSS() {
+	for (UINT i = 0; i < NUM_SSS_VIEWS; i++) {
+		ID3D11Texture2D* pTexture2D = nullptr;
+		DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		checkFailure(createTexture2D(m_pDevice, m_rectView.Width(), m_rectView.Height(), format,
+			&pTexture2D, (D3D11_BIND_FLAG)(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)),
+			_T("Failed to create SSS texture"));
+
+		checkFailure(createShaderResourceView(m_pDevice, pTexture2D, format, m_apSRVSSS + i),
+			_T("Failed to create SRV for SSS"));
+
+		checkFailure(createRenderTargetView(m_pDevice, pTexture2D, format, m_apRTSSS + i),
+			_T("Failed to create RTV for SSS"));
+
+		pTexture2D->Release();
+	}
+	// no need to create depth stencil view, just re-use the screen one
+
+	// initialize related constant buffers
+	m_cbGaussian.g_blurWidth = 0.0f;
+	m_cbGaussian.g_invAspectRatio = (float)m_rectView.Height() / m_rectView.Width();
+	checkFailure(createConstantBuffer(m_pDevice, &m_cbGaussian, &m_pGaussianConstantBuffer),
+		_T("Failed to create gaussian constant buffer"));
+
+	for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
+		m_cbCombine.g_weights[i].value = XMFLOAT3(SSS_GAUSSIAN_WEIGHTS[i]);
+	}
+	checkFailure(createConstantBuffer(m_pDevice, &m_cbCombine, &m_pCombineConstantBuffer),
+		_T("Failed to create combine constant buffer"));
 }
 
 void Renderer::setConstantBuffers() {

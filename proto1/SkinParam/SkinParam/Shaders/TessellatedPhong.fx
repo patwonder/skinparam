@@ -155,3 +155,118 @@ float4 PS(PS_INPUT input) : SV_Target {
 								g_shadowMaps, g_samShadow, g_matViewProjLights);
 	return float4(color, 1.0);
 }
+
+// Irradiance domain & pixel shader
+struct PS_INPUT_IR_DS {
+	float4 vPosPS : SV_POSITION;
+	float4 color : COLOR0;
+	float3 vNormalWS : NORMAL;
+	float3 vTangentWS : TANGENT;
+	float3 vBinormalWS : BINORMAL;
+	float3 vPosWS : WORLDPOS;
+	float2 texCoord : TEXCOORD0;
+	float2 depth : TEXCOORD1;
+};
+
+struct PS_OUTPUT_IR_DS {
+	// r, g, b: irradiance color; a: specular color
+	float4 irradiance : SV_Target0;
+	// albeto map, sqrt of tex_color * fresnel outgoing factor
+	float4 albedo : SV_Target1;
+	// r, g : diffuse NdotV in x, y direction; b : depth; a: stencil
+	float4 diffuseStencil : SV_Target2;
+	// specular light
+	float4 specular : SV_Target3;
+};
+
+// Domain shader
+[domain("tri")]
+PS_INPUT_IR_DS DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPatch<DS_INPUT, 3> patch) {
+	// interpolate new point data
+	DS_INPUT input;
+	input.vPosWS = uvwCoord.x * patch[0].vPosWS + uvwCoord.y * patch[1].vPosWS + uvwCoord.z * patch[2].vPosWS;
+	input.color = uvwCoord.x * patch[0].color + uvwCoord.y * patch[1].color + uvwCoord.z * patch[2].color;
+	input.vNormalWS = uvwCoord.x * patch[0].vNormalWS + uvwCoord.y * patch[1].vNormalWS + uvwCoord.z * patch[2].vNormalWS;
+	input.vBinormalWS = uvwCoord.x * patch[0].vBinormalWS + uvwCoord.y * patch[1].vBinormalWS + uvwCoord.z * patch[2].vBinormalWS;
+	input.vTangentWS = uvwCoord.x * patch[0].vTangentWS + uvwCoord.y * patch[1].vTangentWS + uvwCoord.z * patch[2].vTangentWS;
+	input.texCoord = uvwCoord.x * patch[0].texCoord + uvwCoord.y * patch[1].texCoord + uvwCoord.z * patch[2].texCoord;
+
+	// do view projection transform
+	input.vNormalWS = normalize(input.vNormalWS);
+	input.vTangentWS = normalize(input.vTangentWS);
+	input.vBinormalWS = normalize(input.vBinormalWS);
+	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
+	input.vPosWS += bumpAmount * input.vNormalWS;
+
+	PS_INPUT_IR_DS output;
+	output.vPosWS = input.vPosWS;
+	output.vPosPS = mul(float4(input.vPosWS, 1.0), g_matViewProj);
+	output.color = input.color;
+	output.vNormalWS = input.vNormalWS;
+	output.vTangentWS = input.vTangentWS;
+	output.vBinormalWS = input.vBinormalWS;
+	output.texCoord = input.texCoord;
+	output.depth = output.vPosPS.zw;
+	return output;
+}
+
+PS_OUTPUT_IR_DS PS_Irradiance(PS_INPUT_IR_DS input) {
+	PS_OUTPUT_IR_DS output;
+	// textured irradiance color
+	float3 tex_color = input.color.rgb * g_texture.Sample(g_samTexture, input.texCoord).rgb;
+	float3 sq_tex_color = sqrt(tex_color);
+
+	// calculated pertubated normal
+	float3 vNormalWS = calcNormalWS(g_samBump, g_bump, input.texCoord, input.vNormalWS, input.vTangentWS, input.vBinormalWS);
+
+	// shading
+	// global ambient
+	float3 irradiance = g_ambient * g_material.ambient;
+	float3 specular = 0.0;
+
+	float3 N = normalize(input.vNormalWS);
+	float3 V = normalize(g_posEye - input.vPosWS);
+	// lights
+	for (uint i = 0; i < NUM_LIGHTS; i++) {
+		Light l = g_lights[i];
+
+		// light vector & attenuation
+		float3 L = normalize(l.position - input.vPosWS);
+		float NdotL = dot(N, L);
+		float atten = light_attenuation(input.vPosWS, l);
+		// ambient
+		float3 ambient = l.ambient * g_material.ambient;
+		// diffuse
+		float diffuseLight = max(NdotL, 0);
+		float3 diffuse = atten * l.diffuse * g_material.diffuse * diffuseLight;
+		// specular
+		float3 H = normalize(L + V);
+		float specularLight = CookTorrance(N, V, L, H, 0.3);
+		// look up shadow map for light amount
+		float lightAmount = light_amount(input.vPosWS, g_shadowMaps[i], g_samShadow, g_matViewProjLights[i]);
+		// fresnel transmittance for diffuse irradiance
+		float fresnel_trans = 1 - fresnel_term(NdotL);
+
+		// putting them together
+		specular += atten * l.specular * g_material.specular * specularLight * lightAmount;
+		irradiance += ambient + diffuse * lightAmount * fresnel_trans;
+	}
+
+	// calculate fresnel outgoing factor
+	float NdotV = dot(N, V);
+	float fresnel_trans_view = 1 - fresnel_term(NdotV);
+
+	// calculate kernel size reduction due to tilt surface
+	float3 vVer = float3(0.0, 0.0, 1.0); // up vector
+	float3 vHor = normalize(cross(vVer, V));
+	float3 vObjHor = normalize(cross(vVer, input.vNormalWS));
+	float3 vObjVer = normalize(cross(input.vNormalWS, vObjHor));
+	float2 diffuseReduction = saturate(abs(float2(dot(vObjHor, vHor), dot(vObjVer, vVer))));
+
+	output.irradiance = float4(sq_tex_color * irradiance, 1.0);
+	output.albedo = float4(sq_tex_color * fresnel_trans_view, 1.0);
+	output.diffuseStencil = float4(diffuseReduction, input.depth.x / input.depth.y, 1.0);
+	output.specular = float4(specular, 1.0);
+
+	return output;
+}

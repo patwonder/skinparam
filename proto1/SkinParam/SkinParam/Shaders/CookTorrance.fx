@@ -25,7 +25,7 @@ float distribution_term(float NdotH, float rms_slope) {
 }
 
 // assume normalized params
-float3 CookTorrance(float3 N, float3 V, float3 L, float3 H, float rms_slope) {
+float CookTorrance(float3 N, float3 V, float3 L, float3 H, float rms_slope) {
 	float NdotL = dot(N, L);
 	float NdotH = dot(N, H);
 	float NdotV = dot(N, V);
@@ -35,5 +35,5 @@ float3 CookTorrance(float3 N, float3 V, float3 L, float3 H, float rms_slope) {
 	float G = geometry_term(NdotL, NdotH, NdotV, VdotH);
 	float F = fresnel_term(NdotL);
 
-	return clamp(D * G * F / (PI * NdotL * NdotV), 0, 2);
+	return D * G * F / (PI * NdotL * NdotV);
 }

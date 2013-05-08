@@ -40,6 +40,42 @@ namespace Skin {
 		D3D11_RASTERIZER_DESC m_descRasterizerState;
 		D3D11_VIEWPORT m_vpScreen;
 
+		// Subsurface scattering
+		static const UINT NUM_SSS_GAUSSIANS = 6;
+		static const UINT IDX_SSS_IRRADIANCE = 0;
+		static const UINT IDX_SSS_ALBEDO = 1;
+		static const UINT IDX_SSS_SPECULAR = 2;
+		static const UINT IDX_SSS_DIFFUSE_STENCIL = 3;
+		static const UINT IDX_SSS_GAUSSIANS_START = 4;
+		static const UINT IDX_SSS_TEMPORARY = IDX_SSS_GAUSSIANS_START + NUM_SSS_GAUSSIANS;
+		// irradiance, albedo, specular, diffuse stencil, gaussians and a temporary view
+		static const UINT NUM_SSS_VIEWS = IDX_SSS_TEMPORARY + 1;
+		ID3D11RenderTargetView* m_apRTSSS[NUM_SSS_VIEWS];
+		ID3D11ShaderResourceView* m_apSRVSSS[NUM_SSS_VIEWS];
+		ShaderGroup* m_psgSSSIrradiance;
+		ShaderGroup* m_psgSSSGausianVertical;
+		ShaderGroup* m_psgSSSGausianHorizontal;
+		ShaderGroup* m_psgSSSCombine;
+		static const float SSS_GAUSSIAN_KERNEL_SIGMA[NUM_SSS_GAUSSIANS];
+		static const float SSS_GAUSSIAN_WEIGHTS[NUM_SSS_GAUSSIANS][3];
+
+		struct GaussianConstantBuffer {
+			float g_blurWidth; // blur width
+			float g_invAspectRatio; // inverse of aspect ratio (height / width)
+			float pad[2];
+		};
+		struct CombineConstantBuffer {
+			struct {
+				XMFLOAT3 value;
+				float pad;
+			} g_weights[NUM_SSS_GAUSSIANS];
+		};
+
+		ID3D11Buffer* m_pGaussianConstantBuffer;
+		GaussianConstantBuffer m_cbGaussian;
+		ID3D11Buffer* m_pCombineConstantBuffer;
+		CombineConstantBuffer m_cbCombine;
+
 		std::vector<IUnknown**> m_vppCOMObjs;
 
 		static const UINT SLOT_TEXTURE = 0;
@@ -147,6 +183,8 @@ namespace Skin {
 		void initShadowMaps();
 		void bindShadowMaps();
 		void unbindShadowMaps();
+
+		void initSSS();
 
 		void setConstantBuffers();
 		void computeStats();

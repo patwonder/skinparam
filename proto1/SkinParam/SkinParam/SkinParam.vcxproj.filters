@@ -161,8 +161,19 @@
     <None Include="Shaders\Bump.fx">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Shaders\TessellatedShadow.fx" />
     <None Include="Shaders\CookTorrance.fx">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Gaussian.fx">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Combine.fx">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\TessellatedShadow.fx">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Quad.fx">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
