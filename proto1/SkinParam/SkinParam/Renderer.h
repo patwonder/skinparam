@@ -56,6 +56,7 @@ namespace Skin {
 		ShaderGroup* m_psgSSSGausianVertical;
 		ShaderGroup* m_psgSSSGausianHorizontal;
 		ShaderGroup* m_psgSSSCombine;
+		ShaderGroup* m_psgSSSCombineAA;
 		static const float SSS_GAUSSIAN_KERNEL_SIGMA[NUM_SSS_GAUSSIANS];
 		static const float SSS_GAUSSIAN_WEIGHTS[NUM_SSS_GAUSSIANS][3];
 
@@ -75,6 +76,17 @@ namespace Skin {
 		GaussianConstantBuffer m_cbGaussian;
 		ID3D11Buffer* m_pCombineConstantBuffer;
 		CombineConstantBuffer m_cbCombine;
+
+		// Post-process Anti-aliasing
+		ShaderGroup* m_psgPostProcessAA;
+
+		struct PostProcessConstantBuffer {
+			XMFLOAT2 rcpFrame;
+			float pad[2];
+			XMFLOAT4 rcpFrameOpt;
+		};
+		ID3D11Buffer* m_pPostProcessConstantBuffer;
+		PostProcessConstantBuffer m_cbPostProcess;
 
 		std::vector<IUnknown**> m_vppCOMObjs;
 
@@ -163,6 +175,7 @@ namespace Skin {
 		bool m_bTessellation;
 		bool m_bBump;
 		bool m_bSSS;
+		bool m_bAA;
 
 		HRESULT initDX();
 		void initMisc();
@@ -194,7 +207,11 @@ namespace Skin {
 		void bindGaussianConstantBuffer();
 		void bindCombineConstantBuffer();
 		void doGaussianBlurs();
-		void doCombineShading(bool bSSS);
+		void doCombineShading();
+
+		void initPostProcessAA();
+		void bindPostProcessConstantBuffer();
+		void doPostProcessAA();
 
 		void setConstantBuffers();
 		void computeStats();
@@ -222,6 +239,7 @@ namespace Skin {
 		void toggleTessellation();
 		void toggleBump();
 		void toggleSSS();
+		void togglePostProcessAA();
 
 		// IRenderer implementation
 		ID3D11Device* getDevice() const override;

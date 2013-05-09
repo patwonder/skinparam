@@ -147,6 +147,9 @@ afx_msg void CMainWindow::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 	case 'S':
 		m_pRenderer->toggleSSS();
 		break;
+	case 'A':
+		m_pRenderer->togglePostProcessAA();
+		break;
 	}
 }
 

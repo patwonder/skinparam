@@ -176,5 +176,14 @@
     <None Include="Shaders\Quad.fx">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\NearFar.fx">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\FXAA.fx">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\PostProcessAA.fx">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

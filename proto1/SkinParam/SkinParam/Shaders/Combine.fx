@@ -22,3 +22,8 @@ float4 PS(PS_INPUT input) : SV_Target {
 	
 	return float4(color * albedo + specular, 1.0);
 }
+
+float4 PS_AA(PS_INPUT input) : SV_Target {
+	float3 color = PS(input).rgb;
+	return float4(color, sqrt(dot(color, float3(0.299, 0.587, 0.114))));
+}

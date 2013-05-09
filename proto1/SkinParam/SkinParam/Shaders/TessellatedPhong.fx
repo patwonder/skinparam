@@ -179,8 +179,7 @@ struct PS_OUTPUT_IR_DS {
 	float4 specular : SV_Target3;
 };
 
-static const float DEPTH_NEAR = 0.1;
-static const float DEPTH_FAR = 30.0;
+#include "NearFar.fx"
 
 // Domain shader
 [domain("tri")]

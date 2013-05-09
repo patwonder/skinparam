@@ -17,8 +17,7 @@ static const float KERNEL[] = { 0.383, 0.006, 0.061, 0.242, 0.242, 0.061, 0.006 
 static const float KERNEL_DX[] = {  0.0, -3.0, -2.0, -1.0, 1.0, 2.0, 3.0 };
 
 // constants for kernel width calculation
-static const float DEPTH_NEAR = 0.1;
-static const float DEPTH_FAR = 30.0;
+#include "NearFar.fx"
 // emprical value : in texture space, 0.001 per mm at depth 10
 static const float SIZE_ALPHA = 0.015;
 

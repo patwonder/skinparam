@@ -64,6 +64,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pTessellationConstantBuffer(nullptr),
 	  m_pGaussianConstantBuffer(nullptr),
 	  m_pCombineConstantBuffer(nullptr),
+	  m_pPostProcessConstantBuffer(nullptr),
 	  m_psgTriangle(nullptr),
 	  m_psgPhong(nullptr),
 	  m_psgTessellatedPhong(nullptr),
@@ -72,6 +73,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_psgSSSGausianVertical(nullptr),
 	  m_psgSSSGausianHorizontal(nullptr),
 	  m_psgSSSCombine(nullptr),
+	  m_psgSSSCombineAA(nullptr),
+	  m_psgPostProcessAA(nullptr),
 	  m_hwnd(hwnd),
 	  m_rectView(rectView),
 	  m_pConfig(pConfig),
@@ -80,7 +83,9 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_nStartTick(GetTickCount()),
 	  m_fps(0.0f),
 	  m_bTessellation(true),
-	  m_bBump(true)
+	  m_bBump(true),
+	  m_bSSS(true),
+	  m_bAA(true)
 {
 	memset(m_apRTShadowMaps, 0, sizeof(m_apRTShadowMaps));
 	memset(m_apSRVShadowMaps, 0, sizeof(m_apSRVShadowMaps));
@@ -106,6 +111,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	m_vppCOMObjs.push_back((IUnknown**)&m_pTessellationConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pGaussianConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pCombineConstantBuffer);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pPostProcessConstantBuffer);
 	for (UINT i = 0; i < NUM_LIGHTS; i++) {
 		m_vppCOMObjs.push_back((IUnknown**)m_apRTShadowMaps + i);
 		m_vppCOMObjs.push_back((IUnknown**)m_apSRVShadowMaps + i);
@@ -128,6 +134,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	initShadowMaps();
 
 	initSSS();
+	initPostProcessAA();
 }
 
 Renderer::~Renderer() {
@@ -371,6 +378,10 @@ void Renderer::loadShaders() {
 	m_psgSSSGausianVertical = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
 	m_psgSSSGausianHorizontal = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
 	m_psgSSSCombine = new ShaderGroup(m_pDevice, _T("Combine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
+	m_psgSSSCombineAA = new ShaderGroup(m_pDevice, _T("Combine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_AA");
+
+	// Post-process Anti-aliasing
+	m_psgPostProcessAA = new ShaderGroup(m_pDevice, _T("PostProcessAA.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
 }
 
 void Renderer::unloadShaders() {
@@ -382,6 +393,8 @@ void Renderer::unloadShaders() {
 	delete m_psgSSSGausianVertical; m_psgSSSGausianVertical = nullptr;
 	delete m_psgSSSGausianHorizontal; m_psgSSSGausianHorizontal = nullptr;
 	delete m_psgSSSCombine; m_psgSSSCombine = nullptr;
+	delete m_psgSSSCombineAA; m_psgSSSCombineAA = nullptr;
+	delete m_psgPostProcessAA; m_psgPostProcessAA = nullptr;
 }
 
 void Renderer::initTransform() {
@@ -608,6 +621,14 @@ void Renderer::initSSS() {
 		_T("Failed to create combine constant buffer"));
 }
 
+void Renderer::initPostProcessAA() {
+	m_cbPostProcess.rcpFrame = XMFLOAT2(1.0f / m_rectView.Width(), 1.0f / m_rectView.Height());
+	m_cbPostProcess.rcpFrameOpt = XMFLOAT4(2.0f / m_rectView.Width(), 2.0f / m_rectView.Height(), 0.5f / m_rectView.Width(), 0.5f / m_rectView.Height());
+
+	checkFailure(createConstantBuffer(m_pDevice, &m_cbPostProcess, &m_pPostProcessConstantBuffer),
+		_T("Failed to create post-process constant buffer"));
+}
+
 void Renderer::setConstantBuffers() {
 	ID3D11Buffer* buffers[] = {
 		m_pTransformConstantBuffer,
@@ -731,20 +752,21 @@ void Renderer::doGaussianBlurs() {
 	}
 }
 
-void Renderer::doCombineShading(bool bSSS) {
+void Renderer::doCombineShading() {
 	bindCombineConstantBuffer();
 
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
 	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
 
-	m_psgSSSCombine->use(m_pDeviceContext);
+	(m_bAA ? m_psgSSSCombineAA : m_psgSSSCombine)->use(m_pDeviceContext);
 
 	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
 
-	// bind the final render target
-	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, nullptr);
-	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, ClearColor);
+	// bind the final render target (before AA)
+	ID3D11RenderTargetView* pRenderTargetView = (m_bAA ? m_apRTSSS[IDX_SSS_TEMPORARY] : m_pRenderTargetView);
+	m_pDeviceContext->OMSetRenderTargets(1, &pRenderTargetView, nullptr);
+	m_pDeviceContext->ClearRenderTargetView(pRenderTargetView, ClearColor);
 
 	// Set up shader resources
 	const UINT numViews = 2 + NUM_SSS_GAUSSIANS;
@@ -752,7 +774,7 @@ void Renderer::doCombineShading(bool bSSS) {
 		m_apSRVSSS[IDX_SSS_ALBEDO],
 		m_apSRVSSS[IDX_SSS_SPECULAR],
 	};
-	if (bSSS)
+	if (m_bSSS)
 		memcpy(apSSSSRVs + 2, m_apSRVSSS + IDX_SSS_GAUSSIANS_START, sizeof(*m_apSRVSSS) * NUM_SSS_GAUSSIANS);
 	else
 		for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
@@ -766,6 +788,36 @@ void Renderer::doCombineShading(bool bSSS) {
 	// Unbind all shader resources
 	ID3D11ShaderResourceView* apNullSRVs[numViews] = { nullptr };
 	m_pDeviceContext->PSSetShaderResources(0, numViews, apNullSRVs);
+}
+
+void Renderer::bindPostProcessConstantBuffer() {
+	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pPostProcessConstantBuffer);
+}
+
+void Renderer::doPostProcessAA() {
+	bindPostProcessConstantBuffer();
+
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
+	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
+
+	m_psgPostProcessAA->use(m_pDeviceContext);
+
+	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
+
+	// bind the (hopefully) final render target
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, nullptr);
+	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, ClearColor);
+
+	// Set up shader resources, the frame is now in the SSS temporary render target
+	m_pDeviceContext->PSSetShaderResources(0, 1, &m_apSRVSSS[IDX_SSS_TEMPORARY]);
+
+	// do it~
+	m_pDeviceContext->Draw(6, 0);
+
+	// unbind all shader resources
+	ID3D11ShaderResourceView* pNullSRV = nullptr;
+	m_pDeviceContext->PSSetShaderResources(0, 1, &pNullSRV);
 }
 
 void Renderer::render() {
@@ -805,7 +857,11 @@ void Renderer::render() {
 	if (bToggle) toggleWireframe(); {
 		if (m_bSSS)
 			doGaussianBlurs();
-		doCombineShading(m_bSSS);
+		doCombineShading();
+
+		if (m_bAA)
+			doPostProcessAA();
+
 	} if (bToggle) toggleWireframe();
 
 	m_pSwapChain->Present(m_pConfig->vsync ? 1 : 0, 0);
@@ -844,6 +900,10 @@ void Renderer::toggleTessellation() {
 
 void Renderer::toggleSSS() {
 	m_bSSS = !m_bSSS;
+}
+
+void Renderer::togglePostProcessAA() {
+	m_bAA = !m_bAA;
 }
 
 ID3D11Device* Renderer::getDevice() const {
