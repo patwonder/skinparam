@@ -179,6 +179,9 @@ struct PS_OUTPUT_IR_DS {
 	float4 specular : SV_Target3;
 };
 
+static const float DEPTH_NEAR = 0.1;
+static const float DEPTH_FAR = 30.0;
+
 // Domain shader
 [domain("tri")]
 PS_INPUT_IR_DS DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPatch<DS_INPUT, 3> patch) {
@@ -208,7 +211,7 @@ PS_INPUT_IR_DS DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocatio
 	output.vTangentWS = input.vTangentWS;
 	output.vBinormalWS = input.vBinormalWS;
 	output.texCoord = input.texCoord;
-	output.depth = (vPosVS.z / vPosVS.w - 0.1) / 29.9;
+	output.depth = (vPosVS.z / vPosVS.w - DEPTH_NEAR) / (DEPTH_FAR - DEPTH_NEAR);
 	return output;
 }
 
