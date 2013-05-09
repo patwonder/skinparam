@@ -10,6 +10,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{bf897477-8ff3-4fac-84c5-02c010a5fff1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DirectXTex">
+      <UniqueIdentifier>{98bdb071-b778-40bf-9e02-d8f48a420f19}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainWindow.h" />
@@ -78,7 +81,15 @@
     <ClInclude Include="Utils\UMath.h">
       <Filter>Utils</Filter>
     </ClInclude>
-    <ClInclude Include="WICTextureLoader.h" />
+    <ClInclude Include="DirectXTex\DirectXTex\DirectXTex.h">
+      <Filter>DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\WICTextureLoader\WICTextureLoader.h">
+      <Filter>DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\WICSingleton.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -140,7 +151,12 @@
     <ClCompile Include="Utils\UMath.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
-    <ClCompile Include="WICTextureLoader.cpp" />
+    <ClCompile Include="DirectXTex\WICTextureLoader\WICTextureLoader.cpp">
+      <Filter>DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\WICSingleton.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Triangle.fx">

@@ -5,12 +5,14 @@
 #include "stdafx.h"
 
 #include "D3DHelper.h"
-#include "WICTextureLoader.h"
+#include "DirectXTex\WICTextureLoader\WICTextureLoader.h"
+#include "WICSingleton.h"
 #include <cmath>
 #include <cstring>
 
 using namespace Skin;
 using namespace Utils;
+using namespace DirectX;
 
 void D3DHelper::checkFailure(HRESULT hr, const TString& prompt) {
 	if (FAILED(hr)) {
