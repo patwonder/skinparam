@@ -30,12 +30,16 @@ float getKernelSize(float depthPS, float grad) {
 	return SIZE_ALPHA / getDepthCS(depthPS) * grad;
 }
 
+static const float DD_START = 0.0005;
+static const float DD_LEN = 0.0005;
+
 float4 PS_Vertical(PS_INPUT input) : SV_Target {
 	float4 diffuseStencil = g_diffuseStencilTexture.Sample(g_samPoint, input.texCoord);
 	float4 sample = g_screenTexture.Sample(g_samPoint, input.texCoord);
 	float3 color = sample.rgb;
 	float diffuseY = diffuseStencil.y;
 	float depth = diffuseStencil.z;
+	diffuseY *= saturate(1 - (abs(ddy(depth)) - DD_START) / DD_LEN);
 	float stencil = diffuseStencil.w;
 	// kernel width for each channel
 	float kernelWidth = g_blurWidth * getKernelSize(depth, diffuseY);
@@ -60,6 +64,7 @@ float4 PS_Horizontal(PS_INPUT input) : SV_Target {
 	float3 color = sample.rgb;
 	float diffuseX = diffuseStencil.x;
 	float depth = diffuseStencil.z;
+	diffuseX *= saturate(1 - (abs(ddx(depth)) - DD_START) / DD_LEN);
 	float stencil = diffuseStencil.w;
 	// kernel width for each channel
 	float kernelWidth = g_blurWidth * getKernelSize(depth, diffuseX) * g_invAspectRatio;
