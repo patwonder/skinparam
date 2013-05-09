@@ -31,5 +31,5 @@ float4 PS(PS_INPUT input) : SV_Target {
 	FxaaTex tex;
 	tex.smpl = g_samLinear;
 	tex.tex = g_frame;
-	return FxaaPixelShader(pos, posPos, tex, rcpFrame, rcpFrameOpt);
+	return float4(FxaaPixelShader(pos, posPos, tex, rcpFrame, rcpFrameOpt).rgb, 1.0);
 }

@@ -150,6 +150,9 @@ afx_msg void CMainWindow::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 	case 'A':
 		m_pRenderer->togglePostProcessAA();
 		break;
+	case VK_F8:
+		m_pRenderer->dump();
+		break;
 	}
 }
 

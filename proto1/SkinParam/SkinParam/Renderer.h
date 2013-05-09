@@ -101,6 +101,7 @@ namespace Skin {
 			XMFLOAT4X4 g_matWorld;
 			XMFLOAT4X4 g_matView;
 			XMFLOAT4X4 g_matViewProj;
+			XMFLOAT4X4 g_matViewLights[NUM_LIGHTS];
 			XMFLOAT4X4 g_matViewProjLights[NUM_LIGHTS];
 			XMFLOAT4X4 g_matViewProjCamera;
 			XMFLOAT3 g_posEye;
@@ -176,6 +177,7 @@ namespace Skin {
 		bool m_bBump;
 		bool m_bSSS;
 		bool m_bAA;
+		bool m_bDump;
 
 		HRESULT initDX();
 		void initMisc();
@@ -213,6 +215,10 @@ namespace Skin {
 		void bindPostProcessConstantBuffer();
 		void doPostProcessAA();
 
+		void dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName);
+		void dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName);
+		void dumpTextureToFile(ID3D11Resource* pTexture2D, const Utils::TString& strFileName);
+
 		void setConstantBuffers();
 		void computeStats();
 		void renderScene();
@@ -240,6 +246,8 @@ namespace Skin {
 		void toggleBump();
 		void toggleSSS();
 		void togglePostProcessAA();
+
+		void dump();
 
 		// IRenderer implementation
 		ID3D11Device* getDevice() const override;

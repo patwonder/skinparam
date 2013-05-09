@@ -152,7 +152,7 @@ float4 PS(PS_INPUT input) : SV_Target {
 	
 	// shading
 	float3 color = phong_shadow(g_material, g_ambient, g_lights, g_posEye, input.vPosWS, tex_color, vNormalWS,
-								g_shadowMaps, g_samShadow, g_matViewProjLights);
+								g_shadowMaps, g_samShadow, g_matViewLights, g_matViewProjLights);
 	return float4(color, 1.0);
 }
 
@@ -178,8 +178,6 @@ struct PS_OUTPUT_IR_DS {
 	// specular light
 	float4 specular : SV_Target3;
 };
-
-#include "NearFar.fx"
 
 // Domain shader
 [domain("tri")]
@@ -210,7 +208,7 @@ PS_INPUT_IR_DS DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocatio
 	output.vTangentWS = input.vTangentWS;
 	output.vBinormalWS = input.vBinormalWS;
 	output.texCoord = input.texCoord;
-	output.depth = (vPosVS.z / vPosVS.w - DEPTH_NEAR) / (DEPTH_FAR - DEPTH_NEAR);
+	output.depth = normalizeDepth(vPosVS.z / vPosVS.w);
 	return output;
 }
 
@@ -252,7 +250,7 @@ PS_OUTPUT_IR_DS PS_Irradiance(PS_INPUT_IR_DS input) {
 		float3 H = normalize(L + V);
 		float specularLight = saturate(CookTorrance(N, V, L, H, RMS_SLOPE));
 		// look up shadow map for light amount
-		float lightAmount = light_amount(input.vPosWS, g_shadowMaps[i], g_samShadow, g_matViewProjLights[i]);
+		float lightAmount = light_amount(input.vPosWS, g_shadowMaps[i], g_samShadow, g_matViewLights[i], g_matViewProjLights[i]);
 		// fresnel transmittance for diffuse irradiance
 		float fresnel_trans = saturate(1 - fresnel_term(NdotL));
 

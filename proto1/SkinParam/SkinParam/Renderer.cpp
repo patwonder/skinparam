@@ -11,10 +11,12 @@
 #include "Material.h"
 
 #include "FVector.h"
+#include "DirectXTex.h"
 
 using namespace Skin;
 using namespace Utils;
 using namespace D3DHelper;
+using namespace DirectX;
 
 namespace Skin {
 	inline XMVECTOR XMVec(const Vector& v) {
@@ -85,7 +87,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_bTessellation(true),
 	  m_bBump(true),
 	  m_bSSS(true),
-	  m_bAA(true)
+	  m_bAA(true),
+	  m_bDump(false)
 {
 	memset(m_apRTShadowMaps, 0, sizeof(m_apRTShadowMaps));
 	memset(m_apSRVShadowMaps, 0, sizeof(m_apSRVShadowMaps));
@@ -415,6 +418,7 @@ void Renderer::initTransform() {
 
 	XMStoreFloat4x4(&m_cbTransform.g_matViewProjCamera, XMMatrixIdentity());
 	for (UINT i = 0; i < NUM_LIGHTS; i++) {
+		XMStoreFloat4x4(m_cbTransform.g_matViewLights + i, XMMatrixIdentity());
 		XMStoreFloat4x4(m_cbTransform.g_matViewProjLights + i, XMMatrixIdentity());
 	}
 
@@ -462,6 +466,7 @@ void Renderer::updateTransform(const Camera& camera, const XMMATRIX& matProjecti
 		const Light* l = m_vpLights[i];
 		XMMATRIX matViewProj = getViewProjMatrix(getLightCamera(*l),
 			XMLoadFloat4x4(&m_matLightProjection), matView);
+		XMStoreFloat4x4(m_cbTransform.g_matViewLights + i, XMMatrixTranspose(matView));
 		XMStoreFloat4x4(m_cbTransform.g_matViewProjLights + i, XMMatrixTranspose(matViewProj));
 	}
 
@@ -668,6 +673,13 @@ void Renderer::renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11
 	bindShadowMaps();
 	renderScene();
 	unbindShadowMaps();
+
+	if (m_bDump) {
+		dumpRenderTargetToFile(pRTIrradiance, _T("Irradiance"));
+		dumpRenderTargetToFile(pRTAlbedo, _T("Albedo"));
+		dumpRenderTargetToFile(pRTDiffuseStencil, _T("DiffuseStencil"));
+		dumpRenderTargetToFile(pRTSpecular, _T("Specular"));
+	}
 }
 
 void Renderer::unbindInputBuffers() {
@@ -730,7 +742,6 @@ void Renderer::doGaussianBlurs() {
 		// previous ->(vertical blur)-> temporary
 		m_psgSSSGausianVertical->use(m_pDeviceContext);
 		m_pDeviceContext->OMSetRenderTargets(1, &pRTTemporary, nullptr);
-		m_pDeviceContext->ClearRenderTargetView(pRTTemporary, ClearColor);
 		apSRVs[0] = pSRVPrevious;
 		m_pDeviceContext->PSSetShaderResources(0, numViews, apSRVs);
 
@@ -739,7 +750,6 @@ void Renderer::doGaussianBlurs() {
 		// temporary ->(vertical blur)-> next
 		m_psgSSSGausianHorizontal->use(m_pDeviceContext);
 		m_pDeviceContext->OMSetRenderTargets(1, &m_apRTSSS[IDX_SSS_GAUSSIANS_START + i], nullptr);
-		m_pDeviceContext->ClearRenderTargetView(m_apRTSSS[IDX_SSS_GAUSSIANS_START + i], ClearColor);
 		apSRVs[0] = pSRVTemporary;
 		m_pDeviceContext->PSSetShaderResources(0, numViews, apSRVs);
 
@@ -749,6 +759,12 @@ void Renderer::doGaussianBlurs() {
 		m_pDeviceContext->PSSetShaderResources(0, numViews, apNullSRVs);
 
 		pSRVPrevious = m_apSRVSSS[IDX_SSS_GAUSSIANS_START + i];
+
+		if (m_bDump) {
+			TStringStream tss;
+			tss << _T("Gaussian_") << i + 1;
+			dumpShaderResourceViewToFile(pSRVPrevious, tss.str());
+		}
 	}
 }
 
@@ -766,7 +782,6 @@ void Renderer::doCombineShading() {
 	// bind the final render target (before AA)
 	ID3D11RenderTargetView* pRenderTargetView = (m_bAA ? m_apRTSSS[IDX_SSS_TEMPORARY] : m_pRenderTargetView);
 	m_pDeviceContext->OMSetRenderTargets(1, &pRenderTargetView, nullptr);
-	m_pDeviceContext->ClearRenderTargetView(pRenderTargetView, ClearColor);
 
 	// Set up shader resources
 	const UINT numViews = 2 + NUM_SSS_GAUSSIANS;
@@ -788,6 +803,10 @@ void Renderer::doCombineShading() {
 	// Unbind all shader resources
 	ID3D11ShaderResourceView* apNullSRVs[numViews] = { nullptr };
 	m_pDeviceContext->PSSetShaderResources(0, numViews, apNullSRVs);
+
+	if (m_bDump && !m_bAA) {
+		dumpRenderTargetToFile(pRenderTargetView, _T("Final"));
+	}
 }
 
 void Renderer::bindPostProcessConstantBuffer() {
@@ -807,7 +826,6 @@ void Renderer::doPostProcessAA() {
 
 	// bind the (hopefully) final render target
 	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, nullptr);
-	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, ClearColor);
 
 	// Set up shader resources, the frame is now in the SSS temporary render target
 	m_pDeviceContext->PSSetShaderResources(0, 1, &m_apSRVSSS[IDX_SSS_TEMPORARY]);
@@ -818,6 +836,10 @@ void Renderer::doPostProcessAA() {
 	// unbind all shader resources
 	ID3D11ShaderResourceView* pNullSRV = nullptr;
 	m_pDeviceContext->PSSetShaderResources(0, 1, &pNullSRV);
+
+	if (m_bDump) {
+		dumpRenderTargetToFile(m_pRenderTargetView, _T("Final"));
+	}
 }
 
 void Renderer::render() {
@@ -844,6 +866,12 @@ void Renderer::render() {
 			const Light& l = *m_vpLights[i];
 			updateTransformForLight(l);
 			renderScene();
+
+			if (m_bDump) {
+				TStringStream tss;
+				tss << _T("ShadowMap_") << i + 1;
+				dumpRenderTargetToFile(m_apRTShadowMaps[i], tss.str());
+			}
 		}
 	} if (bToggle) toggleWireframe();
 
@@ -867,6 +895,7 @@ void Renderer::render() {
 	m_pSwapChain->Present(m_pConfig->vsync ? 1 : 0, 0);
 
 	computeStats();
+	m_bDump = false;
 }
 
 void Renderer::renderScene() {
@@ -904,6 +933,34 @@ void Renderer::toggleSSS() {
 
 void Renderer::togglePostProcessAA() {
 	m_bAA = !m_bAA;
+}
+
+void Renderer::dump() {
+	m_bDump = true;
+}
+
+void Renderer::dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const TString& strFileName) {
+	ID3D11Resource* pTexture2D = nullptr;
+	pSRV->GetResource(&pTexture2D);
+
+	dumpTextureToFile(pTexture2D, strFileName);
+
+	pTexture2D->Release();
+}
+
+void Renderer::dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const TString& strFileName) {
+	ID3D11Resource* pTexture2D = nullptr;
+	pRT->GetResource(&pTexture2D);
+
+	dumpTextureToFile(pTexture2D, strFileName);
+
+	pTexture2D->Release();
+}
+
+void Renderer::dumpTextureToFile(ID3D11Resource* pTexture2D, const TString& strFileName) {
+	ScratchImage img;
+	CaptureTexture(m_pDevice, m_pDeviceContext, pTexture2D, img);
+	SaveToWICFile(*img.GetImage(0, 0, 0), WIC_FLAGS_NONE, GUID_ContainerFormatPng, (strFileName + _T(".png")).c_str());
 }
 
 ID3D11Device* Renderer::getDevice() const {

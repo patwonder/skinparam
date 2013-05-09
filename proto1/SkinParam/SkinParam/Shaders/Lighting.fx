@@ -3,10 +3,11 @@
  */
 
 #include "CookTorrance.fx"
+#include "NearFar.fx"
 
 static const uint NUM_LIGHTS = 2;
 static const uint SM_SIZE = 2048;
-static const float SHADOW_EPSILON = 8e-5;
+static const float SHADOW_EPSILON = 8e-4;
 static const float RMS_SLOPE = 0.25;
 
 Texture2D g_texture : register(t0);
@@ -30,6 +31,7 @@ cbuffer Transform : register(b0) {
 	matrix g_matWorld;
 	matrix g_matView;
 	matrix g_matViewProj;
+	matrix g_matViewLights[NUM_LIGHTS];
 	matrix g_matViewProjLights[NUM_LIGHTS];
 	matrix g_matViewProjCamera;
 	float3 g_posEye;
@@ -60,7 +62,7 @@ float light_attenuation(float3 pos, Light l) {
 	return 1 / (l.attenuation.x + l.attenuation.y * dist + l.attenuation.z * dist * dist);
 }
 
-float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow, matrix matViewProjLight) {
+float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow, matrix matViewLight, matrix matViewProjLight) {
 	float4 vPosPSL4 = mul(float4(worldPos, 1.0), matViewProjLight);
 
 	// Texture space point location
@@ -72,7 +74,8 @@ float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow,
 		// out of shadow map, dim the texel
 		lightAmount = 0.0;
 	} else {
-		float depth = vPosPSL4.z / vPosPSL4.w;
+		float4 vPosVS = mul(float4(worldPos, 1.0), matViewLight);
+		float depth = normalizeDepth(vPosVS.z / vPosVS.w);
 
 		float2 lp = frac(vPosTeSL * SM_SIZE);
 
@@ -92,7 +95,7 @@ float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow,
 
 float3 phong_shadow(Material mt, float3 ambient, Light lights[NUM_LIGHTS],
 					float3 eyePos, float3 worldPos, float3 color, float3 normal,
-					Texture2D shadowMaps[NUM_LIGHTS], SamplerState samShadow, matrix matViewProjLights[NUM_LIGHTS])
+					Texture2D shadowMaps[NUM_LIGHTS], SamplerState samShadow, matrix matViewLights[NUM_LIGHTS], matrix matViewProjLights[NUM_LIGHTS])
 {
 	// global ambient
 	float3 result = color * ambient * mt.ambient;
@@ -119,7 +122,7 @@ float3 phong_shadow(Material mt, float3 ambient, Light lights[NUM_LIGHTS],
 		float specularLight = saturate(CookTorrance(N, V, L, H, RMS_SLOPE));//saturate(pow(max(dot(N, H), 0), mt.shininess));
 		float3 specular = atten * l.specular * mt.specular * specularLight;
 		// look up shadow map for light amount
-		float lightAmount = light_amount(worldPos, shadowMaps[i], samShadow, matViewProjLights[i]);
+		float lightAmount = light_amount(worldPos, shadowMaps[i], samShadow, matViewLights[i], matViewProjLights[i]);
 
 		// putting them together
 		result += color * (ambient + diffuse * lightAmount) + specular * lightAmount;
