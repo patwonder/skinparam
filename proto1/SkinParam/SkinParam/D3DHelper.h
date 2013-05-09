@@ -68,7 +68,7 @@ namespace Skin {
 
 		template <class ConstantType>
 		static HRESULT createConstantBuffer(ID3D11Device* pDevice, ConstantType* data, ID3D11Buffer** ppConstantBuffer) {
-			return createBuffer(pDevice, sizeof(ConstantType), D3D11_BIND_CONSTANT_BUFFER, &data, ppConstantBuffer);
+			return createBuffer(pDevice, sizeof(ConstantType), D3D11_BIND_CONSTANT_BUFFER, data, ppConstantBuffer);
 		}
 		template <UINT numUnknowns>
 		void D3DHelper::releaseCOMObjs(IUnknown** (&appUnknowns)[numUnknowns]) {

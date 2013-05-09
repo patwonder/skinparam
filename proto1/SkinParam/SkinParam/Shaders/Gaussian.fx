@@ -20,7 +20,7 @@ static const float KERNEL_DX[] = {  0.0, -3.0, -2.0, -1.0, 1.0, 2.0, 3.0 };
 static const float DEPTH_NEAR = 0.1;
 static const float DEPTH_FAR = 30.0;
 // emprical value : in texture space, 0.001 per mm at depth 10
-float SIZE_ALPHA = 0.01;
+static const float SIZE_ALPHA = 0.015;
 
 // converts from projection space depth to camera space depth
 float getDepthCS(float depthPS) {
@@ -31,47 +31,49 @@ float getKernelSize(float depthPS, float grad) {
 }
 
 float4 PS_Vertical(PS_INPUT input) : SV_Target {
-	float4 diffuseStencil = g_diffuseStencilTexture.Sample(g_samLinear, input.texCoord);
-	float4 sample = g_screenTexture.Sample(g_samLinear, input.texCoord);
+	float4 diffuseStencil = g_diffuseStencilTexture.Sample(g_samPoint, input.texCoord);
+	float4 sample = g_screenTexture.Sample(g_samPoint, input.texCoord);
 	float3 color = sample.rgb;
-	float diffuseY = diffuseStencil.g;
-	float depth = diffuseStencil.b;
-	float stencil = diffuseStencil.a;
+	float diffuseY = diffuseStencil.y;
+	float depth = diffuseStencil.z;
+	float stencil = diffuseStencil.w;
 	// kernel width for each channel
 	float kernelWidth = g_blurWidth * getKernelSize(depth, diffuseY);
 
 	float3 finalColor = color * KERNEL[0];
-	// do the horizontal blurring
+	float totalStencil = KERNEL[0]; // avoid blurring into the background
+	// do the vertical blurring
 	float x = input.texCoord.x;
 	for (uint i = 1; i < KERNEL_SIZE; i++) {
 		float y = kernelWidth * KERNEL_DX[i] + input.texCoord.y;
 		float3 rgb = g_screenTexture.Sample(g_samLinear, float2(x, y)).rgb;
 		finalColor += rgb * KERNEL[i];
+		totalStencil += g_diffuseStencilTexture.Sample(g_samPoint, float2(x, y)).w * KERNEL[i];
 	}
 
-	// should retain original alpha(depth) value
-	return float4(lerp(color, finalColor, stencil), 1.0);
+	return float4(lerp(color, finalColor / totalStencil, stencil), 1.0);
 }
 
 float4 PS_Horizontal(PS_INPUT input) : SV_Target {
-	float4 diffuseStencil = g_diffuseStencilTexture.Sample(g_samLinear, input.texCoord);
-	float4 sample = g_screenTexture.Sample(g_samLinear, input.texCoord);
+	float4 diffuseStencil = g_diffuseStencilTexture.Sample(g_samPoint, input.texCoord);
+	float4 sample = g_screenTexture.Sample(g_samPoint, input.texCoord);
 	float3 color = sample.rgb;
-	float diffuseX = diffuseStencil.r;
-	float depth = diffuseStencil.b;
-	float stencil = diffuseStencil.a;
+	float diffuseX = diffuseStencil.x;
+	float depth = diffuseStencil.z;
+	float stencil = diffuseStencil.w;
 	// kernel width for each channel
 	float kernelWidth = g_blurWidth * getKernelSize(depth, diffuseX) * g_invAspectRatio;
 
 	float3 finalColor = color * KERNEL[0];
+	float totalStencil = KERNEL[0]; // avoid blurring into the background
 	// do the horizontal blurring
 	float y = input.texCoord.y;
 	for (uint i = 1; i < KERNEL_SIZE; i++) {
 		float x = kernelWidth * KERNEL_DX[i] + input.texCoord.x;
 		float3 rgb = g_screenTexture.Sample(g_samLinear, float2(x, y)).rgb;
 		finalColor += rgb * KERNEL[i];
+		totalStencil += g_diffuseStencilTexture.Sample(g_samPoint, float2(x, y)).w * KERNEL[i];
 	}
 
-	// should retain original alpha(depth) value
-	return float4(lerp(color, finalColor, stencil), 1.0);
+	return float4(lerp(color, finalColor / totalStencil, stencil), 1.0);
 }

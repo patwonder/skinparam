@@ -165,7 +165,7 @@ struct PS_INPUT_IR_DS {
 	float3 vBinormalWS : BINORMAL;
 	float3 vPosWS : WORLDPOS;
 	float2 texCoord : TEXCOORD0;
-	float2 depth : TEXCOORD1;
+	float depth : DEPTH;
 };
 
 struct PS_OUTPUT_IR_DS {
@@ -198,6 +198,8 @@ PS_INPUT_IR_DS DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocatio
 	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
 	input.vPosWS += bumpAmount * input.vNormalWS;
 
+	float4 vPosVS = mul(float4(input.vPosWS, 1.0), g_matView);
+
 	PS_INPUT_IR_DS output;
 	output.vPosWS = input.vPosWS;
 	output.vPosPS = mul(float4(input.vPosWS, 1.0), g_matViewProj);
@@ -206,9 +208,14 @@ PS_INPUT_IR_DS DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocatio
 	output.vTangentWS = input.vTangentWS;
 	output.vBinormalWS = input.vBinormalWS;
 	output.texCoord = input.texCoord;
-	output.depth = output.vPosPS.zw;
+	output.depth = (vPosVS.z / vPosVS.w - 0.1) / 29.9;
 	return output;
 }
+
+// Fdt / 2pi, which equals to 1 - Fdr/2pi
+// using emprical equation from Jensen et al. 2001
+static const float FRESNEL_REF_TOTAL = (-1.440 / (INDEX * INDEX) + 0.710 / INDEX + 0.668 + 0.0636 * INDEX) / (2 * PI);
+static const float FRESNEL_TRANS_TOTAL = 1 - FRESNEL_REF_TOTAL;
 
 PS_OUTPUT_IR_DS PS_Irradiance(PS_INPUT_IR_DS input) {
 	PS_OUTPUT_IR_DS output;
@@ -224,7 +231,7 @@ PS_OUTPUT_IR_DS PS_Irradiance(PS_INPUT_IR_DS input) {
 	float3 irradiance = g_ambient * g_material.ambient;
 	float3 specular = 0.0;
 
-	float3 N = normalize(input.vNormalWS);
+	float3 N = normalize(vNormalWS);
 	float3 V = normalize(g_posEye - input.vPosWS);
 	// lights
 	for (uint i = 0; i < NUM_LIGHTS; i++) {
@@ -241,31 +248,30 @@ PS_OUTPUT_IR_DS PS_Irradiance(PS_INPUT_IR_DS input) {
 		float3 diffuse = atten * l.diffuse * g_material.diffuse * diffuseLight;
 		// specular
 		float3 H = normalize(L + V);
-		float specularLight = CookTorrance(N, V, L, H, 0.3);
+		float specularLight = saturate(CookTorrance(N, V, L, H, RMS_SLOPE));
 		// look up shadow map for light amount
 		float lightAmount = light_amount(input.vPosWS, g_shadowMaps[i], g_samShadow, g_matViewProjLights[i]);
 		// fresnel transmittance for diffuse irradiance
-		float fresnel_trans = 1 - fresnel_term(NdotL);
+		float fresnel_trans = saturate(1 - fresnel_term(NdotL));
 
 		// putting them together
 		specular += atten * l.specular * g_material.specular * specularLight * lightAmount;
-		irradiance += ambient + diffuse * lightAmount * fresnel_trans;
+		irradiance += ambient * FRESNEL_TRANS_TOTAL + diffuse * lightAmount * fresnel_trans;
 	}
 
 	// calculate fresnel outgoing factor
 	float NdotV = dot(N, V);
-	float fresnel_trans_view = 1 - fresnel_term(NdotV);
+	float fresnel_trans_view = 1;saturate(1 - fresnel_term(NdotV));
 
 	// calculate kernel size reduction due to tilt surface
-	float3 vVer = float3(0.0, 0.0, 1.0); // up vector
-	float3 vHor = normalize(cross(vVer, V));
-	float3 vObjHor = normalize(cross(vVer, input.vNormalWS));
-	float3 vObjVer = normalize(cross(input.vNormalWS, vObjHor));
-	float2 diffuseReduction = saturate(abs(float2(dot(vObjHor, vHor), dot(vObjVer, vVer))));
+	float3 vNormalVS = normalize(mul(input.vNormalWS, (float3x3)g_matView)); // transform to camera view space
+	// diffuse reduction equals to shadow length on corresponding plane
+	float drx = sqrt(vNormalVS.y * vNormalVS.y + vNormalVS.z * vNormalVS.z);
+	float dry = sqrt(vNormalVS.x * vNormalVS.x + vNormalVS.z * vNormalVS.z);
 
 	output.irradiance = float4(sq_tex_color * irradiance, 1.0);
 	output.albedo = float4(sq_tex_color * fresnel_trans_view, 1.0);
-	output.diffuseStencil = float4(diffuseReduction, input.depth.x / input.depth.y, 1.0);
+	output.diffuseStencil = float4(drx, dry, input.depth, 1.0);
 	output.specular = float4(specular, 1.0);
 
 	return output;

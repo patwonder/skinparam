@@ -7,5 +7,5 @@ map_Kd lambertian.jpg
 map_bump -bm 0.005 bump.png
 Kd 1 1 1
 Ka 1 1 1
-Ks .5 .5 .5
+Ks 1 1 1
 Ns 5

@@ -1,11 +1,11 @@
 // Cook-Torrance specular reflection
 
 static const float PI = 3.141592654;
-static const float INDEX = 1.44;
+static const float INDEX = 1.4;
 static const float FRESNEL_R0 = (1 - INDEX) * (1 - INDEX) / ((1 + INDEX) * (1 + INDEX));
 
-float fresnel_term(float NdotL) {
-	return FRESNEL_R0 + (1 - FRESNEL_R0) * pow(1.0 - NdotL, 5.0);
+float fresnel_term(float VdotH) {
+	return FRESNEL_R0 + (1 - FRESNEL_R0) * pow(1.0 - VdotH, 5.0);
 }
 
 float geometry_term(float NdotL, float NdotH, float NdotV, float VdotH) {
@@ -33,7 +33,7 @@ float CookTorrance(float3 N, float3 V, float3 L, float3 H, float rms_slope) {
 
 	float D = distribution_term(NdotH, rms_slope);
 	float G = geometry_term(NdotL, NdotH, NdotV, VdotH);
-	float F = fresnel_term(NdotL);
+	float F = saturate(fresnel_term(NdotL));
 
-	return D * G * F / (PI * NdotL * NdotV);
+	return 2 * D * G * F / NdotV;
 }

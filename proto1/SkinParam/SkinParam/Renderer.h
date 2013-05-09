@@ -87,6 +87,7 @@ namespace Skin {
 		// 3D Transformation
 		struct TransformConstantBuffer {
 			XMFLOAT4X4 g_matWorld;
+			XMFLOAT4X4 g_matView;
 			XMFLOAT4X4 g_matViewProj;
 			XMFLOAT4X4 g_matViewProjLights[NUM_LIGHTS];
 			XMFLOAT4X4 g_matViewProjCamera;
@@ -161,6 +162,7 @@ namespace Skin {
 		// toggleables
 		bool m_bTessellation;
 		bool m_bBump;
+		bool m_bSSS;
 
 		HRESULT initDX();
 		void initMisc();
@@ -169,7 +171,7 @@ namespace Skin {
 		void unloadShaders();
 
 		void initTransform();
-		XMMATRIX getViewProjMatrix(const Camera& camera, const XMMATRIX& matProjection);
+		XMMATRIX getViewProjMatrix(const Camera& camera, const XMMATRIX& matProjection, XMMATRIX& matView);
 		Camera getLightCamera(const Light& light);
 		void updateTransform();
 		void updateTransformForLight(const Light& light);
@@ -185,6 +187,14 @@ namespace Skin {
 		void unbindShadowMaps();
 
 		void initSSS();
+		void renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11RenderTargetView* pRTAlbedo,
+			ID3D11RenderTargetView* pRTDiffuseStencil, ID3D11RenderTargetView* pRTSpecular);
+		void setGaussianKernelSize(float size);
+		void unbindInputBuffers();
+		void bindGaussianConstantBuffer();
+		void bindCombineConstantBuffer();
+		void doGaussianBlurs();
+		void doCombineShading(bool bSSS);
 
 		void setConstantBuffers();
 		void computeStats();
@@ -211,6 +221,7 @@ namespace Skin {
 		void toggleWireframe();
 		void toggleTessellation();
 		void toggleBump();
+		void toggleSSS();
 
 		// IRenderer implementation
 		ID3D11Device* getDevice() const override;

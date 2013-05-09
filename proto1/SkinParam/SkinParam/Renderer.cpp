@@ -369,7 +369,7 @@ void Renderer::loadShaders() {
 
 	D3D11_INPUT_ELEMENT_DESC empty_layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 } };
 	m_psgSSSGausianVertical = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
-	m_psgSSSGausianVertical = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
+	m_psgSSSGausianHorizontal = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
 	m_psgSSSCombine = new ShaderGroup(m_pDevice, _T("Combine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
 }
 
@@ -386,6 +386,7 @@ void Renderer::unloadShaders() {
 
 void Renderer::initTransform() {
 	XMStoreFloat4x4(&m_cbTransform.g_matWorld, XMMatrixIdentity());
+	XMStoreFloat4x4(&m_cbTransform.g_matView, XMMatrixIdentity());
 	XMStoreFloat4x4(&m_cbTransform.g_matViewProj, XMMatrixIdentity());
 	m_cbTransform.g_posEye = XMPos(Vector::ZERO);
 
@@ -408,11 +409,11 @@ void Renderer::initTransform() {
 		_T("Failed to create transform constant buffer"));
 }
 
-XMMATRIX Renderer::getViewProjMatrix(const Camera& camera, const XMMATRIX& matProjection) {
+XMMATRIX Renderer::getViewProjMatrix(const Camera& camera, const XMMATRIX& matProjection, XMMATRIX& matView) {
 	Vector vEye, vLookAt, vUp;
 	camera.look(vEye, vLookAt, vUp);
 
-	XMMATRIX matView = XMMatrixLookAtLH(XMVec(vEye), XMVec(vLookAt), XMVec(vUp));
+	matView = XMMatrixLookAtLH(XMVec(vEye), XMVec(vLookAt), XMVec(vUp));
 	return XMMatrixMultiply(matView, matProjection);
 }
 
@@ -429,7 +430,9 @@ void Renderer::updateTransformForLight(const Light& light) {
 }
 
 void Renderer::updateTransform(const Camera& camera, const XMMATRIX& matProjection) {
-	XMMATRIX matViewProj = getViewProjMatrix(camera, matProjection);
+	XMMATRIX matView;
+	XMMATRIX matViewProj = getViewProjMatrix(camera, matProjection, matView);
+	XMStoreFloat4x4(&m_cbTransform.g_matView, XMMatrixTranspose(matView));
 	XMStoreFloat4x4(&m_cbTransform.g_matViewProj, XMMatrixTranspose(matViewProj));
 
 	m_cbTransform.g_posEye = XMPos(camera.getVecEye());
@@ -440,12 +443,12 @@ void Renderer::updateTransform(const Camera& camera, const XMMATRIX& matProjecti
 
 	// param-independent data
 	XMStoreFloat4x4(&m_cbTransform.g_matViewProjCamera, 
-		XMMatrixTranspose(getViewProjMatrix(*m_pCamera, XMLoadFloat4x4(&m_matProjection))));
+		XMMatrixTranspose(getViewProjMatrix(*m_pCamera, XMLoadFloat4x4(&m_matProjection), matView)));
 
 	for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
 		const Light* l = m_vpLights[i];
 		XMMATRIX matViewProj = getViewProjMatrix(getLightCamera(*l),
-			XMLoadFloat4x4(&m_matLightProjection));
+			XMLoadFloat4x4(&m_matLightProjection), matView);
 		XMStoreFloat4x4(m_cbTransform.g_matViewProjLights + i, XMMatrixTranspose(matViewProj));
 	}
 
@@ -619,6 +622,152 @@ void Renderer::setConstantBuffers() {
 	m_pDeviceContext->PSSetConstantBuffers(0, ARRAYSIZE(buffers), buffers);
 }
 
+void Renderer::renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11RenderTargetView* pRTAlbedo,
+								   ID3D11RenderTargetView* pRTDiffuseStencil, ID3D11RenderTargetView* pRTSpecular) {
+	// Render the irradiance map
+	m_psgSSSIrradiance->use(m_pDeviceContext);
+
+	ID3D11RenderTargetView* apSSSRenderTargets[] = {
+		pRTIrradiance,
+		pRTAlbedo,
+		pRTDiffuseStencil,
+		pRTSpecular
+	};
+	m_pDeviceContext->OMSetRenderTargets(ARRAYSIZE(apSSSRenderTargets), apSSSRenderTargets, m_pDepthStencilView);
+	// Clear render target view & depth stencil
+	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
+	float ClearDiffuseStencil[4] = { 0.0f, 0.0f, 1.0f, 0.0f };
+	m_pDeviceContext->ClearRenderTargetView(pRTIrradiance, ClearColor);
+	m_pDeviceContext->ClearRenderTargetView(pRTAlbedo, ClearColor);
+	m_pDeviceContext->ClearRenderTargetView(pRTDiffuseStencil, ClearDiffuseStencil);
+	m_pDeviceContext->ClearRenderTargetView(pRTSpecular, ClearColor);
+	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	updateTransform();
+	bindShadowMaps();
+	renderScene();
+	unbindShadowMaps();
+}
+
+void Renderer::unbindInputBuffers() {
+	// unbind all vertex and index buffers
+	UINT zero = 0;
+	ID3D11Buffer* nullBuffer = nullptr;
+	m_pDeviceContext->IASetVertexBuffers(0, 1, &nullBuffer, &zero, &zero);
+	m_pDeviceContext->IASetIndexBuffer(nullptr, DXGI_FORMAT_UNKNOWN, 0);
+}
+
+void Renderer::bindGaussianConstantBuffer() {
+	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pGaussianConstantBuffer);
+}
+
+void Renderer::bindCombineConstantBuffer() {
+	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pCombineConstantBuffer);
+}
+
+void Renderer::setGaussianKernelSize(float size) {
+	m_cbGaussian.g_blurWidth = size;
+	m_pDeviceContext->UpdateSubresource(m_pGaussianConstantBuffer, 0, nullptr, &m_cbGaussian, 0, 0);
+}
+
+void Renderer::doGaussianBlurs() {
+	bindGaussianConstantBuffer();
+	
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
+	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
+
+	// clear color for gaussians
+	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
+
+	// temporary workspace
+	ID3D11RenderTargetView* pRTTemporary = m_apRTSSS[IDX_SSS_TEMPORARY];
+	ID3D11ShaderResourceView* pSRVTemporary = m_apSRVSSS[IDX_SSS_TEMPORARY];
+	
+	// previous rendererd shader resource view
+	ID3D11ShaderResourceView* pSRVPrevious = m_apSRVSSS[IDX_SSS_IRRADIANCE];
+
+	// shader resources
+	ID3D11ShaderResourceView* apSRVs[] = {
+		nullptr,
+		m_apSRVSSS[IDX_SSS_DIFFUSE_STENCIL]
+	};
+	const UINT numViews = ARRAYSIZE(apSRVs);
+
+	// null shader resources for unbinding
+	ID3D11ShaderResourceView* apNullSRVs[numViews] = { nullptr };
+
+	float prevVariance = 0;
+	for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
+		float variance = SSS_GAUSSIAN_KERNEL_SIGMA[i];
+		float size = sqrt(variance - prevVariance);
+		prevVariance = variance;
+
+		setGaussianKernelSize(size);
+
+		// do separate gaussian passes
+		// previous ->(vertical blur)-> temporary
+		m_psgSSSGausianVertical->use(m_pDeviceContext);
+		m_pDeviceContext->OMSetRenderTargets(1, &pRTTemporary, nullptr);
+		m_pDeviceContext->ClearRenderTargetView(pRTTemporary, ClearColor);
+		apSRVs[0] = pSRVPrevious;
+		m_pDeviceContext->PSSetShaderResources(0, numViews, apSRVs);
+
+		m_pDeviceContext->Draw(6, 0);
+
+		// temporary ->(vertical blur)-> next
+		m_psgSSSGausianHorizontal->use(m_pDeviceContext);
+		m_pDeviceContext->OMSetRenderTargets(1, &m_apRTSSS[IDX_SSS_GAUSSIANS_START + i], nullptr);
+		m_pDeviceContext->ClearRenderTargetView(m_apRTSSS[IDX_SSS_GAUSSIANS_START + i], ClearColor);
+		apSRVs[0] = pSRVTemporary;
+		m_pDeviceContext->PSSetShaderResources(0, numViews, apSRVs);
+
+		m_pDeviceContext->Draw(6, 0);
+
+		// must unbind shader resource
+		m_pDeviceContext->PSSetShaderResources(0, numViews, apNullSRVs);
+
+		pSRVPrevious = m_apSRVSSS[IDX_SSS_GAUSSIANS_START + i];
+	}
+}
+
+void Renderer::doCombineShading(bool bSSS) {
+	bindCombineConstantBuffer();
+
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
+	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
+
+	m_psgSSSCombine->use(m_pDeviceContext);
+
+	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
+
+	// bind the final render target
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, nullptr);
+	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, ClearColor);
+
+	// Set up shader resources
+	const UINT numViews = 2 + NUM_SSS_GAUSSIANS;
+	ID3D11ShaderResourceView* apSSSSRVs[numViews] = {
+		m_apSRVSSS[IDX_SSS_ALBEDO],
+		m_apSRVSSS[IDX_SSS_SPECULAR],
+	};
+	if (bSSS)
+		memcpy(apSSSSRVs + 2, m_apSRVSSS + IDX_SSS_GAUSSIANS_START, sizeof(*m_apSRVSSS) * NUM_SSS_GAUSSIANS);
+	else
+		for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
+			apSSSSRVs[2 + i] = m_apSRVSSS[IDX_SSS_IRRADIANCE];
+		}
+	m_pDeviceContext->PSSetShaderResources(0, numViews, apSSSSRVs);
+
+	// Putting it all together...
+	m_pDeviceContext->Draw(6, 0);
+
+	// Unbind all shader resources
+	ID3D11ShaderResourceView* apNullSRVs[numViews] = { nullptr };
+	m_pDeviceContext->PSSetShaderResources(0, numViews, apNullSRVs);
+}
+
 void Renderer::render() {
 	// Set primitive topology
     m_pDeviceContext->IASetPrimitiveTopology(
@@ -628,34 +777,36 @@ void Renderer::render() {
 	updateTessellation();
 	setConstantBuffers();
 
+	bool bToggle = (m_descRasterizerState.FillMode == D3D11_FILL_WIREFRAME);
 	// Render shadow maps
 	m_pDeviceContext->RSSetViewports(1, &m_vpShadowMap);
-	unbindShadowMaps();
 	m_psgTessellatedShadow->use(m_pDeviceContext);
-	for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
-		m_pDeviceContext->OMSetRenderTargets(1, m_apRTShadowMaps + i, m_pShadowMapDepthStencilView);
-		// Clear render target view & depth stencil
-		float ClearColor[4] = { 1.0f, 1.0f, 1.0f, 1.0f }; // RGBA
-		m_pDeviceContext->ClearRenderTargetView(m_apRTShadowMaps[i], ClearColor);
-		m_pDeviceContext->ClearDepthStencilView(m_pShadowMapDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	if (bToggle) toggleWireframe(); { // Renders solid
+		for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
+			m_pDeviceContext->OMSetRenderTargets(1, m_apRTShadowMaps + i, m_pShadowMapDepthStencilView);
+			// Clear render target view & depth stencil
+			float ClearShadow[4] = { 1.0f, 1.0f, 1.0f, 1.0f }; // RGBA
+			m_pDeviceContext->ClearRenderTargetView(m_apRTShadowMaps[i], ClearShadow);
+			m_pDeviceContext->ClearDepthStencilView(m_pShadowMapDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-		const Light& l = *m_vpLights[i];
-		updateTransformForLight(l);
-		renderScene();
-	}
+			const Light& l = *m_vpLights[i];
+			updateTransformForLight(l);
+			renderScene();
+		}
+	} if (bToggle) toggleWireframe();
 
-	// Render the scene
 	m_pDeviceContext->RSSetViewports(1, &m_vpScreen);
-	m_psgTessellatedPhong->use(m_pDeviceContext);
-	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencilView);
-	// Clear render target view & depth stencil
-	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
-	m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, ClearColor);
-	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-	updateTransform();
-	bindShadowMaps();
-	renderScene();
+	unbindInputBuffers();
+
+	renderIrradianceMap(/*m_pRenderTargetView*/m_apRTSSS[IDX_SSS_IRRADIANCE], m_apRTSSS[IDX_SSS_ALBEDO], 
+						m_apRTSSS[IDX_SSS_DIFFUSE_STENCIL], m_apRTSSS[IDX_SSS_SPECULAR]);
+
+	if (bToggle) toggleWireframe(); {
+		if (m_bSSS)
+			doGaussianBlurs();
+		doCombineShading(m_bSSS);
+	} if (bToggle) toggleWireframe();
 
 	m_pSwapChain->Present(m_pConfig->vsync ? 1 : 0, 0);
 
@@ -689,6 +840,10 @@ void Renderer::toggleBump() {
 
 void Renderer::toggleTessellation() {
 	m_bTessellation = !m_bTessellation;
+}
+
+void Renderer::toggleSSS() {
+	m_bSSS = !m_bSSS;
 }
 
 ID3D11Device* Renderer::getDevice() const {
