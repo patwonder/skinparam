@@ -12,12 +12,12 @@ cbuffer Combine : register(b0) {
 }
 
 float4 PS(PS_INPUT input) : SV_Target {
-	float3 specular = g_specular.Sample(g_samPoint, input.texCoord).rgb;
-	float3 albedo = g_albedo.Sample(g_samPoint, input.texCoord).rgb;
+	float3 specular = g_specular.SampleLevel(g_samPoint, input.texCoord, 0).rgb;
+	float3 albedo = g_albedo.SampleLevel(g_samPoint, input.texCoord, 0).rgb;
 
 	float3 color = 0.0;
 	for (uint i = 0; i < NUM_GAUSSIANS; i++) {
-		color += g_weights[i] * g_gaussians[i].Sample(g_samPoint, input.texCoord).rgb;
+		color += g_weights[i] * g_gaussians[i].SampleLevel(g_samPoint, input.texCoord, 0).rgb;
 	}
 	
 	return float4(color * albedo + specular, 1.0);

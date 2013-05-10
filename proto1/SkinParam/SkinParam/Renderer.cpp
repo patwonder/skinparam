@@ -661,9 +661,10 @@ void Renderer::renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11
 	};
 	m_pDeviceContext->OMSetRenderTargets(ARRAYSIZE(apSSSRenderTargets), apSSSRenderTargets, m_pDepthStencilView);
 	// Clear render target view & depth stencil
+	float ClearIrradiance[4] = { 0.0f, 0.0f, 0.0f, 0.0f }; // RGBA
 	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
 	float ClearDiffuseStencil[4] = { 0.0f, 0.0f, 1.0f, 0.0f };
-	m_pDeviceContext->ClearRenderTargetView(pRTIrradiance, ClearColor);
+	m_pDeviceContext->ClearRenderTargetView(pRTIrradiance, ClearIrradiance);
 	m_pDeviceContext->ClearRenderTargetView(pRTAlbedo, ClearColor);
 	m_pDeviceContext->ClearRenderTargetView(pRTDiffuseStencil, ClearDiffuseStencil);
 	m_pDeviceContext->ClearRenderTargetView(pRTSpecular, ClearColor);

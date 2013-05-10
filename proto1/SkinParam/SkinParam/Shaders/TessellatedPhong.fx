@@ -169,11 +169,11 @@ struct PS_INPUT_IR_DS {
 };
 
 struct PS_OUTPUT_IR_DS {
-	// r, g, b: irradiance color; a: specular color
+	// r, g, b: irradiance color; a: stencil
 	float4 irradiance : SV_Target0;
 	// albeto map, sqrt of tex_color * fresnel outgoing factor
 	float4 albedo : SV_Target1;
-	// r, g : diffuse NdotV in x, y direction; b : depth; a: stencil
+	// r, g : kernel size in x, y direction; b : depth; a: stencil
 	float4 diffuseStencil : SV_Target2;
 	// specular light
 	float4 specular : SV_Target3;
@@ -208,8 +208,27 @@ PS_INPUT_IR_DS DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocatio
 	output.vTangentWS = input.vTangentWS;
 	output.vBinormalWS = input.vBinormalWS;
 	output.texCoord = input.texCoord;
-	output.depth = normalizeDepth(vPosVS.z / vPosVS.w);
+	output.depth = getDepthPS(vPosVS.z / vPosVS.w);
 	return output;
+}
+
+// kernel width calculation
+// emprical value : in texture space, 0.001 per mm at depth 10
+static const float SIZE_ALPHA = 0.015;
+
+float getKernelSize(float depthPS, float grad) {
+	return SIZE_ALPHA / getDepthCS(depthPS) * grad;
+}
+
+static const float DD_START = 0.0005;
+static const float DD_LEN = 0.0005;
+
+float getDDXDepthPenalty(float depth) {
+	return saturate(1 - (abs(ddx(depth)) - DD_START) / DD_LEN);
+}
+
+float getDDYDepthPenalty(float depth) {
+	return saturate(1 - (abs(ddy(depth)) - DD_START) / DD_LEN);
 }
 
 // Fdt / 2pi, which equals to 1 - Fdr/2pi
@@ -264,14 +283,21 @@ PS_OUTPUT_IR_DS PS_Irradiance(PS_INPUT_IR_DS input) {
 	float fresnel_trans_view = 1;saturate(1 - fresnel_term(NdotV));
 
 	// calculate kernel size reduction due to tilt surface
-	float3 vNormalVS = normalize(mul(input.vNormalWS, (float3x3)g_matView)); // transform to camera view space
-	// diffuse reduction equals to shadow length on corresponding plane
-	float drx = sqrt(vNormalVS.y * vNormalVS.y + vNormalVS.z * vNormalVS.z);
-	float dry = sqrt(vNormalVS.x * vNormalVS.x + vNormalVS.z * vNormalVS.z);
+	//  1 - calculate local orthogonal coordinate system
+	float3 vUp = g_matView[1].xyz;
+	float3 vHorLocal = cross(V, vUp);
+	float3 vVerLocal = cross(V, vHorLocal);
+	//  2 - diffuse reduction equals to shadow length on corresponding plane
+	vNormalWS = input.vNormalWS;
+	float drx = length(vNormalWS - dot(vNormalWS, vHorLocal) * vHorLocal);
+	float dry = length(vNormalWS - dot(vNormalWS, vVerLocal) * vVerLocal);
+	//  3 - kernel size, with reduction applied
+	float kSizeX = getKernelSize(input.depth, drx) * getDDXDepthPenalty(input.depth);
+	float kSizeY = getKernelSize(input.depth, dry) * getDDYDepthPenalty(input.depth);
 
 	output.irradiance = float4(sq_tex_color * irradiance, 1.0);
 	output.albedo = float4(sq_tex_color * fresnel_trans_view, 1.0);
-	output.diffuseStencil = float4(drx, dry, input.depth, 1.0);
+	output.diffuseStencil = float4(kSizeX, kSizeY, input.depth, 1.0);
 	output.specular = float4(specular, 1.0);
 
 	return output;
