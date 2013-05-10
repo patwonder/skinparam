@@ -7,7 +7,7 @@
 
 static const uint NUM_LIGHTS = 2;
 static const uint SM_SIZE = 2048;
-static const float SHADOW_EPSILON = 8e-4;
+static const float SHADOW_EPSILON = 8e-5;
 static const float RMS_SLOPE = 0.25;
 
 Texture2D g_texture : register(t0);
@@ -74,8 +74,7 @@ float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow,
 		// out of shadow map, dim the texel
 		lightAmount = 0.0;
 	} else {
-		float4 vPosVS = mul(float4(worldPos, 1.0), matViewLight);
-		float depth = normalizeDepth(vPosVS.z / vPosVS.w);
+		float depth = vPosPSL4.z / vPosPSL4.w;
 
 		float2 lp = frac(vPosTeSL * SM_SIZE);
 

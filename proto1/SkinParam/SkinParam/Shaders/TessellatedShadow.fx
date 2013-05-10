@@ -32,7 +32,7 @@ struct DS_INPUT {
 
 struct PS_INPUT {
 	float4 vPosPS : SV_POSITION;
-	float depth : DEPTH;
+	float2 depth : DEPTH;
 };
 
 // Vertex shader, do world transform only
@@ -105,16 +105,14 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
 	input.vPosWS += bumpAmount * input.vNormalWS;
 
-	float4 vPosVS = mul(float4(input.vPosWS, 1.0), g_matView);
-
 	PS_INPUT output;
 	output.vPosPS = mul(float4(input.vPosWS, 1.0), g_matViewProj);
-	output.depth = normalizeDepth(vPosVS.z / vPosVS.w);
+	output.depth = output.vPosPS.zw;
 	return output;
 }
 
 // Pixel shader
 float4 PS(PS_INPUT input) : SV_Target {
 	// output depth
-	return input.depth;
+	return input.depth.x / input.depth.y;
 }
