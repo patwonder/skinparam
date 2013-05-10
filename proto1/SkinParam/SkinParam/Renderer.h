@@ -179,6 +179,17 @@ namespace Skin {
 		bool m_bAA;
 		bool m_bDump;
 
+		// render stage control
+		enum RenderStage {
+			NotRendering,
+			ShadowMap,
+			Irradiance,
+			Gaussian,
+			Combine,
+			PostProcessAA
+		};
+		RenderStage m_rsCurrent;
+
 		HRESULT initDX();
 		void initMisc();
 
@@ -190,7 +201,7 @@ namespace Skin {
 		Camera getLightCamera(const Light& light);
 		void updateTransform();
 		void updateTransformForLight(const Light& light);
-		void updateTransform(const Camera& camera, const XMMATRIX& matProjection);
+		void updateTransform(const Camera& camera, const XMMATRIX& matProjection, float fAspectRatio);
 		void initLighting();
 		void updateLighting();
 		void initMaterial();

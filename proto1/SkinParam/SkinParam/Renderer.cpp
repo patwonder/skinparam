@@ -88,7 +88,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_bBump(true),
 	  m_bSSS(true),
 	  m_bAA(true),
-	  m_bDump(false)
+	  m_bDump(false),
+	  m_rsCurrent(NotRendering)
 {
 	memset(m_apRTShadowMaps, 0, sizeof(m_apRTShadowMaps));
 	memset(m_apSRVShadowMaps, 0, sizeof(m_apSRVShadowMaps));
@@ -439,14 +440,14 @@ Camera Renderer::getLightCamera(const Light& light) {
 }
 
 void Renderer::updateTransform() {
-	updateTransform(*m_pCamera, XMLoadFloat4x4(&m_matProjection));
+	updateTransform(*m_pCamera, XMLoadFloat4x4(&m_matProjection), (float)m_rectView.Width() / m_rectView.Height());
 }
 
 void Renderer::updateTransformForLight(const Light& light) {
-	updateTransform(getLightCamera(light), XMLoadFloat4x4(&m_matLightProjection));
+	updateTransform(getLightCamera(light), XMLoadFloat4x4(&m_matLightProjection), (float)SM_SIZE / SM_SIZE);
 }
 
-void Renderer::updateTransform(const Camera& camera, const XMMATRIX& matProjection) {
+void Renderer::updateTransform(const Camera& camera, const XMMATRIX& matProjection, float fAspectRatio) {
 	XMMATRIX matView;
 	XMMATRIX matViewProj = getViewProjMatrix(camera, matProjection, matView);
 	XMStoreFloat4x4(&m_cbTransform.g_matView, XMMatrixTranspose(matView));
@@ -457,6 +458,8 @@ void Renderer::updateTransform(const Camera& camera, const XMMATRIX& matProjecti
 	XMFLOAT4 vFrustrumPlanes[6];
 	extractPlanesFromFrustum(vFrustrumPlanes, matViewProj, true);
 	memcpy(m_cbTransform.g_vFrustrumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTransform.g_vFrustrumPlaneEquation));
+
+	m_cbTransform.g_fAspectRatio = fAspectRatio;
 
 	// param-independent data
 	XMStoreFloat4x4(&m_cbTransform.g_matViewProjCamera, 
@@ -854,6 +857,7 @@ void Renderer::render() {
 
 	bool bToggle = (m_descRasterizerState.FillMode == D3D11_FILL_WIREFRAME);
 	// Render shadow maps
+	m_rsCurrent = ShadowMap;
 	m_pDeviceContext->RSSetViewports(1, &m_vpShadowMap);
 	m_psgTessellatedShadow->use(m_pDeviceContext);
 	if (bToggle) toggleWireframe(); { // Renders solid
@@ -880,20 +884,28 @@ void Renderer::render() {
 
 	unbindInputBuffers();
 
+	m_rsCurrent = Irradiance;
 	renderIrradianceMap(/*m_pRenderTargetView*/m_apRTSSS[IDX_SSS_IRRADIANCE], m_apRTSSS[IDX_SSS_ALBEDO], 
 						m_apRTSSS[IDX_SSS_DIFFUSE_STENCIL], m_apRTSSS[IDX_SSS_SPECULAR]);
 
 	if (bToggle) toggleWireframe(); {
-		if (m_bSSS)
+		if (m_bSSS) {
+			m_rsCurrent = Gaussian;
 			doGaussianBlurs();
+		}
+		m_rsCurrent = Combine;
 		doCombineShading();
 
-		if (m_bAA)
+		if (m_bAA) {
+			m_rsCurrent = PostProcessAA;
 			doPostProcessAA();
+		}
 
 	} if (bToggle) toggleWireframe();
 
 	m_pSwapChain->Present(m_pConfig->vsync ? 1 : 0, 0);
+
+	m_rsCurrent = NotRendering;
 
 	computeStats();
 	m_bDump = false;
@@ -1034,6 +1046,9 @@ void Renderer::usePlaceholderNormalMap() {
 }
 
 void Renderer::setTessellationFactor(float edge, float inside, float min, float desiredSize) {
+	// adjust desired size for shadow maps
+	if (m_rsCurrent == ShadowMap)
+		desiredSize *= (float)m_rectView.Height() / SM_SIZE;
 	m_cbTessellation.g_vTesselationFactor = XMFLOAT4(edge, inside, min, desiredSize);
 	m_pDeviceContext->UpdateSubresource(m_pTessellationConstantBuffer, 0, NULL, &m_cbTessellation, 0, 0);
 }
