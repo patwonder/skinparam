@@ -7,7 +7,7 @@
 
 static const uint NUM_LIGHTS = 2;
 static const uint SM_SIZE = 2048;
-static const float SHADOW_EPSILON = 8e-5;
+static const float SHADOW_EPSILON = 4e-3;
 static const float RMS_SLOPE = 0.25;
 
 Texture2D g_texture : register(t0);
@@ -17,7 +17,7 @@ Texture2D g_shadowMaps[NUM_LIGHTS] : register(t3);
 SamplerState g_samTexture : register(s0);
 SamplerState g_samBump : register(s1);
 SamplerState g_samNormal : register(s2);
-SamplerState g_samShadow : register(s3);
+SamplerComparisonState g_samShadow : register(s3);
 
 struct Light {
 	float3 ambient;
@@ -62,7 +62,7 @@ float light_attenuation(float3 pos, Light l) {
 	return 1 / (l.attenuation.x + l.attenuation.y * dist + l.attenuation.z * dist * dist);
 }
 
-float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow, matrix matViewLight, matrix matViewProjLight) {
+float light_amount(float3 worldPos, Texture2D shadowMap, SamplerComparisonState samShadow, matrix matViewLight, matrix matViewProjLight) {
 	float4 vPosPSL4 = mul(float4(worldPos, 1.0), matViewProjLight);
 
 	// Texture space point location
@@ -74,27 +74,27 @@ float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow,
 		// out of shadow map, dim the texel
 		lightAmount = 0.0;
 	} else {
-		float depth = vPosPSL4.z / vPosPSL4.w;
+		float biasedDepth = vPosPSL4.z / vPosPSL4.w - SHADOW_EPSILON;
+		lightAmount = shadowMap.SampleCmpLevelZero(samShadow, vPosTeSL, biasedDepth);
+		//float2 lp = frac(vPosTeSL * SM_SIZE);
 
-		float2 lp = frac(vPosTeSL * SM_SIZE);
+		//// use 2x2 percentage closest filtering
+		//float evals[4];
+		//evals[0] = (shadowMap.Sample(samShadow, vPosTeSL).r + SHADOW_EPSILON < depth) ? 0.0 : 1.0;
+		//evals[1] = (shadowMap.Sample(samShadow, vPosTeSL + float2(1.0 / SM_SIZE, 0)).r + SHADOW_EPSILON < depth) ? 0.0 : 1.0;
+		//evals[2] = (shadowMap.Sample(samShadow, vPosTeSL + float2(0, 1.0 / SM_SIZE)).r + SHADOW_EPSILON < depth) ? 0.0 : 1.0;
+		//evals[3] = (shadowMap.Sample(samShadow, vPosTeSL + float2(1.0 / SM_SIZE, 1.0 / SM_SIZE)).r + SHADOW_EPSILON < depth) ? 0.0 : 1.0;
 
-		// use 2x2 percentage closest filtering
-		float evals[4];
-		evals[0] = (shadowMap.Sample(samShadow, vPosTeSL).r + SHADOW_EPSILON < depth) ? 0.0 : 1.0;
-		evals[1] = (shadowMap.Sample(samShadow, vPosTeSL + float2(1.0 / SM_SIZE, 0)).r + SHADOW_EPSILON < depth) ? 0.0 : 1.0;
-		evals[2] = (shadowMap.Sample(samShadow, vPosTeSL + float2(0, 1.0 / SM_SIZE)).r + SHADOW_EPSILON < depth) ? 0.0 : 1.0;
-		evals[3] = (shadowMap.Sample(samShadow, vPosTeSL + float2(1.0 / SM_SIZE, 1.0 / SM_SIZE)).r + SHADOW_EPSILON < depth) ? 0.0 : 1.0;
-
-		lightAmount = lerp(lerp(evals[0], evals[1], lp.x),
-						   lerp(evals[2], evals[3], lp.x),
-						   lp.y);
+		//lightAmount = lerp(lerp(evals[0], evals[1], lp.x),
+		//				   lerp(evals[2], evals[3], lp.x),
+		//				   lp.y);
 	}
 	return lightAmount;
 }
 
 float3 phong_shadow(Material mt, float3 ambient, Light lights[NUM_LIGHTS],
 					float3 eyePos, float3 worldPos, float3 color, float3 normal,
-					Texture2D shadowMaps[NUM_LIGHTS], SamplerState samShadow, matrix matViewLights[NUM_LIGHTS], matrix matViewProjLights[NUM_LIGHTS])
+					Texture2D shadowMaps[NUM_LIGHTS], SamplerComparisonState samShadow, matrix matViewLights[NUM_LIGHTS], matrix matViewProjLights[NUM_LIGHTS])
 {
 	// global ambient
 	float3 result = color * ambient * mt.ambient;

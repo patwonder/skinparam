@@ -530,9 +530,9 @@ void Renderer::initMaterial() {
 
 void Renderer::updateProjection() {
 	XMStoreFloat4x4(&m_matProjection,
-		XMMatrixPerspectiveFovLH((float)(Math::PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 30.0f));
+		XMMatrixPerspectiveFovLH((float)(Math::PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 20.0f));
 	XMStoreFloat4x4(&m_matLightProjection,
-		XMMatrixPerspectiveFovLH((float)(Math::PI * 5 / 18), 1.0f, 0.1f, 30.0f));
+		XMMatrixPerspectiveFovLH((float)(Math::PI * 5 / 18), 1.0f, 5.0f, 20.0f));
 }
 
 void Renderer::initTessellation() {
@@ -578,6 +578,12 @@ void Renderer::initShadowMaps() {
 
 	pTexture2D->Release();
 
+	// Create shadow map sampler state	
+	checkFailure(createSamplerComparisonState(m_pDevice, D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
+		D3D11_COMPARISON_LESS, &m_pShadowMapSamplerState),
+		_T("Failed to create shadow map sampler comparison state"));
+
 	// Initialize shadow map view port
 	D3D11_VIEWPORT& vp = m_vpShadowMap;
 	vp.Width = SM_SIZE;
@@ -589,7 +595,7 @@ void Renderer::initShadowMaps() {
 }
 
 void Renderer::bindShadowMaps() {
-	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAP, 1, &m_pBumpSamplerState);
+	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAP, 1, &m_pShadowMapSamplerState);
 	m_pDeviceContext->PSSetShaderResources(SLOT_SHADOWMAP, NUM_LIGHTS, m_apSRVShadowMaps);
 }
 

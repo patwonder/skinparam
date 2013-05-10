@@ -156,6 +156,7 @@ namespace Skin {
 		ID3D11RenderTargetView* m_apRTShadowMaps[NUM_LIGHTS];
 		ID3D11ShaderResourceView* m_apSRVShadowMaps[NUM_LIGHTS];
 		ID3D11DepthStencilView* m_pShadowMapDepthStencilView;
+		ID3D11SamplerState* m_pShadowMapSamplerState;
 
 		// Rendering
 		Camera* m_pCamera;

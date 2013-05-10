@@ -1,7 +1,7 @@
 // Information about the near and far clipping plane
 
 static const float DEPTH_NEAR = 0.1;
-static const float DEPTH_FAR = 30.0;
+static const float DEPTH_FAR = 20.0;
 
 // converts from camera space depth to projection space depth
 float getDepthPS(float depthCS) {

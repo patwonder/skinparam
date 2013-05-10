@@ -239,16 +239,23 @@ HRESULT D3DHelper::loadImageData(const Utils::TString& strFileName, void* pData,
 	return S_OK;
 }
 
-HRESULT D3DHelper::createSamplerState(ID3D11Device* pDevice, D3D11_FILTER filer, D3D11_TEXTURE_ADDRESS_MODE addressU,
+HRESULT D3DHelper::createSamplerState(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
 									  D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, ID3D11SamplerState** ppSamplerState)
+{
+	return createSamplerComparisonState(pDevice, filter, addressU, addressV, addressW, D3D11_COMPARISON_NEVER, ppSamplerState);
+}
+
+HRESULT D3DHelper::createSamplerComparisonState(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
+												D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, D3D11_COMPARISON_FUNC comp,
+												ID3D11SamplerState** ppSamplerState)
 {
 	D3D11_SAMPLER_DESC sampDesc;
 	ZeroMemory( &sampDesc, sizeof(sampDesc) );
-	sampDesc.Filter = filer;
+	sampDesc.Filter = filter;
 	sampDesc.AddressU = addressU;
 	sampDesc.AddressV = addressV;
 	sampDesc.AddressW = addressW;
-	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	sampDesc.ComparisonFunc = comp;
 	sampDesc.MinLOD = 0;
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	HRESULT hr = pDevice->CreateSamplerState(&sampDesc, ppSamplerState);
@@ -257,6 +264,7 @@ HRESULT D3DHelper::createSamplerState(ID3D11Device* pDevice, D3D11_FILTER filer,
 
 	return S_OK;
 }
+
 
 HRESULT D3DHelper::createTexture2D(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 								   ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags)
