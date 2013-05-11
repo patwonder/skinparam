@@ -89,6 +89,7 @@ namespace Skin {
 		PostProcessConstantBuffer m_cbPostProcess;
 
 		std::vector<IUnknown**> m_vppCOMObjs;
+		std::vector<ShaderGroup**> m_vppShaderGroups;
 
 		static const UINT SLOT_TEXTURE = 0;
 		static const UINT SLOT_BUMPMAP = 1;
@@ -151,12 +152,24 @@ namespace Skin {
 		XMFLOAT4X4 m_matLightProjection; // light projection matrix
 
 		// Shadow mapping
-		static const UINT SM_SIZE = 2048;
+		static const UINT SM_SIZE = 1024;
+		static const UINT IDX_SHADOW_TEMPORARY = NUM_LIGHTS;
+		static const UINT NUM_SHADOW_VIEWS = IDX_SHADOW_TEMPORARY + 1;
 		D3D11_VIEWPORT m_vpShadowMap;
-		ID3D11RenderTargetView* m_apRTShadowMaps[NUM_LIGHTS];
-		ID3D11ShaderResourceView* m_apSRVShadowMaps[NUM_LIGHTS];
+		ID3D11RenderTargetView* m_apRTShadowMaps[NUM_SHADOW_VIEWS];
+		ID3D11ShaderResourceView* m_apSRVShadowMaps[NUM_SHADOW_VIEWS];
 		ID3D11DepthStencilView* m_pShadowMapDepthStencilView;
 		ID3D11SamplerState* m_pShadowMapSamplerState;
+		ShaderGroup* m_psgGaussianShadowVertical;
+		ShaderGroup* m_psgGaussianShadowHorizontal;
+
+		// constant buffer for shadow map blurring
+		struct GaussianShadowConstantBuffer {
+			XMFLOAT2 rcpScreenSize;
+			float pad[2];
+		};
+		ID3D11Buffer* m_pGaussianShadowConstantBuffer;
+		GaussianShadowConstantBuffer m_cbGaussainShadow;
 
 		// Rendering
 		Camera* m_pCamera;
@@ -178,6 +191,7 @@ namespace Skin {
 		bool m_bBump;
 		bool m_bSSS;
 		bool m_bAA;
+		bool m_bVSMBlur;
 		bool m_bDump;
 
 		// render stage control
@@ -227,6 +241,8 @@ namespace Skin {
 		void bindPostProcessConstantBuffer();
 		void doPostProcessAA();
 
+		void blurShadowMaps();
+
 		void dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName);
 		void dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName);
 		void dumpTextureToFile(ID3D11Resource* pTexture2D, const Utils::TString& strFileName);
@@ -258,7 +274,7 @@ namespace Skin {
 		void toggleBump();
 		void toggleSSS();
 		void togglePostProcessAA();
-
+		void toggleVSMBlur();
 		void dump();
 
 		// IRenderer implementation

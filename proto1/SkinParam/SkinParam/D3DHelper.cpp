@@ -300,10 +300,16 @@ HRESULT D3DHelper::createTexture2DEx(ID3D11Device* pDevice, UINT width, UINT hei
 HRESULT D3DHelper::createShaderResourceView(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
 											ID3D11ShaderResourceView** ppShaderResourceView)
 {
+	return createShaderResourceViewEx(pDevice, pTexture2D, format, false, ppShaderResourceView);
+}
+
+HRESULT D3DHelper::createShaderResourceViewEx(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format, bool multisampled,
+											  ID3D11ShaderResourceView** ppShaderResourceView)
+{
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	ZeroMemory(&srvDesc, sizeof(srvDesc));
 	srvDesc.Format = format;
-	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.ViewDimension = multisampled ? D3D11_SRV_DIMENSION_TEXTURE2DMS : D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = -1;
 	HRESULT hr = pDevice->CreateShaderResourceView(pTexture2D, &srvDesc, ppShaderResourceView);
@@ -316,9 +322,15 @@ HRESULT D3DHelper::createShaderResourceView(ID3D11Device* pDevice, ID3D11Texture
 HRESULT D3DHelper::createRenderTargetView(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
 										  ID3D11RenderTargetView** ppRenderTargetView)
 {
+	return createRenderTargetViewEx(pDevice, pTexture2D, format, false, ppRenderTargetView);
+}
+
+HRESULT D3DHelper::createRenderTargetViewEx(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format, bool multisampled,
+											ID3D11RenderTargetView** ppRenderTargetView)
+{
 	D3D11_RENDER_TARGET_VIEW_DESC desc;
 	desc.Format = format;
-	desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	desc.ViewDimension = multisampled ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D;
 	desc.Texture2D.MipSlice = 0;
 
 	HRESULT hr = pDevice->CreateRenderTargetView(pTexture2D, &desc, ppRenderTargetView);
@@ -327,7 +339,6 @@ HRESULT D3DHelper::createRenderTargetView(ID3D11Device* pDevice, ID3D11Texture2D
 
 	return S_OK;
 }
-
 
 HRESULT D3DHelper::createTextureResourceView(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 											 ID3D11ShaderResourceView** ppTextureResourceView, D3D11_BIND_FLAG bindFlags)

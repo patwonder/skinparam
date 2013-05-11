@@ -41,9 +41,13 @@ namespace Skin {
 			ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags = D3D11_BIND_SHADER_RESOURCE);
 		HRESULT createShaderResourceView(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
 			ID3D11ShaderResourceView** ppShaderResourceView);
+		HRESULT createShaderResourceViewEx(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format, bool multisampled,
+			ID3D11ShaderResourceView** ppShaderResourceView);
 		HRESULT createTextureResourceView(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 			ID3D11ShaderResourceView** ppTextureResourceView, D3D11_BIND_FLAG bindFlags = D3D11_BIND_SHADER_RESOURCE);
 		HRESULT createRenderTargetView(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
+			ID3D11RenderTargetView** ppRenderTargetView);
+		HRESULT createRenderTargetViewEx(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format, bool multisampled,
 			ID3D11RenderTargetView** ppRenderTargetView);
 		// buffers
 		HRESULT createBuffer(ID3D11Device* pDevice, UINT byteWidth, UINT bindFlags, void* pData, ID3D11Buffer** ppVertexBuffer); // for internal use

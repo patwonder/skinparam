@@ -60,6 +60,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pNormalTexture(nullptr),
 	  m_pLinearSamplerState(nullptr),
 	  m_pShadowMapDepthStencilView(nullptr),
+	  m_pShadowMapSamplerState(nullptr),
 	  m_pTransformConstantBuffer(nullptr),
 	  m_pLightingConstantBuffer(nullptr),
 	  m_pMaterialConstantBuffer(nullptr),
@@ -67,6 +68,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pGaussianConstantBuffer(nullptr),
 	  m_pCombineConstantBuffer(nullptr),
 	  m_pPostProcessConstantBuffer(nullptr),
+	  m_pGaussianShadowConstantBuffer(nullptr),
 	  m_psgTriangle(nullptr),
 	  m_psgPhong(nullptr),
 	  m_psgTessellatedPhong(nullptr),
@@ -77,6 +79,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_psgSSSCombine(nullptr),
 	  m_psgSSSCombineAA(nullptr),
 	  m_psgPostProcessAA(nullptr),
+	  m_psgGaussianShadowVertical(nullptr),
+	  m_psgGaussianShadowHorizontal(nullptr),
 	  m_hwnd(hwnd),
 	  m_rectView(rectView),
 	  m_pConfig(pConfig),
@@ -88,6 +92,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_bBump(true),
 	  m_bSSS(true),
 	  m_bAA(true),
+	  m_bVSMBlur(true),
 	  m_bDump(false),
 	  m_rsCurrent(NotRendering)
 {
@@ -109,6 +114,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	m_vppCOMObjs.push_back((IUnknown**)&m_pNormalTexture);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pLinearSamplerState);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pShadowMapDepthStencilView);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pShadowMapSamplerState);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pTransformConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pLightingConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pMaterialConstantBuffer);
@@ -116,7 +122,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	m_vppCOMObjs.push_back((IUnknown**)&m_pGaussianConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pCombineConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pPostProcessConstantBuffer);
-	for (UINT i = 0; i < NUM_LIGHTS; i++) {
+	m_vppCOMObjs.push_back((IUnknown**)&m_pGaussianShadowConstantBuffer);
+	for (UINT i = 0; i < NUM_SHADOW_VIEWS; i++) {
 		m_vppCOMObjs.push_back((IUnknown**)m_apRTShadowMaps + i);
 		m_vppCOMObjs.push_back((IUnknown**)m_apSRVShadowMaps + i);
 	}
@@ -124,6 +131,19 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 		m_vppCOMObjs.push_back((IUnknown**)m_apRTSSS + i);
 		m_vppCOMObjs.push_back((IUnknown**)m_apSRVSSS + i);
 	}
+
+	m_vppShaderGroups.push_back(&m_psgTriangle);
+	m_vppShaderGroups.push_back(&m_psgPhong);
+	m_vppShaderGroups.push_back(&m_psgTessellatedPhong);
+	m_vppShaderGroups.push_back(&m_psgTessellatedShadow);
+	m_vppShaderGroups.push_back(&m_psgSSSIrradiance);
+	m_vppShaderGroups.push_back(&m_psgSSSGausianVertical);
+	m_vppShaderGroups.push_back(&m_psgSSSGausianHorizontal);
+	m_vppShaderGroups.push_back(&m_psgSSSCombine);
+	m_vppShaderGroups.push_back(&m_psgSSSCombineAA);
+	m_vppShaderGroups.push_back(&m_psgPostProcessAA);
+	m_vppShaderGroups.push_back(&m_psgGaussianShadowVertical);
+	m_vppShaderGroups.push_back(&m_psgGaussianShadowHorizontal);
 
 	checkFailure(initDX(), _T("Failed to initialize DirectX 11"));
 
@@ -386,19 +406,20 @@ void Renderer::loadShaders() {
 
 	// Post-process Anti-aliasing
 	m_psgPostProcessAA = new ShaderGroup(m_pDevice, _T("PostProcessAA.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
+
+	// Shadow map blurring
+	m_psgGaussianShadowVertical = new ShaderGroup(m_pDevice, _T("GaussianShadow.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
+	m_psgGaussianShadowHorizontal = new ShaderGroup(m_pDevice, _T("GaussianShadow.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
 }
 
 void Renderer::unloadShaders() {
-	delete m_psgTriangle; m_psgTriangle = nullptr;
-	delete m_psgPhong; m_psgPhong = nullptr;
-	delete m_psgTessellatedPhong; m_psgTessellatedPhong = nullptr;
-	delete m_psgTessellatedShadow; m_psgTessellatedShadow = nullptr;
-	delete m_psgSSSIrradiance; m_psgSSSIrradiance = nullptr;
-	delete m_psgSSSGausianVertical; m_psgSSSGausianVertical = nullptr;
-	delete m_psgSSSGausianHorizontal; m_psgSSSGausianHorizontal = nullptr;
-	delete m_psgSSSCombine; m_psgSSSCombine = nullptr;
-	delete m_psgSSSCombineAA; m_psgSSSCombineAA = nullptr;
-	delete m_psgPostProcessAA; m_psgPostProcessAA = nullptr;
+	for (ShaderGroup** ppsg : m_vppShaderGroups) {
+		if (*ppsg)
+			delete *ppsg;
+		*ppsg = nullptr;
+	}
+
+	m_vppShaderGroups.clear();
 }
 
 void Renderer::initTransform() {
@@ -546,11 +567,12 @@ void Renderer::updateTessellation() {
 }
 
 void Renderer::initShadowMaps() {
-	for (UINT i = 0; i < NUM_LIGHTS; i++) {
+	for (UINT i = 0; i < NUM_SHADOW_VIEWS; i++) {
 		ID3D11Texture2D* pTexture2D = nullptr;
 		// VSM: 2 channels & turn mip-mapping on
 		DXGI_FORMAT format = DXGI_FORMAT_R32G32_FLOAT;
-		checkFailure(createTexture2DEx(m_pDevice, SM_SIZE, SM_SIZE, format, false, 1, 0,
+		// Create the temporary WITHOUT mip-mapping on
+		checkFailure(createTexture2DEx(m_pDevice, SM_SIZE, SM_SIZE, format, i == IDX_SHADOW_TEMPORARY ? true : false, 1, 0,
 			&pTexture2D, (D3D11_BIND_FLAG)(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)),
 			_T("Failed to create shadow map texture"));
 
@@ -593,6 +615,11 @@ void Renderer::initShadowMaps() {
 	vp.MaxDepth = 1.0f;
 	vp.TopLeftX = 0.0f;
 	vp.TopLeftY = 0.0f;
+
+	// Initialize constant buffer for shadow map blurring
+	m_cbGaussainShadow.rcpScreenSize = XMFLOAT2(1.0f / SM_SIZE, 1.0f / SM_SIZE);
+	checkFailure(createConstantBuffer(m_pDevice, &m_cbGaussainShadow, &m_pGaussianShadowConstantBuffer),
+		_T("Failed to create gaussian shadow constant buffer"));
 }
 
 void Renderer::bindShadowMaps() {
@@ -661,6 +688,12 @@ void Renderer::setConstantBuffers() {
 
 void Renderer::renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11RenderTargetView* pRTAlbedo,
 								   ID3D11RenderTargetView* pRTDiffuseStencil, ID3D11RenderTargetView* pRTSpecular) {
+
+	setConstantBuffers();
+
+	m_pDeviceContext->IASetPrimitiveTopology(
+		true ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 	// Render the irradiance map
 	m_psgSSSIrradiance->use(m_pDeviceContext);
 
@@ -722,10 +755,6 @@ void Renderer::doGaussianBlurs() {
 	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
 	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
 
-	// clear color for gaussians
-	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
-
-	// temporary workspace
 	ID3D11RenderTargetView* pRTTemporary = m_apRTSSS[IDX_SSS_TEMPORARY];
 	ID3D11ShaderResourceView* pSRVTemporary = m_apSRVSSS[IDX_SSS_TEMPORARY];
 	
@@ -759,7 +788,7 @@ void Renderer::doGaussianBlurs() {
 
 		m_pDeviceContext->Draw(6, 0);
 
-		// temporary ->(vertical blur)-> next
+		// temporary ->(horizontal blur)-> next
 		m_psgSSSGausianHorizontal->use(m_pDeviceContext);
 		m_pDeviceContext->OMSetRenderTargets(1, &m_apRTSSS[IDX_SSS_GAUSSIANS_START + i], nullptr);
 		apSRVs[0] = pSRVTemporary;
@@ -854,11 +883,41 @@ void Renderer::doPostProcessAA() {
 	}
 }
 
-void Renderer::render() {
-	// Set primitive topology
-    m_pDeviceContext->IASetPrimitiveTopology(
-		true ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+void Renderer::blurShadowMaps() {
+	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pGaussianShadowConstantBuffer);
 
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
+	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
+
+	ID3D11RenderTargetView* pRTTemporary = m_apRTShadowMaps[IDX_SHADOW_TEMPORARY];
+	ID3D11ShaderResourceView* pSRVTemporary = m_apSRVShadowMaps[IDX_SHADOW_TEMPORARY];
+
+	for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
+		// shadow map ->(vertical blur)-> temporary
+		m_psgGaussianShadowVertical->use(m_pDeviceContext);
+		m_pDeviceContext->OMSetRenderTargets(1, &pRTTemporary, nullptr);
+		m_pDeviceContext->PSSetShaderResources(0, 1, m_apSRVShadowMaps + i);
+
+		m_pDeviceContext->Draw(6, 0);
+
+		// unbind shader resources
+		ID3D11ShaderResourceView* pNullSRV = nullptr;
+		m_pDeviceContext->PSSetShaderResources(0, 1, &pNullSRV);
+
+		// temporary ->(horizontal blur)-> shadow map
+		m_psgGaussianShadowHorizontal->use(m_pDeviceContext);
+		m_pDeviceContext->OMSetRenderTargets(1, m_apRTShadowMaps + i, nullptr);
+		m_pDeviceContext->PSSetShaderResources(0, 1, &pSRVTemporary);
+
+		m_pDeviceContext->Draw(6, 0);
+
+		// unbind shader resources
+		m_pDeviceContext->PSSetShaderResources(0, 1, &pNullSRV);
+	}
+}
+
+void Renderer::render() {
 	updateLighting();
 	updateTessellation();
 	setConstantBuffers();
@@ -866,6 +925,8 @@ void Renderer::render() {
 	bool bToggle = (m_descRasterizerState.FillMode == D3D11_FILL_WIREFRAME);
 	// Render shadow maps
 	m_rsCurrent = ShadowMap;
+    m_pDeviceContext->IASetPrimitiveTopology(
+		true ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_pDeviceContext->RSSetViewports(1, &m_vpShadowMap);
 	m_psgTessellatedShadow->use(m_pDeviceContext);
 	if (bToggle) toggleWireframe(); { // Renders solid
@@ -879,24 +940,27 @@ void Renderer::render() {
 			const Light& l = *m_vpLights[i];
 			updateTransformForLight(l);
 			renderScene();
-			
+		}
+
+		unbindInputBuffers();
+		if (m_bVSMBlur)
+			blurShadowMaps();
+
+		for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
 			// Generate mip-maps for VSM
 			m_pDeviceContext->GenerateMips(m_apSRVShadowMaps[i]);
-
 			if (m_bDump) {
 				TStringStream tss;
 				tss << _T("ShadowMap_") << i + 1;
-				dumpRenderTargetToFile(m_apRTShadowMaps[i], tss.str());
+				dumpShaderResourceViewToFile(m_apSRVShadowMaps[i], tss.str());
 			}
 		}
 	} if (bToggle) toggleWireframe();
 
 	m_pDeviceContext->RSSetViewports(1, &m_vpScreen);
 
-	unbindInputBuffers();
-
 	m_rsCurrent = Irradiance;
-	renderIrradianceMap(/*m_pRenderTargetView*/m_apRTSSS[IDX_SSS_IRRADIANCE], m_apRTSSS[IDX_SSS_ALBEDO], 
+	renderIrradianceMap(m_apRTSSS[IDX_SSS_IRRADIANCE], m_apRTSSS[IDX_SSS_ALBEDO], 
 						m_apRTSSS[IDX_SSS_DIFFUSE_STENCIL], m_apRTSSS[IDX_SSS_SPECULAR]);
 
 	if (bToggle) toggleWireframe(); {
@@ -957,6 +1021,10 @@ void Renderer::toggleSSS() {
 
 void Renderer::togglePostProcessAA() {
 	m_bAA = !m_bAA;
+}
+
+void Renderer::toggleVSMBlur() {
+	m_bVSMBlur = !m_bVSMBlur;
 }
 
 void Renderer::dump() {
