@@ -548,8 +548,9 @@ void Renderer::updateTessellation() {
 void Renderer::initShadowMaps() {
 	for (UINT i = 0; i < NUM_LIGHTS; i++) {
 		ID3D11Texture2D* pTexture2D = nullptr;
-		DXGI_FORMAT format = DXGI_FORMAT_R32_FLOAT;
-		checkFailure(createTexture2D(m_pDevice, SM_SIZE, SM_SIZE, format,
+		// VSM: 2 channels & turn mip-mapping on
+		DXGI_FORMAT format = DXGI_FORMAT_R32G32_FLOAT;
+		checkFailure(createTexture2DEx(m_pDevice, SM_SIZE, SM_SIZE, format, false, 1, 0,
 			&pTexture2D, (D3D11_BIND_FLAG)(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)),
 			_T("Failed to create shadow map texture"));
 
@@ -595,7 +596,8 @@ void Renderer::initShadowMaps() {
 }
 
 void Renderer::bindShadowMaps() {
-	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAP, 1, &m_pShadowMapSamplerState);
+	// use trilinear sampler for shadow maps
+	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAP, 1, &m_pLinearSamplerState);
 	m_pDeviceContext->PSSetShaderResources(SLOT_SHADOWMAP, NUM_LIGHTS, m_apSRVShadowMaps);
 }
 
@@ -877,6 +879,9 @@ void Renderer::render() {
 			const Light& l = *m_vpLights[i];
 			updateTransformForLight(l);
 			renderScene();
+			
+			// Generate mip-maps for VSM
+			m_pDeviceContext->GenerateMips(m_apSRVShadowMaps[i]);
 
 			if (m_bDump) {
 				TStringStream tss;

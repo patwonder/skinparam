@@ -269,20 +269,26 @@ HRESULT D3DHelper::createSamplerComparisonState(ID3D11Device* pDevice, D3D11_FIL
 HRESULT D3DHelper::createTexture2D(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 								   ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags)
 {
-	// Create depth stencil texture
+	return createTexture2DEx(pDevice, width, height, format, true, 1, 0, ppTexture2D, bindFlags);
+}
+
+HRESULT D3DHelper::createTexture2DEx(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
+									 bool multisampled, UINT multisampleCount, UINT multisampleQuality,
+									 ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags)
+{
 	D3D11_TEXTURE2D_DESC desc;
 	ZeroMemory(&desc, sizeof(desc));
 	desc.Width = width;
 	desc.Height = height;
-	desc.MipLevels = 1;
+	desc.MipLevels = multisampled ? 1 : 0;
 	desc.ArraySize = 1;
 	desc.Format = format;
-	desc.SampleDesc.Count = 1;
-	desc.SampleDesc.Quality = 0;
+	desc.SampleDesc.Count = multisampled ? multisampleCount : 1;
+	desc.SampleDesc.Quality = multisampled ? multisampleQuality : 0;
 	desc.Usage = D3D11_USAGE_DEFAULT;
 	desc.BindFlags = bindFlags;
 	desc.CPUAccessFlags = 0;
-	desc.MiscFlags = 0;
+	desc.MiscFlags = multisampled ? 0 : D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
 	HRESULT hr = pDevice->CreateTexture2D(&desc, nullptr, ppTexture2D);
 	if (FAILED(hr))

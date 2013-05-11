@@ -113,6 +113,7 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 
 // Pixel shader
 float4 PS(PS_INPUT input) : SV_Target {
-	// output depth
-	return input.depth.x / input.depth.y;
+	// VSM: output depth & depth squared
+	float depth = input.depth.x / input.depth.y;
+	return float4(depth, depth * depth, 0.0, 0.0);
 }

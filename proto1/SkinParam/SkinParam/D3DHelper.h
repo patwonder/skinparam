@@ -36,6 +36,9 @@ namespace Skin {
 			D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, D3D11_COMPARISON_FUNC comp, ID3D11SamplerState** ppSamplerState);
 		HRESULT createTexture2D(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 			ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags = D3D11_BIND_SHADER_RESOURCE);
+		HRESULT createTexture2DEx(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
+			bool multisampled, UINT multisampleCount, UINT multisampleQuality,
+			ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags = D3D11_BIND_SHADER_RESOURCE);
 		HRESULT createShaderResourceView(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
 			ID3D11ShaderResourceView** ppShaderResourceView);
 		HRESULT createTextureResourceView(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
