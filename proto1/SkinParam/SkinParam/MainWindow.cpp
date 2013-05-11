@@ -79,7 +79,7 @@ CMainWindow::CMainWindow()
 	//m_pRenderer->addRenderable(m_pTriangle);
 	m_pRenderer->addRenderable(m_pHead);
 
-	m_pLight1 = new Light(Vector(0, 8, 0), Color::White * 0.15f, Color::White * 1.0f, Color::White * 1.0f, 1.0f, 0.1f, 0.0f);
+	m_pLight1 = new Light(Vector(3, 7, 0), Color::White * 0.15f, Color::White * 1.0f, Color::White * 1.0f, 1.0f, 0.1f, 0.0f);
 	m_pLight2 = new Light(Vector(-1, -3, 6), Color::White * 0.15f, Color::White * 1.0f, Color::White * 1.0f, 1.0f, 0.1f, 0.0f);
 	m_pRenderer->addLight(m_pLight1);
 	m_pRenderer->addLight(m_pLight2);
@@ -119,7 +119,7 @@ BOOL CMainWindow::OnIdle(LONG lCount) {
 	UNREFERENCED_PARAMETER(lCount);
 
 	// Stop doing work while minimized
-	if (IsIconic()) {
+	if (IsIconic() || GetForegroundWindow() != this) {
 		return FALSE;
 	}
 
@@ -134,6 +134,8 @@ BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {
 }
 
 afx_msg void CMainWindow::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
+	// bit 14 : previous key state
+	if (nFlags & 0x4000u) return;
 	switch (nChar) {
 	case 'F':
 		m_pRenderer->toggleWireframe();
