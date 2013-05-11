@@ -7,7 +7,7 @@
 
 static const uint NUM_LIGHTS = 2;
 static const uint SM_SIZE = 1024;
-static const float SHADOW_VARIANCE_MIN = 5e-4;
+static const float SHADOW_VARIANCE_MIN = 4e-4;
 static const float SHADOW_LIGHTAMOUNT_MIN = 0.5;
 static const float RMS_SLOPE = 0.25;
 
@@ -87,7 +87,7 @@ float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow,
 		if (depth <= meanDepth) {
 			lightAmount = 1.0;
 		} else {
-			// Calculate variance, addressing numerical instability
+			// Calculate variance, addressing numerical inaccuracy
 			float variance = max(SHADOW_VARIANCE_MIN, meanDepthSquared - meanDepth * meanDepth);
 			float depthDiff = depth - meanDepth;
 
