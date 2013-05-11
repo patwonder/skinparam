@@ -1127,7 +1127,7 @@ void Renderer::usePlaceholderNormalMap() {
 void Renderer::setTessellationFactor(float edge, float inside, float min, float desiredSize) {
 	// adjust desired size for shadow maps
 	if (m_rsCurrent == ShadowMap)
-		desiredSize *= (float)m_rectView.Height() / SM_SIZE;
+		desiredSize *= 2 * (float)SM_SIZE / m_rectView.Height();
 	m_cbTessellation.g_vTesselationFactor = XMFLOAT4(edge, inside, min, desiredSize);
 	m_pDeviceContext->UpdateSubresource(m_pTessellationConstantBuffer, 0, NULL, &m_cbTessellation, 0, 0);
 }

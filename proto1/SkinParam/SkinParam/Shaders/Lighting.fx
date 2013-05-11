@@ -7,7 +7,7 @@
 
 static const uint NUM_LIGHTS = 2;
 static const uint SM_SIZE = 1024;
-static const float SHADOW_VARIANCE_MIN = 1e-4;
+static const float SHADOW_VARIANCE_MIN = 5e-4;
 static const float SHADOW_LIGHTAMOUNT_MIN = 0.5;
 static const float RMS_SLOPE = 0.25;
 
@@ -80,7 +80,8 @@ float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow,
 		lightAmount = 1.0;
 	} else {
 		float2 vsmSample = shadowMap.Sample(samShadow, vPosTeSL).rg;
-		float depth = vPosPSL4.z / vPosPSL4.w;
+		float4 vPosVSL = mul(float4(worldPos, 1.0), matViewLight);
+		float depth = vPosVSL.z / vPosVSL.w;
 		float meanDepth = vsmSample.r;
 		float meanDepthSquared = vsmSample.g;
 		if (depth <= meanDepth) {

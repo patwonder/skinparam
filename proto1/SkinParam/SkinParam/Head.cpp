@@ -22,6 +22,6 @@ XMMATRIX Head::getWorldMatrix() const {
 }
 
 void Head::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) {
-	pRenderer->setTessellationFactor(1.0f, 1.0f, 1.0f, 30.0f);
+	pRenderer->setTessellationFactor(1.0f, 1.0f, 1.0f, 50.0f);
 	MeshRenderable::render(pDeviceContext, pRenderer, pCamera);
 }

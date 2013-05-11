@@ -32,7 +32,7 @@ struct DS_INPUT {
 
 struct PS_INPUT {
 	float4 vPosPS : SV_POSITION;
-	float2 depth : DEPTH;
+	float depth : DEPTH;
 };
 
 // Vertex shader, do world transform only
@@ -82,7 +82,7 @@ HSCF_OUTPUT HSCF(InputPatch<HS_INPUT, 3> patch, uint patchId : SV_PrimitiveID) {
 [outputtopology("triangle_cw")]
 [outputcontrolpoints(3)]
 [patchconstantfunc("HSCF")]
-[maxtessfactor(20.0)]
+//[maxtessfactor(20.0)]
 DS_INPUT HS(InputPatch<HS_INPUT, 3> patch, uint pointId : SV_OutputControlPointID, uint patchId : SV_PrimitiveID) {
 	DS_INPUT output;
 	output.vPosWS = patch[pointId].vPosWS;
@@ -107,13 +107,14 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 
 	PS_INPUT output;
 	output.vPosPS = mul(float4(input.vPosWS, 1.0), g_matViewProj);
-	output.depth = output.vPosPS.zw;
+	float4 vPosVS = mul(float4(input.vPosWS, 1.0), g_matView);
+	output.depth = vPosVS.z / vPosVS.w;
 	return output;
 }
 
 // Pixel shader
 float4 PS(PS_INPUT input) : SV_Target {
 	// VSM: output depth & depth squared
-	float depth = input.depth.x / input.depth.y;
+	float depth = input.depth;
 	return float4(depth, depth * depth, 0.0, 0.0);
 }
