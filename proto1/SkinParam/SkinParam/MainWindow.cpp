@@ -55,8 +55,8 @@ BEGIN_MESSAGE_MAP(CMainWindow, CFrameWnd)
 	ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
-const double CMainWindow::CTRL_MINIFIER = 1 / 2.0;
-const double CMainWindow::SHIFT_MAGNIFIER = 2.0;
+const double CMainWindow::CTRL_MINIFIER = 1 / 3.0;
+const double CMainWindow::SHIFT_MAGNIFIER = 3.0;
 
 CMainWindow::CMainWindow()
 	: m_camera(Vector(0, -5, 0), Vector(0, 0, 0), Vector(0, 0, 1))
@@ -85,7 +85,7 @@ CMainWindow::CMainWindow()
 	m_pRenderer->addLight(m_pLight2);
 
 	m_bChangingView = false;
-	m_camera.restrictView(2.0, 12.0);
+	m_camera.restrictView(2.0, 8.0);
 }
 
 CMainWindow::~CMainWindow() {

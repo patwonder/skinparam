@@ -63,6 +63,30 @@ HS_INPUT VS(VS_INPUT input) {
 	return output;
 }
 
+// Vertex shader without tessellation
+PS_INPUT VS_NoTessellation(VS_INPUT input) {
+	float4 wpos4 = mul(input.vPosOS, g_matWorld);
+	float3 vPosWS = wpos4.xyz / wpos4.w;
+	float3 vNormalWS = mul(input.vNormalOS, (float3x3)g_matWorld);
+	float3 vTangentWS = mul(input.vTangentOS, (float3x3)g_matWorld);
+	float3 vBinormalWS = mul(input.vBinormalOS, (float3x3)g_matWorld);
+
+	// do view projection transform
+	vNormalWS = normalize(vNormalWS);
+	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
+	vPosWS += bumpAmount * vNormalWS;
+
+	PS_INPUT output;
+	output.vPosWS = vPosWS;
+	output.vPosPS = mul(float4(vPosWS, 1.0), g_matViewProj);
+	output.color = input.color;
+	output.vNormalWS = vNormalWS;
+	output.vTangentWS = vTangentWS;
+	output.vBinormalWS = vBinormalWS;
+	output.texCoord = input.texCoord;
+	return output;
+}
+
 // Hull shader patch constant function
 HSCF_OUTPUT HSCF(InputPatch<HS_INPUT, 3> patch, uint patchId : SV_PrimitiveID) {
     HSCF_OUTPUT output;
@@ -148,7 +172,11 @@ float4 PS(PS_INPUT input) : SV_Target {
 	float3 tex_color = input.color.rgb * g_texture.Sample(g_samTexture, input.texCoord).rgb;
 
 	// calculated pertubated normal
+#if USE_NORMAL_MAP == 0
 	float3 vNormalWS = calcNormalWS(g_samBump, g_bump, input.texCoord, input.vNormalWS, input.vTangentWS, input.vBinormalWS);
+#else
+	float3 vNormalWS = calcNormalFromNormalMap(g_samNormal, g_normalMap, input.texCoord, input.vNormalWS, input.vTangentWS, input.vBinormalWS);
+#endif
 	
 	// shading
 	float3 color = phong_shadow(g_material, g_ambient, g_lights, g_posEye, input.vPosWS, tex_color, vNormalWS,
@@ -157,7 +185,7 @@ float4 PS(PS_INPUT input) : SV_Target {
 }
 
 // Irradiance domain & pixel shader
-struct PS_INPUT_IR_DS {
+struct PS_INPUT_IRRADIANCE {
 	float4 vPosPS : SV_POSITION;
 	float4 color : COLOR0;
 	float3 vNormalWS : NORMAL;
@@ -168,7 +196,7 @@ struct PS_INPUT_IR_DS {
 	float depth : DEPTH;
 };
 
-struct PS_OUTPUT_IR_DS {
+struct PS_OUTPUT_IRRADIANCE {
 	// r, g, b: irradiance color; a: stencil
 	float4 irradiance : SV_Target0;
 	// albeto map, sqrt of tex_color * fresnel outgoing factor
@@ -179,9 +207,35 @@ struct PS_OUTPUT_IR_DS {
 	float4 specular : SV_Target3;
 };
 
+PS_INPUT_IRRADIANCE VS_Irradiance_NoTessellation(VS_INPUT input) {
+	float4 wpos4 = mul(input.vPosOS, g_matWorld);
+	float3 vPosWS = wpos4.xyz / wpos4.w;
+	float3 vNormalWS = mul(input.vNormalOS, (float3x3)g_matWorld);
+	float3 vTangentWS = mul(input.vTangentOS, (float3x3)g_matWorld);
+	float3 vBinormalWS = mul(input.vBinormalOS, (float3x3)g_matWorld);
+
+	// do view projection transform
+	vNormalWS = normalize(vNormalWS);
+	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
+	vPosWS += bumpAmount * vNormalWS;
+
+	float4 vPosVS = mul(float4(vPosWS, 1.0), g_matView);
+
+	PS_INPUT_IRRADIANCE output;
+	output.vPosWS = vPosWS;
+	output.vPosPS = mul(float4(vPosWS, 1.0), g_matViewProj);
+	output.color = input.color;
+	output.vNormalWS = vNormalWS;
+	output.vTangentWS = vTangentWS;
+	output.vBinormalWS = vBinormalWS;
+	output.texCoord = input.texCoord;
+	output.depth = getDepthPS(vPosVS.z / vPosVS.w);
+	return output;
+}
+
 // Domain shader
 [domain("tri")]
-PS_INPUT_IR_DS DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPatch<DS_INPUT, 3> patch) {
+PS_INPUT_IRRADIANCE DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPatch<DS_INPUT, 3> patch) {
 	// interpolate new point data
 	DS_INPUT input;
 	input.vPosWS = uvwCoord.x * patch[0].vPosWS + uvwCoord.y * patch[1].vPosWS + uvwCoord.z * patch[2].vPosWS;
@@ -200,7 +254,7 @@ PS_INPUT_IR_DS DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocatio
 
 	float4 vPosVS = mul(float4(input.vPosWS, 1.0), g_matView);
 
-	PS_INPUT_IR_DS output;
+	PS_INPUT_IRRADIANCE output;
 	output.vPosWS = input.vPosWS;
 	output.vPosPS = mul(float4(input.vPosWS, 1.0), g_matViewProj);
 	output.color = input.color;
@@ -236,14 +290,18 @@ float getDDYDepthPenalty(float depth) {
 static const float FRESNEL_REF_TOTAL = (-1.440 / (INDEX * INDEX) + 0.710 / INDEX + 0.668 + 0.0636 * INDEX) / (2 * PI);
 static const float FRESNEL_TRANS_TOTAL = 1 - FRESNEL_REF_TOTAL;
 
-PS_OUTPUT_IR_DS PS_Irradiance(PS_INPUT_IR_DS input) {
-	PS_OUTPUT_IR_DS output;
+PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
+	PS_OUTPUT_IRRADIANCE output;
 	// textured irradiance color
 	float3 tex_color = input.color.rgb * g_texture.Sample(g_samTexture, input.texCoord).rgb;
 	float3 sq_tex_color = sqrt(tex_color);
 
 	// calculated pertubated normal
+#if USE_NORMAL_MAP == 0
 	float3 vNormalWS = calcNormalWS(g_samBump, g_bump, input.texCoord, input.vNormalWS, input.vTangentWS, input.vBinormalWS);
+#else
+	float3 vNormalWS = calcNormalFromNormalMap(g_samNormal, g_normalMap, input.texCoord, input.vNormalWS, input.vTangentWS, input.vBinormalWS);
+#endif
 
 	// shading
 	// global ambient

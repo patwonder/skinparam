@@ -13,7 +13,7 @@ cbuffer Gaussian : register(b0) {
 }
 
 static const uint KERNEL_SIZE = 7;
-static const float KERNEL[] = { 0.383, 0.006, 0.061, 0.242, 0.242, 0.061, 0.006 };
+static const float KERNEL[] = { 0.3990, 0.0045, 0.0540, 0.2420, 0.2420, 0.0540, 0.0045 };
 static const float KERNEL_DX[] = {  0.0, -3.0, -2.0, -1.0, 1.0, 2.0, 3.0 };
 
 float4 PS_Vertical(PS_INPUT input) : SV_Target {

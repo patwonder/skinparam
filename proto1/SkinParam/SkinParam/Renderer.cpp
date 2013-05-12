@@ -69,8 +69,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pCombineConstantBuffer(nullptr),
 	  m_pPostProcessConstantBuffer(nullptr),
 	  m_pGaussianShadowConstantBuffer(nullptr),
-	  m_psgTriangle(nullptr),
-	  m_psgPhong(nullptr),
+	  m_psgSSSIrradianceNoTessellation(nullptr),
+	  m_psgShadow(nullptr),
 	  m_psgTessellatedPhong(nullptr),
 	  m_psgTessellatedShadow(nullptr),
 	  m_psgSSSIrradiance(nullptr),
@@ -132,8 +132,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 		m_vppCOMObjs.push_back((IUnknown**)m_apSRVSSS + i);
 	}
 
-	m_vppShaderGroups.push_back(&m_psgTriangle);
-	m_vppShaderGroups.push_back(&m_psgPhong);
+	m_vppShaderGroups.push_back(&m_psgSSSIrradianceNoTessellation);
+	m_vppShaderGroups.push_back(&m_psgShadow);
 	m_vppShaderGroups.push_back(&m_psgTessellatedPhong);
 	m_vppShaderGroups.push_back(&m_psgTessellatedShadow);
 	m_vppShaderGroups.push_back(&m_psgSSSIrradiance);
@@ -372,11 +372,6 @@ void Renderer::removeAllLights() {
 }
 
 void Renderer::loadShaders() {
-    D3D11_INPUT_ELEMENT_DESC tri_layout[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-	m_psgTriangle = new ShaderGroup(m_pDevice, _T("Triangle.fx"), tri_layout, ARRAYSIZE(tri_layout), "VS", nullptr, nullptr, "PS");
-
 	D3D11_INPUT_ELEMENT_DESC phong_layout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -386,10 +381,12 @@ void Renderer::loadShaders() {
 		{ "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
-	m_psgPhong = new ShaderGroup(m_pDevice, _T("Phong.fx"), phong_layout, ARRAYSIZE(phong_layout), "VS", nullptr, nullptr, "PS");
 
 	m_psgTessellatedPhong = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
 		"VS", "HS", "DS", "PS");
+
+	m_psgShadow = new ShaderGroup(m_pDevice, _T("TessellatedShadow.fx"), phong_layout, ARRAYSIZE(phong_layout),
+		"VS_NoTessellation", nullptr, nullptr, "PS");
 
 	m_psgTessellatedShadow = new ShaderGroup(m_pDevice, _T("TessellatedShadow.fx"), phong_layout, ARRAYSIZE(phong_layout),
 		"VS", "HS", "DS", "PS");
@@ -397,6 +394,9 @@ void Renderer::loadShaders() {
 	// SSS
 	m_psgSSSIrradiance = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
 		"VS", "HS", "DS_Irradiance", "PS_Irradiance");
+
+	m_psgSSSIrradianceNoTessellation = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
+		"VS_Irradiance_NoTessellation", nullptr, nullptr, "PS_Irradiance");
 
 	D3D11_INPUT_ELEMENT_DESC empty_layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 } };
 	m_psgSSSGausianVertical = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
@@ -692,10 +692,10 @@ void Renderer::renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11
 	setConstantBuffers();
 
 	m_pDeviceContext->IASetPrimitiveTopology(
-		true ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		m_bTessellation ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// Render the irradiance map
-	m_psgSSSIrradiance->use(m_pDeviceContext);
+	(m_bTessellation ? m_psgSSSIrradiance : m_psgSSSIrradianceNoTessellation)->use(m_pDeviceContext);
 
 	ID3D11RenderTargetView* apSSSRenderTargets[] = {
 		pRTIrradiance,
@@ -926,9 +926,9 @@ void Renderer::render() {
 	// Render shadow maps
 	m_rsCurrent = ShadowMap;
     m_pDeviceContext->IASetPrimitiveTopology(
-		true ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		m_bTessellation ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_pDeviceContext->RSSetViewports(1, &m_vpShadowMap);
-	m_psgTessellatedShadow->use(m_pDeviceContext);
+	(m_bTessellation ? m_psgTessellatedShadow : m_psgShadow)->use(m_pDeviceContext);
 	if (bToggle) toggleWireframe(); { // Renders solid
 		for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
 			m_pDeviceContext->OMSetRenderTargets(1, m_apRTShadowMaps + i, m_pShadowMapDepthStencilView);
@@ -1124,10 +1124,9 @@ void Renderer::usePlaceholderNormalMap() {
 	m_pDeviceContext->PSSetShaderResources(SLOT_NORMALMAP, 1, &m_pNormalTexture);
 }
 
-void Renderer::setTessellationFactor(float edge, float inside, float min, float desiredSize) {
-	// adjust desired size for shadow maps
-	if (m_rsCurrent == ShadowMap)
-		desiredSize *= 2 * (float)SM_SIZE / m_rectView.Height();
+void Renderer::setTessellationFactor(float edge, float inside, float min, float desiredSizeInPixels) {
+	// pass (half screen height / desired size in pixels) to the shader
+	float desiredSize = (float)(m_rsCurrent == ShadowMap ? SM_SIZE : m_rectView.Height()) / (2.0f * desiredSizeInPixels);
 	m_cbTessellation.g_vTesselationFactor = XMFLOAT4(edge, inside, min, desiredSize);
 	m_pDeviceContext->UpdateSubresource(m_pTessellationConstantBuffer, 0, NULL, &m_cbTessellation, 0, 0);
 }

@@ -53,6 +53,7 @@ namespace Skin {
 		ID3D11RenderTargetView* m_apRTSSS[NUM_SSS_VIEWS];
 		ID3D11ShaderResourceView* m_apSRVSSS[NUM_SSS_VIEWS];
 		ShaderGroup* m_psgSSSIrradiance;
+		ShaderGroup* m_psgSSSIrradianceNoTessellation;
 		ShaderGroup* m_psgSSSGausianVertical;
 		ShaderGroup* m_psgSSSGausianHorizontal;
 		ShaderGroup* m_psgSSSCombine;
@@ -176,8 +177,7 @@ namespace Skin {
 		std::vector<Renderable*> m_vpRenderables;
 		std::vector<Light*> m_vpLights;
 
-		ShaderGroup* m_psgTriangle;
-		ShaderGroup* m_psgPhong;
+		ShaderGroup* m_psgShadow;
 		ShaderGroup* m_psgTessellatedPhong;
 		ShaderGroup* m_psgTessellatedShadow;
 
@@ -288,7 +288,7 @@ namespace Skin {
 		void usePlaceholderBumpMap() override;
 		void useNormalMap(ID3D11SamplerState* pNormalMapSamplerState, ID3D11ShaderResourceView* pNormalMap) override;
 		void usePlaceholderNormalMap() override;
-		void setTessellationFactor(float edge, float inside, float min, float desiredSize) override;
+		void setTessellationFactor(float edge, float inside, float min, float desiredSizeInPixels) override;
 	};
 
 } // namespace Skin

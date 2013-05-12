@@ -45,6 +45,23 @@ HS_INPUT VS(VS_INPUT input) {
 	return output;
 }
 
+PS_INPUT VS_NoTessellation(VS_INPUT input) {
+	float4 wpos4 = mul(input.vPosOS, g_matWorld);
+	float3 vPosWS = wpos4.xyz / wpos4.w;
+	float3 vNormalWS = mul(input.vNormalOS, (float3x3)g_matWorld);
+
+	// do view projection transform
+	vNormalWS = normalize(vNormalWS);
+	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
+	vPosWS += bumpAmount * vNormalWS;
+
+	PS_INPUT output;
+	output.vPosPS = mul(float4(vPosWS, 1.0), g_matViewProj);
+	float4 vPosVS = mul(float4(vPosWS, 1.0), g_matView);
+	output.depth = vPosVS.z / vPosVS.w;
+	return output;
+}
+
 // Hull shader patch constant function
 HSCF_OUTPUT HSCF(InputPatch<HS_INPUT, 3> patch, uint patchId : SV_PrimitiveID) {
     HSCF_OUTPUT output;

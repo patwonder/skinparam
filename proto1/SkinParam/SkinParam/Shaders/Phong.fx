@@ -44,7 +44,11 @@ float4 PS(VS_OUTPUT input) : SV_Target {
 	float3 tex = g_texture.Sample(g_samTexture, input.texCoord).rgb;
 
 	// calculated pertubated normal
-	float3 normal = calcNormalWS(g_samBump, g_bump, input.texCoord, input.normal, input.tangent, input.binormal);
+#if USE_NORMAL_MAP == 0
+	float3 vNormalWS = calcNormalWS(g_samBump, g_bump, input.texCoord, input.vNormalWS, input.vTangentWS, input.vBinormalWS);
+#else
+	float3 vNormalWS = calcNormalFromNormalMap(g_samNormal, g_normalMap, input.texCoord, input.vNormalWS, input.vTangentWS, input.vBinormalWS);
+#endif
 	
 	// shading
 	float3 color = phong_lighting(g_material, g_ambient, g_lights, g_posEye, input.worldPos, tex * input.color.rgb, normal);

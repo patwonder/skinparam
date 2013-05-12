@@ -22,7 +22,7 @@ namespace Skin {
 		virtual void usePlaceholderBumpMap() = 0;
 		virtual void useNormalMap(ID3D11SamplerState* pNormalMapSamplerState, ID3D11ShaderResourceView* pNormalMap) = 0;
 		virtual void usePlaceholderNormalMap() = 0;
-		virtual void setTessellationFactor(float edge, float inside, float min, float desiredSize) = 0;
+		virtual void setTessellationFactor(float edge, float inside, float min, float desiredSizeInPixels) = 0;
 	};
 
 	class Renderable /* interface */ {

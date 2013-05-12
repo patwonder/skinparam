@@ -1,7 +1,9 @@
 // Bump -> normal calculation
 
 static const float BUMP_SIZE = 2048;
-static const float BUMP_PIXEL_DIST = 0.05;
+static const float BUMP_PIXEL_DIST = 0.04;//0.05;
+
+#define USE_NORMAL_MAP 1
 
 float3 calcNormalWS(SamplerState samBump, Texture2D bump, float2 texCoord, float3 vNormalWS, float3 vTangentWS, float3 vBinormalWS) {
 	// normalize stuff

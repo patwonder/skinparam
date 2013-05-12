@@ -14,7 +14,7 @@ using namespace Skin;
 using namespace Utils;
 using namespace D3DHelper;
 
-const float MeshRenderable::NormalDistance = 0.03f;
+const float MeshRenderable::NormalDistance = 0.04f;
 
 MeshRenderable::MeshRenderable(const TString& strObjFilePath)
 	: m_pVertexBuffer(nullptr), m_pIndexBuffer(nullptr), m_pSamplerState(nullptr)
@@ -27,6 +27,21 @@ MeshRenderable::MeshRenderable(const TString& strObjFilePath)
 	m_pModel = loader.ReturnObj();
 	computeNormals();
 	computeTangentSpace();
+
+	std::map<UINT, UINT> mapVertexToTexCoord;
+	for (const ObjPart& part : m_pModel->Parts) {
+		for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
+			ObjTriangle& tri = m_pModel->Triangles[idxTri];
+			for (int j = 0; j < 3; j++) {
+				auto iter = mapVertexToTexCoord.find(tri.Vertex[j]);
+				if (iter != mapVertexToTexCoord.end() && iter->second != tri.TexCoord[j]) {
+					TRACE(_T("BOOM!"));
+				} else {
+					mapVertexToTexCoord[tri.Vertex[j]] = tri.TexCoord[j];
+				}
+			}
+		}
+	}
 }
 
 MeshRenderable::~MeshRenderable() {
@@ -118,7 +133,7 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 		}
 	}
 
-	//computeNormalMaps(pDevice, pRenderer->getDeviceContext());
+	computeNormalMaps(pDevice, pRenderer->getDeviceContext());
 }
 
 namespace Skin {
@@ -348,8 +363,7 @@ void MeshRenderable::computeNormalMap(const BTT* pBumpTextureData, UINT width, U
 			FVector vRight = FVector(NormalDistance, 0, (float)((int)right - (int)center) / BTTUpper);
 
 			FVector vNorm = cross(vUp, vRight) + cross(vRight, vDown) + cross(vDown, vLeft) + cross(vLeft, vUp);
-			vNorm /= vNorm.z;
-			pNormalMapData[y * width + x] = XMFLOAT2(vNorm.x, vNorm.y);
+			pNormalMapData[y * width + x] = NTT(vNorm.x / vNorm.z, vNorm.y / vNorm.z);
 		}
 	}
 	for (UINT y = 0; y < height; y++) {
