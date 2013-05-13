@@ -313,12 +313,14 @@ float distance(float3 vPosWS, float3 vNormalWS, matrix matViewLight, matrix matV
 	float2 vPosTeSL = 0.5 * (vPosPSL4.xy / vPosPSL4.w) + 0.5;
 	vPosTeSL.y = 1.0 - vPosTeSL.y;
 	float2 sample = shadowMap.Sample(samShadow, vPosTeSL).rg;
-	// take the limit of 80% confidence interval as our depth estimation
+	// take the limit of 84.13% confidence interval (one way) as our depth estimation
 	// prevent artifacts at glancing angles of light
 	float variance = max(sample.g - sample.r * sample.r, 0.0);
-	float d1 = sample.r - 1.282 * sqrt(variance);
+	float d1f = sample.r + sqrt(variance);
+	float d1n = sample.r - sqrt(variance);
 	float d2 = vPosVSL4.z / vPosVSL4.w;
-	return abs(d2 - d1);
+	if (d1f >= d2) return 1000;
+	return d2 - d1n;
 }
 
 float3 backlit_amount(float3 vPosWS, float3 vNormalWS, float3 L, matrix matViewLight, matrix matViewProjLight,

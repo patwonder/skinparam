@@ -572,7 +572,7 @@ void Renderer::initShadowMaps() {
 		// VSM: 2 channels & turn mip-mapping on
 		DXGI_FORMAT format = DXGI_FORMAT_R32G32_FLOAT;
 		// Create the temporary WITHOUT mip-mapping on
-		checkFailure(createTexture2DEx(m_pDevice, SM_SIZE, SM_SIZE, format, i == IDX_SHADOW_TEMPORARY ? true : false, 1, 0,
+		checkFailure(createTexture2DEx(m_pDevice, SM_SIZE, SM_SIZE, format, i == IDX_SHADOW_TEMPORARY ? true : true, 1, 0,
 			&pTexture2D, (D3D11_BIND_FLAG)(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)),
 			_T("Failed to create shadow map texture"));
 
@@ -948,7 +948,7 @@ void Renderer::render() {
 
 		for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
 			// Generate mip-maps for VSM
-			m_pDeviceContext->GenerateMips(m_apSRVShadowMaps[i]);
+			//m_pDeviceContext->GenerateMips(m_apSRVShadowMaps[i]);
 			if (m_bDump) {
 				TStringStream tss;
 				tss << _T("ShadowMap_") << i + 1;
