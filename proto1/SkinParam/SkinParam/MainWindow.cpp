@@ -61,7 +61,7 @@ const double CMainWindow::SHIFT_MAGNIFIER = 3.0;
 CMainWindow::CMainWindow()
 	: m_camera(Vector(0, -5, 0), Vector(0, 0, 0), Vector(0, 0, 1))
 {
-	CSize resolution(800, 600);
+	CSize resolution(1280, 720);
 	Create(NULL, _APP_NAME_, WS_OVERLAPPEDWINDOW & (~WS_SIZEBOX) & (~WS_MAXIMIZEBOX), 
 		CRect(0, 0, resolution.cx, resolution.cy));
 
@@ -79,8 +79,8 @@ CMainWindow::CMainWindow()
 	//m_pRenderer->addRenderable(m_pTriangle);
 	m_pRenderer->addRenderable(m_pHead);
 
-	m_pLight1 = new Light(Vector(3, 7, 0), Color::White * 0.15f, Color::White * 1.0f, Color::White * 1.0f, 1.0f, 0.1f, 0.0f);
-	m_pLight2 = new Light(Vector(-1, -3, 6), Color::White * 0.15f, Color::White * 1.0f, Color::White * 1.0f, 1.0f, 0.1f, 0.0f);
+	m_pLight1 = new Light(Vector(3, 7, 0), Color::White * 0.05f, Color::White * 2.0f, Color::White * 1.0f, 1.0f, 0.1f, 0.0f);
+	m_pLight2 = new Light(Vector(-4, -2, 5), Color::White * 0.05f, Color::White * 2.0f, Color::White * 1.0f, 1.0f, 0.1f, 0.0f);
 	m_pRenderer->addLight(m_pLight1);
 	m_pRenderer->addLight(m_pLight2);
 

@@ -1115,6 +1115,10 @@ void Renderer::usePlaceholderBumpMap() {
 }
 
 void Renderer::useNormalMap(ID3D11SamplerState* pNormalMapSamplerState, ID3D11ShaderResourceView* pNormalMap) {
+	if (!m_bBump) {
+		usePlaceholderNormalMap();
+		return;
+	}
 	m_pDeviceContext->PSSetSamplers(SLOT_NORMALMAP, 1, &pNormalMapSamplerState);
 	m_pDeviceContext->PSSetShaderResources(SLOT_NORMALMAP, 1, &pNormalMap);
 }

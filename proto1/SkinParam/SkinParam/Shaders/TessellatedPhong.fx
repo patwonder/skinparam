@@ -229,7 +229,7 @@ PS_INPUT_IRRADIANCE VS_Irradiance_NoTessellation(VS_INPUT input) {
 	output.vTangentWS = vTangentWS;
 	output.vBinormalWS = vBinormalWS;
 	output.texCoord = input.texCoord;
-	output.depth = getDepthPS(vPosVS.z / vPosVS.w);
+	output.depth = vPosVS.z / vPosVS.w;
 	return output;
 }
 
@@ -262,20 +262,23 @@ PS_INPUT_IRRADIANCE DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLo
 	output.vTangentWS = input.vTangentWS;
 	output.vBinormalWS = input.vBinormalWS;
 	output.texCoord = input.texCoord;
-	output.depth = getDepthPS(vPosVS.z / vPosVS.w);
+	output.depth = vPosVS.z / vPosVS.w;
 	return output;
 }
 
 // kernel width calculation
-// emprical value : in texture space, 0.001 per mm at depth 10
-static const float SIZE_ALPHA = 0.015;
+// one unit length in world space equals 80mm
+static const float MM_PER_LENGTH = 80;
+static const float FOV_ANGLE = 45;
+// calculate depth * (length per mm in texture space)
+static const float SIZE_ALPHA = 1 / (2 * tan(FOV_ANGLE / 2) * MM_PER_LENGTH);
 
-float getKernelSize(float depthPS, float grad) {
-	return SIZE_ALPHA / getDepthCS(depthPS) * grad;
+float getKernelSize(float depthVS, float grad) {
+	return SIZE_ALPHA / depthVS * grad;
 }
 
-static const float DD_START = 0.0005;
-static const float DD_LEN = 0.0005;
+static const float DD_START = 0.01;
+static const float DD_LEN = 0.01;
 
 float getDDXDepthPenalty(float depth) {
 	return saturate(1 - (abs(ddx(depth)) - DD_START) / DD_LEN);
@@ -290,11 +293,49 @@ float getDDYDepthPenalty(float depth) {
 static const float FRESNEL_REF_TOTAL = (-1.440 / (INDEX * INDEX) + 0.710 / INDEX + 0.668 + 0.0636 * INDEX) / (2 * PI);
 static const float FRESNEL_TRANS_TOTAL = 1 - FRESNEL_REF_TOTAL;
 
+// calculate transmittance attenuated by normalized distance s
+float3 trans_atten(float s) {
+	float ns2 = -s * s;
+	return float3(0.233, 0.455, 0.649) * exp(ns2 / 0.0064)
+		 + float3(0.100, 0.336, 0.344) * exp(ns2 / 0.0484)
+		 + float3(0.118, 0.198, 0.000) * exp(ns2 / 0.1870)
+		 + float3(0.113, 0.007, 0.007) * exp(ns2 / 0.5670)
+		 + float3(0.358, 0.004, 0.000) * exp(ns2 / 1.9900)
+		 + float3(0.078, 0.000, 0.000) * exp(ns2 / 7.4100);
+}
+
+float distance(float3 vPosWS, float3 vNormalWS, matrix matViewLight, matrix matViewProjLight,
+			   Texture2D shadowMap, SamplerState samShadow)
+{
+	float3 vShrinkedPosWS = vPosWS;
+	float4 vPosVSL4 = mul(float4(vShrinkedPosWS, 1.0), matViewLight);
+	float4 vPosPSL4 = mul(float4(vShrinkedPosWS, 1.0), matViewProjLight);
+	float2 vPosTeSL = 0.5 * (vPosPSL4.xy / vPosPSL4.w) + 0.5;
+	vPosTeSL.y = 1.0 - vPosTeSL.y;
+	float2 sample = shadowMap.Sample(samShadow, vPosTeSL).rg;
+	// take the limit of 80% confidence interval as our depth estimation
+	// prevent artifacts at glancing angles of light
+	float variance = max(sample.g - sample.r * sample.r, 0.0);
+	float d1 = sample.r - 1.282 * sqrt(variance);
+	float d2 = vPosVSL4.z / vPosVSL4.w;
+	return abs(d2 - d1);
+}
+
+float3 backlit_amount(float3 vPosWS, float3 vNormalWS, float3 L, matrix matViewLight, matrix matViewProjLight,
+					  Texture2D shadowMap, SamplerState samShadow) {
+	float s = 0.25 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, matViewLight, matViewProjLight, shadowMap, samShadow);
+	float3 atten = trans_atten(s);
+	float NdotL = max(0.3 + dot(-vNormalWS, L), 0);
+	return NdotL * atten;
+}
+
 PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 	PS_OUTPUT_IRRADIANCE output;
 	// textured irradiance color
 	float3 tex_color = input.color.rgb * g_texture.Sample(g_samTexture, input.texCoord).rgb;
 	float3 sq_tex_color = sqrt(tex_color);
+
+	input.vNormalWS = normalize(input.vNormalWS);
 
 	// calculated pertubated normal
 #if USE_NORMAL_MAP == 0
@@ -329,16 +370,20 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 		// look up shadow map for light amount
 		float lightAmount = light_amount(input.vPosWS, g_shadowMaps[i], g_samShadow, g_matViewLights[i], g_matViewProjLights[i]);
 		// fresnel transmittance for diffuse irradiance
-		float fresnel_trans = saturate(1 - fresnel_term(NdotL));
+		float fresnel_trans = 1;
+
+		// calculate transmittance from back of the object
+		float3 backlitAmount = backlit_amount(input.vPosWS, input.vNormalWS, L, g_matViewLights[i], g_matViewProjLights[i],
+			g_shadowMaps[i], g_samShadow);
+		float3 backlit = atten * backlitAmount * l.diffuse * g_material.diffuse;
 
 		// putting them together
 		specular += atten * l.specular * g_material.specular * specularLight * lightAmount;
-		irradiance += ambient * FRESNEL_TRANS_TOTAL + diffuse * lightAmount * fresnel_trans;
+		irradiance += ambient * FRESNEL_TRANS_TOTAL + diffuse * lightAmount * fresnel_trans + backlit;
 	}
 
 	// calculate fresnel outgoing factor
-	float NdotV = dot(N, V);
-	float fresnel_trans_view = 1;saturate(1 - fresnel_term(NdotV));
+	float fresnel_trans_view = 1;
 
 	// calculate kernel size reduction due to tilt surface
 	//  1 - calculate local orthogonal coordinate system
