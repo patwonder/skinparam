@@ -4,8 +4,12 @@
 #include "Culling.fx"
 #include "Bump.fx"
 
-cbuffer Tessellation : register(c3) {
+cbuffer Tessellation : register(b3) {
 	float4 g_vTessellationFactor; // Edge, inside, minimum tessellation factor and (half screen height/desired triangle size)
+};
+
+cbuffer SSS : register(b4) {
+	float g_sss_intensity;
 };
 
 struct VS_INPUT {
@@ -376,7 +380,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 
 		// calculate transmittance from back of the object
 		float3 backlitAmount = backlit_amount(input.vPosWS, input.vNormalWS, L, ldepth, g_matViewProjLights[i],
-			g_shadowMaps[i], g_samShadow) * (1 - lightAmount) * l.sss_intensity;
+			g_shadowMaps[i], g_samShadow) * (1 - lightAmount) * g_sss_intensity;
 		float3 backlit = atten * backlitAmount * l.diffuse * g_material.diffuse;
 
 		// putting them together
@@ -400,9 +404,9 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 	float kSizeX = getKernelSize(input.depth, drx) * getDDXDepthPenalty(input.depth);
 	float kSizeY = getKernelSize(input.depth, dry) * getDDYDepthPenalty(input.depth);
 
-	output.irradiance = float4(sq_tex_color * irradiance, 1.0);
+	output.irradiance = float4(sq_tex_color * irradiance, g_sss_intensity);
 	output.albedo = float4(sq_tex_color * fresnel_trans_view, 1.0);
-	output.diffuseStencil = float4(kSizeX, kSizeY, input.depth, 1.0);
+	output.diffuseStencil = float4(kSizeX, kSizeY, input.depth, g_sss_intensity);
 	output.specular = float4(specular, 1.0);
 
 	return output;

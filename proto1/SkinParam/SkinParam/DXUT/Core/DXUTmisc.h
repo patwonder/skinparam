@@ -66,90 +66,54 @@ HRESULT DXUTGetGamepadState( DWORD dwPort, DXUT_GAMEPAD* pGamePad, bool bThumbst
 HRESULT DXUTStopRumbleOnAllControllers();
 void DXUTEnableXInput( bool bEnable );
 
+
+//--------------------------------------------------------------------------------------
+// Takes a screen shot of a 32bit D3D9 back buffer and saves the images to a BMP file
+//--------------------------------------------------------------------------------------
+HRESULT DXUTSnapD3D9Screenshot( LPCTSTR szFileName );
+
+//--------------------------------------------------------------------------------------
+// Takes a screen shot of a 32bit D3D11 back buffer and saves the images to a BMP file
+//--------------------------------------------------------------------------------------
+
+HRESULT DXUTSnapD3D11Screenshot( LPCTSTR szFileName, D3DX11_IMAGE_FILE_FORMAT iff = D3DX11_IFF_DDS  );
+
+
 //--------------------------------------------------------------------------------------
 // A growable array
 //--------------------------------------------------------------------------------------
 template<typename TYPE> class CGrowableArray
 {
 public:
-            CGrowableArray()
-            {
-                m_pData = NULL; m_nSize = 0; m_nMaxSize = 0;
-            }
-            CGrowableArray( const CGrowableArray <TYPE>& a )
-            {
-                for( int i = 0; i < a.m_nSize; i++ ) Add( a.m_pData[i] );
-            }
-            ~CGrowableArray()
-            {
-                RemoveAll();
-            }
+    CGrowableArray()  { m_pData = NULL; m_nSize = 0; m_nMaxSize = 0; }
+    CGrowableArray( const CGrowableArray<TYPE>& a ) { for( int i=0; i < a.m_nSize; i++ ) Add( a.m_pData[i] ); }
+    ~CGrowableArray() { RemoveAll(); }
 
-    const TYPE& operator[]( int nIndex ) const
-    {
-        return GetAt( nIndex );
-    }
-    TYPE& operator[]( int nIndex )
-    {
-        return GetAt( nIndex );
-    }
-
-    CGrowableArray& operator=( const CGrowableArray <TYPE>& a )
-    {
-        if( this == &a ) return *this; RemoveAll(); for( int i = 0; i < a.m_nSize;
-                                                         i++ ) Add( a.m_pData[i] ); return *this;
-    }
+    const TYPE& operator[]( int nIndex ) const { return GetAt( nIndex ); }
+    TYPE& operator[]( int nIndex ) { return GetAt( nIndex ); }
+   
+    CGrowableArray& operator=( const CGrowableArray<TYPE>& a ) { if( this == &a ) return *this; RemoveAll(); for( int i=0; i < a.m_nSize; i++ ) Add( a.m_pData[i] ); return *this; }
 
     HRESULT SetSize( int nNewMaxSize );
     HRESULT Add( const TYPE& value );
     HRESULT Insert( int nIndex, const TYPE& value );
     HRESULT SetAt( int nIndex, const TYPE& value );
-    TYPE& GetAt( int nIndex ) const
-    {
-        assert( nIndex >= 0 && nIndex < m_nSize ); return m_pData[nIndex];
-    }
-    int     GetSize() const
-    {
-        return m_nSize;
-    }
-    TYPE* GetData()
-    {
-        return m_pData;
-    }
-    bool    Contains( const TYPE& value )
-    {
-        return ( -1 != IndexOf( value ) );
-    }
+    TYPE&   GetAt( int nIndex ) const { assert( nIndex >= 0 && nIndex < m_nSize ); return m_pData[nIndex]; }
+    int     GetSize() const { return m_nSize; }
+    TYPE*   GetData() { return m_pData; }
+    bool    Contains( const TYPE& value ){ return ( -1 != IndexOf( value ) ); }
 
-    int     IndexOf( const TYPE& value )
-    {
-        return ( m_nSize > 0 ) ? IndexOf( value, 0, m_nSize ) : -1;
-    }
-    int     IndexOf( const TYPE& value, int iStart )
-    {
-        return IndexOf( value, iStart, m_nSize - iStart );
-    }
+    int     IndexOf( const TYPE& value ) { return ( m_nSize > 0 ) ? IndexOf( value, 0, m_nSize ) : -1; }
+    int     IndexOf( const TYPE& value, int iStart ) { return IndexOf( value, iStart, m_nSize - iStart ); }
     int     IndexOf( const TYPE& value, int nIndex, int nNumElements );
 
-    int     LastIndexOf( const TYPE& value )
-    {
-        return ( m_nSize > 0 ) ? LastIndexOf( value, m_nSize - 1, m_nSize ) : -1;
-    }
-    int     LastIndexOf( const TYPE& value, int nIndex )
-    {
-        return LastIndexOf( value, nIndex, nIndex + 1 );
-    }
+    int     LastIndexOf( const TYPE& value ) { return ( m_nSize > 0 ) ? LastIndexOf( value, m_nSize-1, m_nSize ) : -1; }
+    int     LastIndexOf( const TYPE& value, int nIndex ) { return LastIndexOf( value, nIndex, nIndex+1 ); }
     int     LastIndexOf( const TYPE& value, int nIndex, int nNumElements );
 
     HRESULT Remove( int nIndex );
-    void    RemoveAll()
-    {
-        SetSize( 0 );
-    }
-    void    Reset()
-    {
-        m_nSize = 0;
-    }
+    void    RemoveAll() { SetSize(0); }
+    void	Reset() { m_nSize = 0; }
 
 protected:
     TYPE* m_pData;      // the actual array of data
@@ -167,7 +131,7 @@ protected:
 class CDXUTTimer
 {
 public:
-                    CDXUTTimer();
+    CDXUTTimer();
 
     void            Reset(); // resets the timer
     void            Start(); // starts the timer
@@ -215,8 +179,9 @@ LPCWSTR WINAPI DXUTDXGIFormatToString( DXGI_FORMAT format, bool bWithPrefix );
 //--------------------------------------------------------------------------------------
 // Device settings conversion
 //--------------------------------------------------------------------------------------
-void WINAPI DXUTConvertDeviceSettings10to9( DXUTD3D10DeviceSettings* pIn, DXUTD3D9DeviceSettings* pOut );
-void WINAPI DXUTConvertDeviceSettings9to10( DXUTD3D9DeviceSettings* pIn, DXUTD3D10DeviceSettings* pOut );
+void WINAPI DXUTConvertDeviceSettings11to9( DXUTD3D11DeviceSettings* pIn, DXUTD3D9DeviceSettings* pOut );
+void WINAPI DXUTConvertDeviceSettings9to11( DXUTD3D9DeviceSettings* pIn, DXUTD3D11DeviceSettings* pOut );
+
 DXGI_FORMAT WINAPI ConvertFormatD3D9ToDXGI( D3DFORMAT fmt );
 D3DFORMAT WINAPI ConvertFormatDXGIToD3D9( DXGI_FORMAT fmt );
 
@@ -229,10 +194,10 @@ void WINAPI DXUTOutputDebugStringW( LPCWSTR strMsg, ... );
 void WINAPI DXUTOutputDebugStringA( LPCSTR strMsg, ... );
 HRESULT WINAPI DXUTTrace( const CHAR* strFile, DWORD dwLine, HRESULT hr, const WCHAR* strMsg, bool bPopMsgBox );
 void WINAPI DXUTTraceDecl( D3DVERTEXELEMENT9 decl[MAX_FVF_DECL_SIZE] );
-WCHAR*                      WINAPI DXUTTraceD3DDECLUSAGEtoString( BYTE u );
-WCHAR*                      WINAPI DXUTTraceD3DDECLMETHODtoString( BYTE m );
-WCHAR*                      WINAPI DXUTTraceD3DDECLTYPEtoString( BYTE t );
-WCHAR*                      WINAPI DXUTTraceWindowsMessage( UINT uMsg );
+WCHAR* WINAPI DXUTTraceD3DDECLUSAGEtoString( BYTE u );
+WCHAR* WINAPI DXUTTraceD3DDECLMETHODtoString( BYTE m );
+WCHAR* WINAPI DXUTTraceD3DDECLTYPEtoString( BYTE t );
+WCHAR* WINAPI DXUTTraceWindowsMessage( UINT uMsg );
 
 #ifdef UNICODE
 #define DXUTOutputDebugString DXUTOutputDebugStringW
@@ -258,7 +223,7 @@ WCHAR*                      WINAPI DXUTTraceWindowsMessage( UINT uMsg );
 // failure if APIs are not present.
 //--------------------------------------------------------------------------------------
 
-IDirect3D9*                 WINAPI DXUT_Dynamic_Direct3DCreate9( UINT SDKVersion );
+IDirect3D9 * WINAPI DXUT_Dynamic_Direct3DCreate9(UINT SDKVersion);
 int WINAPI DXUT_Dynamic_D3DPERF_BeginEvent( D3DCOLOR col, LPCWSTR wszName );
 int WINAPI DXUT_Dynamic_D3DPERF_EndEvent( void );
 void WINAPI DXUT_Dynamic_D3DPERF_SetMarker( D3DCOLOR col, LPCWSTR wszName );
@@ -266,44 +231,63 @@ void WINAPI DXUT_Dynamic_D3DPERF_SetRegion( D3DCOLOR col, LPCWSTR wszName );
 BOOL WINAPI DXUT_Dynamic_D3DPERF_QueryRepeatFrame( void );
 void WINAPI DXUT_Dynamic_D3DPERF_SetOptions( DWORD dwOptions );
 DWORD WINAPI DXUT_Dynamic_D3DPERF_GetStatus( void );
-HRESULT WINAPI DXUT_Dynamic_CreateDXGIFactory( REFIID rInterface, void** ppOut );
-HRESULT WINAPI DXUT_Dynamic_D3D10CreateDevice1( IDXGIAdapter* pAdapter,
-                                                D3D10_DRIVER_TYPE DriverType,
-                                                HMODULE Software,
-                                                UINT Flags,
-                                                D3D10_FEATURE_LEVEL1 HardwareLevel,
-                                                UINT SDKVersion,
-                                                ID3D10Device1** ppDevice );
-HRESULT WINAPI DXUT_Dynamic_D3D10CreateDevice( IDXGIAdapter* pAdapter,
-                                               D3D10_DRIVER_TYPE DriverType,
+HRESULT WINAPI DXUT_Dynamic_CreateDXGIFactory1( REFIID rInterface, void** ppOut );
+
+HRESULT WINAPI DXUT_Dynamic_D3D11CreateDevice( IDXGIAdapter* pAdapter,
+                                               D3D_DRIVER_TYPE DriverType,
                                                HMODULE Software,
                                                UINT32 Flags,
-                                               CONST void* pExtensions,
+                                               D3D_FEATURE_LEVEL* pFeatureLevels,
+                                               UINT FeatureLevels,
                                                UINT32 SDKVersion,
-                                               ID3D10Device** ppDevice );
-HRESULT WINAPI DXUT_Dynamic_D3D10CreateStateBlock( ID3D10Device* pDevice, D3D10_STATE_BLOCK_MASK* pStateBlockMask,
-                                                   ID3D10StateBlock** ppStateBlock );
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskUnion( D3D10_STATE_BLOCK_MASK* pA, D3D10_STATE_BLOCK_MASK* pB,
-                                                      D3D10_STATE_BLOCK_MASK* pResult );
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskIntersect( D3D10_STATE_BLOCK_MASK* pA, D3D10_STATE_BLOCK_MASK* pB,
-                                                          D3D10_STATE_BLOCK_MASK* pResult );
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskDifference( D3D10_STATE_BLOCK_MASK* pA, D3D10_STATE_BLOCK_MASK* pB,
-                                                           D3D10_STATE_BLOCK_MASK* pResult );
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskEnableCapture( D3D10_STATE_BLOCK_MASK* pMask,
-                                                              D3D10_DEVICE_STATE_TYPES StateType, UINT RangeStart,
-                                                              UINT RangeLength );
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskDisableCapture( D3D10_STATE_BLOCK_MASK* pMask,
-                                                               D3D10_DEVICE_STATE_TYPES StateType, UINT RangeStart,
-                                                               UINT RangeLength );
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskEnableAll( D3D10_STATE_BLOCK_MASK* pMask );
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskDisableAll( D3D10_STATE_BLOCK_MASK* pMask );
-BOOL WINAPI DXUT_Dynamic_D3D10StateBlockMaskGetSetting( D3D10_STATE_BLOCK_MASK* pMask,
-                                                        D3D10_DEVICE_STATE_TYPES StateType, UINT Entry );
+                                               ID3D11Device** ppDevice,
+                                               D3D_FEATURE_LEVEL* pFeatureLevel,
+                                               ID3D11DeviceContext** ppImmediateContext );
+
+bool DXUT_EnsureD3D11APIs( void );
 
 
 //--------------------------------------------------------------------------------------
 // Profiling/instrumentation support
 //--------------------------------------------------------------------------------------
+
+// Use DXUT_SetDebugName() to attach names to D3D objects for use by 
+// SDKDebugLayer, PIX's object table, etc.
+#if defined(PROFILE) || defined(DEBUG)
+inline void DXUT_SetDebugName( IDirect3DResource9* pObj, const CHAR* pstrName )
+{
+    if ( pObj )
+        pObj->SetPrivateData( WKPDID_D3DDebugObjectName, pstrName, lstrlenA(pstrName), 0 );
+}
+inline void DXUT_SetDebugName( IDXGIObject* pObj, const CHAR* pstrName )
+{
+    if ( pObj )
+       pObj->SetPrivateData( WKPDID_D3DDebugObjectName, lstrlenA(pstrName), pstrName );
+}
+inline void DXUT_SetDebugName( ID3D10Device* pObj, const CHAR* pstrName )
+{
+    if ( pObj )
+        pObj->SetPrivateData( WKPDID_D3DDebugObjectName, lstrlenA(pstrName), pstrName );
+}
+inline void DXUT_SetDebugName( ID3D10DeviceChild* pObj, const CHAR* pstrName )
+{
+    if ( pObj )
+        pObj->SetPrivateData( WKPDID_D3DDebugObjectName, lstrlenA(pstrName), pstrName );
+}
+inline void DXUT_SetDebugName( ID3D11Device* pObj, const CHAR* pstrName )
+{
+    if ( pObj )
+        pObj->SetPrivateData( WKPDID_D3DDebugObjectName, lstrlenA(pstrName), pstrName );
+}
+inline void DXUT_SetDebugName( ID3D11DeviceChild* pObj, const CHAR* pstrName )
+{
+    if ( pObj )
+        pObj->SetPrivateData( WKPDID_D3DDebugObjectName, lstrlenA(pstrName), pstrName );
+}
+#else
+#define DXUT_SetDebugName( pObj, pstrName )
+#endif
+
 
 //--------------------------------------------------------------------------------------
 // Some D3DPERF APIs take a color that can be used when displaying user events in 
@@ -484,6 +468,8 @@ template<typename TYPE> HRESULT CGrowableArray <TYPE>::Add( const TYPE& value )
     if( FAILED( hr = SetSizeInternal( m_nSize + 1 ) ) )
         return hr;
 
+    assert( m_pData != NULL );
+
     // Construct the new element
     ::new ( &m_pData[m_nSize] ) TYPE;
 
@@ -632,7 +618,7 @@ IDirect3DDevice9*           WINAPI DXUTCreateRefDevice9( HWND hWnd, bool bNullRe
 // Creates a REF or NULLREF D3D10 device and returns the device.  The caller should call
 // Release() when done with the device.
 //--------------------------------------------------------------------------------------
-ID3D10Device*               WINAPI DXUTCreateRefDevice10( bool bNullRef = true );
+//test d3d10 version ID3D10Device*               WINAPI DXUTCreateRefDevice10( bool bNullRef = true );
 
 //--------------------------------------------------------------------------------------
 // Helper function to launch the Media Center UI after the program terminates

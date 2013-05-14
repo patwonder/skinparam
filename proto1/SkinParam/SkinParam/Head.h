@@ -15,5 +15,6 @@ namespace Skin {
 		~Head() override;
 
 		void render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) override;
+		bool supportsSSS() const override { return true; }
 	};
 } // namespace Skin

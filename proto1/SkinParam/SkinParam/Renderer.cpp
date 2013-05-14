@@ -12,6 +12,7 @@
 
 #include "FVector.h"
 #include "DirectXTex.h"
+#include "DXUT.h"
 
 using namespace Skin;
 using namespace Utils;
@@ -46,7 +47,7 @@ const float Renderer::SSS_GAUSSIAN_WEIGHTS[NUM_SSS_GAUSSIANS][3] = {
 	{ 0.078f, 0.000f, 0.000f }
 };
 
-Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
+Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, RenderableManager* pRenderableManager)
 	: m_pDevice(nullptr),
 	  m_pDeviceContext(nullptr),
 	  m_pSwapChain(nullptr),
@@ -69,6 +70,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_pCombineConstantBuffer(nullptr),
 	  m_pPostProcessConstantBuffer(nullptr),
 	  m_pGaussianShadowConstantBuffer(nullptr),
+	  m_pSSSConstantBuffer(nullptr),
 	  m_psgSSSIrradianceNoTessellation(nullptr),
 	  m_psgShadow(nullptr),
 	  m_psgTessellatedPhong(nullptr),
@@ -85,6 +87,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	  m_rectView(rectView),
 	  m_pConfig(pConfig),
 	  m_pCamera(pCamera),
+	  m_pRenderableManager(pRenderableManager),
 	  m_nFrameCount(0),
 	  m_nStartTick(GetTickCount()),
 	  m_fps(0.0f),
@@ -123,6 +126,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera)
 	m_vppCOMObjs.push_back((IUnknown**)&m_pCombineConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pPostProcessConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pGaussianShadowConstantBuffer);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pSSSConstantBuffer);
 	for (UINT i = 0; i < NUM_SHADOW_VIEWS; i++) {
 		m_vppCOMObjs.push_back((IUnknown**)m_apRTShadowMaps + i);
 		m_vppCOMObjs.push_back((IUnknown**)m_apSRVShadowMaps + i);
@@ -165,6 +169,9 @@ Renderer::~Renderer() {
 	removeAllRenderables();
 	unloadShaders();
 
+	m_pRenderableManager->onReleasingSwapChain();
+	m_pRenderableManager->onDestroyDevice();
+
 	if (m_pDeviceContext)
 		m_pDeviceContext->ClearState();
 
@@ -183,20 +190,21 @@ HRESULT Renderer::initDX() {
     createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-    D3D_DRIVER_TYPE driverTypes[] = {
-        D3D_DRIVER_TYPE_HARDWARE,
-        D3D_DRIVER_TYPE_WARP,
-        D3D_DRIVER_TYPE_REFERENCE,
-    };
-    UINT numDriverTypes = ARRAYSIZE(driverTypes);
+	DXUTDeviceSettings ds;
+	ZeroMemory(&ds, sizeof(ds));
+	ds.MinimumFeatureLevel = D3D_FEATURE_LEVEL_11_0;
+	ds.ver = DXUT_D3D11_DEVICE;
+	ds.d3d11.AdapterOrdinal = 0;
+    ds.d3d11.CreateFlags = 0;
+    ds.d3d11.DriverType = D3D_DRIVER_TYPE_HARDWARE;
+	ds.d3d11.DeviceFeatureLevel = D3D_FEATURE_LEVEL_11_0;
+    ds.d3d11.Output = 0;
+    ds.d3d11.PresentFlags = 0;
+    ds.d3d11.SyncInterval = 1;
+    ds.d3d11.AutoCreateDepthStencil = false;
+	ds.d3d11.AutoDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-    D3D_FEATURE_LEVEL featureLevels[] = {
-        D3D_FEATURE_LEVEL_11_0,
-    };
-	UINT numFeatureLevels = ARRAYSIZE(featureLevels);
-
-    DXGI_SWAP_CHAIN_DESC sd;
-    ZeroMemory(&sd, sizeof(sd));
+	DXGI_SWAP_CHAIN_DESC& sd = ds.d3d11.sd;
     sd.BufferCount = 1;
 	sd.BufferDesc.Width = m_rectView.Width();
 	sd.BufferDesc.Height = m_rectView.Height();
@@ -209,17 +217,35 @@ HRESULT Renderer::initDX() {
     sd.SampleDesc.Quality = 0;
     sd.Windowed = TRUE;
 
+    D3D_DRIVER_TYPE driverTypes[] = {
+        D3D_DRIVER_TYPE_HARDWARE,
+        D3D_DRIVER_TYPE_WARP,
+        D3D_DRIVER_TYPE_REFERENCE,
+    };
+    UINT numDriverTypes = ARRAYSIZE(driverTypes);
+
 	HRESULT hr;
 
     for (UINT driverTypeIndex = 0; driverTypeIndex < numDriverTypes; driverTypeIndex++) {
 		m_driverType = driverTypes[driverTypeIndex];
-        hr = D3D11CreateDeviceAndSwapChain(nullptr, m_driverType, nullptr, createDeviceFlags, featureLevels, numFeatureLevels,
-			D3D11_SDK_VERSION, &sd, &m_pSwapChain, &m_pDevice, &m_featureLevel, &m_pDeviceContext);
+		ds.d3d11.DriverType = m_driverType;
+		hr = DXUTCreateDeviceFromSettings(&ds, false, true);
         if (SUCCEEDED(hr))
             break;
     }
     if (FAILED(hr))
         return hr;
+
+	m_pSwapChain = DXUTGetDXGISwapChain();
+	m_pDevice = DXUTGetD3D11Device();
+	m_featureLevel = DXUTGetD3D11DeviceFeatureLevel();
+	m_pDeviceContext = DXUTGetD3D11DeviceContext();
+	m_pSwapChain->AddRef();
+	m_pDevice->AddRef();
+	m_pDeviceContext->AddRef();
+
+	m_pRenderableManager->onCreateDevice(m_pDevice, m_pDeviceContext, m_pSwapChain);
+	m_pRenderableManager->onResizedSwapChain(m_pDevice, DXUTGetDXGIBackBufferSurfaceDesc());
 
     // Create a render target view
     ID3D11Texture2D* pBackBuffer = nullptr;
@@ -525,7 +551,6 @@ void Renderer::updateLighting() {
 		rl.specular = XMColor3(l->coSpecular);
 		rl.position = XMPos(l->vecPosition);
 		rl.attenuation = XMFLOAT3(l->fAtten0, l->fAtten1, l->fAtten2);
-		rl.sss_intensity = m_bSSS ? 1.0 : 0.0;
 	}
 	for (UINT i = m_vpLights.size(); i < NUM_LIGHTS; i++) {
 		RLight& l = m_cbLighting.g_lights[i];
@@ -534,7 +559,6 @@ void Renderer::updateLighting() {
 		l.specular = XMColor3(Color::Black);
 		l.position = XMPos(Vector::ZERO);
 		l.attenuation = XMFLOAT3(1.0f, 0.0f, 0.0f);
-		l.sss_intensity = m_bSSS ? 1.0 : 0.0;
 	}
 	m_pDeviceContext->UpdateSubresource(m_pLightingConstantBuffer, 0, NULL, &m_cbLighting, 0, 0);
 }
@@ -664,6 +688,10 @@ void Renderer::initSSS() {
 	}
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbCombine, &m_pCombineConstantBuffer),
 		_T("Failed to create combine constant buffer"));
+
+	m_cbSSS.g_sss_intensity = 0.0f;
+	checkFailure(createConstantBuffer(m_pDevice, &m_cbSSS, &m_pSSSConstantBuffer),
+		_T("Failed to create SSS constant buffer"));
 }
 
 void Renderer::initPostProcessAA() {
@@ -679,7 +707,8 @@ void Renderer::setConstantBuffers() {
 		m_pTransformConstantBuffer,
 		m_pLightingConstantBuffer,
 		m_pMaterialConstantBuffer,
-		m_pTessellationConstantBuffer
+		m_pTessellationConstantBuffer,
+		m_pSSSConstantBuffer,
 	};
 
 	m_pDeviceContext->VSSetConstantBuffers(0, ARRAYSIZE(buffers), buffers);
@@ -689,7 +718,8 @@ void Renderer::setConstantBuffers() {
 }
 
 void Renderer::renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11RenderTargetView* pRTAlbedo,
-								   ID3D11RenderTargetView* pRTDiffuseStencil, ID3D11RenderTargetView* pRTSpecular) {
+								   ID3D11RenderTargetView* pRTDiffuseStencil, ID3D11RenderTargetView* pRTSpecular,
+								   bool* opbNeedBlur) {
 
 	setConstantBuffers();
 
@@ -718,7 +748,7 @@ void Renderer::renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11
 
 	updateTransform();
 	bindShadowMaps();
-	renderScene();
+	renderScene(opbNeedBlur);
 	unbindShadowMaps();
 
 	if (m_bDump) {
@@ -811,7 +841,7 @@ void Renderer::doGaussianBlurs() {
 	}
 }
 
-void Renderer::doCombineShading() {
+void Renderer::doCombineShading(bool bNeedBlur) {
 	bindCombineConstantBuffer();
 
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -832,7 +862,7 @@ void Renderer::doCombineShading() {
 		m_apSRVSSS[IDX_SSS_ALBEDO],
 		m_apSRVSSS[IDX_SSS_SPECULAR],
 	};
-	if (m_bSSS)
+	if (bNeedBlur)
 		memcpy(apSSSSRVs + 2, m_apSRVSSS + IDX_SSS_GAUSSIANS_START, sizeof(*m_apSRVSSS) * NUM_SSS_GAUSSIANS);
 	else
 		for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
@@ -925,6 +955,7 @@ void Renderer::render() {
 	setConstantBuffers();
 
 	bool bToggle = (m_descRasterizerState.FillMode == D3D11_FILL_WIREFRAME);
+	bool bNeedBlur = false;
 	// Render shadow maps
 	m_rsCurrent = ShadowMap;
     m_pDeviceContext->IASetPrimitiveTopology(
@@ -963,21 +994,24 @@ void Renderer::render() {
 
 	m_rsCurrent = Irradiance;
 	renderIrradianceMap(m_apRTSSS[IDX_SSS_IRRADIANCE], m_apRTSSS[IDX_SSS_ALBEDO], 
-						m_apRTSSS[IDX_SSS_DIFFUSE_STENCIL], m_apRTSSS[IDX_SSS_SPECULAR]);
+						m_apRTSSS[IDX_SSS_DIFFUSE_STENCIL], m_apRTSSS[IDX_SSS_SPECULAR],
+						&bNeedBlur);
 
 	if (bToggle) toggleWireframe(); {
-		if (m_bSSS) {
+		if (bNeedBlur) {
 			m_rsCurrent = Gaussian;
 			doGaussianBlurs();
 		}
 		m_rsCurrent = Combine;
-		doCombineShading();
+		doCombineShading(bNeedBlur);
 
 		if (m_bAA) {
 			m_rsCurrent = PostProcessAA;
 			doPostProcessAA();
 		}
 
+		m_rsCurrent = UI;
+		renderRest();
 	} if (bToggle) toggleWireframe();
 
 	m_pSwapChain->Present(m_pConfig->vsync ? 1 : 0, 0);
@@ -988,9 +1022,27 @@ void Renderer::render() {
 	m_bDump = false;
 }
 
-void Renderer::renderScene() {
+void Renderer::renderScene(bool* opbNeedBlur) {
+	bool bNeedBlur = false;
 	for (Renderable* renderable : m_vpRenderables) {
-		renderable->render(m_pDeviceContext, this, *m_pCamera);
+		if (renderable->inScene()) {
+			// set sss intensity
+			m_cbSSS.g_sss_intensity = (m_bSSS && renderable->supportsSSS()) ? 1.0f : 0.0f;
+			bNeedBlur |= (m_bSSS && renderable->supportsSSS());
+			m_pDeviceContext->UpdateSubresource(m_pSSSConstantBuffer, 0, nullptr, &m_cbSSS, 0, 0);
+
+			renderable->render(m_pDeviceContext, this, *m_pCamera);
+		}
+	}
+	if (opbNeedBlur)
+		*opbNeedBlur = bNeedBlur;
+}
+
+void Renderer::renderRest() {
+	for (Renderable* renderable : m_vpRenderables) {
+		if (!renderable->inScene()) {
+			renderable->render(m_pDeviceContext, this, *m_pCamera);
+		}
 	}
 }
 

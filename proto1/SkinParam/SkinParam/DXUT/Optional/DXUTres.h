@@ -11,8 +11,8 @@
 
 HRESULT WINAPI DXUTCreateGUITextureFromInternalArray9( LPDIRECT3DDEVICE9 pd3dDevice, IDirect3DTexture9** ppTexture,
                                                        D3DXIMAGE_INFO* pInfo );
-HRESULT WINAPI DXUTCreateGUITextureFromInternalArray10( ID3D10Device* pd3dDevice, ID3D10Texture2D** ppTexture,
-                                                        D3DX10_IMAGE_INFO* pInfo );
+HRESULT WINAPI DXUTCreateGUITextureFromInternalArray11( ID3D11Device* pd3dDevice, ID3D11Texture2D** ppTexture,
+                                                        D3DX11_IMAGE_INFO* pInfo );
 HRESULT WINAPI DXUTCreateArrowMeshFromInternalArray( LPDIRECT3DDEVICE9 pd3dDevice, ID3DXMesh** ppMesh );
 
 #endif

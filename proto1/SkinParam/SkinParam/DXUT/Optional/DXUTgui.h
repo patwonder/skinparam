@@ -19,6 +19,8 @@
 #define EVENT_RADIOBUTTON_CHANGED           0x0301
 #define EVENT_CHECKBOX_CHANGED              0x0401
 #define EVENT_SLIDER_VALUE_CHANGED          0x0501
+#define EVENT_SLIDER_VALUE_CHANGED_UP       0x0502
+
 #define EVENT_EDITBOX_STRING                0x0601
 // EVENT_EDITBOX_CHANGE is sent when the listbox content changes
 // due to user input.
@@ -216,18 +218,18 @@ public:
     // Render helpers
     HRESULT             DrawRect( RECT* pRect, D3DCOLOR color );
     HRESULT             DrawRect9( RECT* pRect, D3DCOLOR color );
-    HRESULT             DrawRect10( RECT* pRect, D3DCOLOR color );
     HRESULT             DrawPolyLine( POINT* apPoints, UINT nNumPoints, D3DCOLOR color );
     HRESULT             DrawSprite( CDXUTElement* pElement, RECT* prcDest, float fDepth );
     HRESULT             DrawSprite9( CDXUTElement* pElement, RECT* prcDest );
-    HRESULT             DrawSprite10( CDXUTElement* pElement, RECT* prcDest, float fDepth );
+    HRESULT             DrawSprite11( CDXUTElement* pElement, RECT* prcDest, float fDepth );
     HRESULT             CalcTextRect( LPCWSTR strText, CDXUTElement* pElement, RECT* prcDest, int nCount = -1 );
     HRESULT             DrawText( LPCWSTR strText, CDXUTElement* pElement, RECT* prcDest, bool bShadow = false,
-                                  int nCount = -1 );
+                                  int nCount = -1, bool bCenter = false  );
     HRESULT             DrawText9( LPCWSTR strText, CDXUTElement* pElement, RECT* prcDest, bool bShadow = false,
                                    int nCount = -1 );
-    HRESULT             DrawText10( LPCWSTR strText, CDXUTElement* pElement, RECT* prcDest, bool bShadow = false,
-                                    int nCount = -1 );
+    HRESULT             DrawText11( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3d11DeviceContext,
+                                    LPCWSTR strText, CDXUTElement* pElement, RECT* prcDest, bool bShadow = false,
+                                    int nCount = -1, bool bCenter = false );
 
     // Attributes
     bool                GetVisible()
@@ -349,6 +351,7 @@ private:
 
     HRESULT             OnRender9( float fElapsedTime );
     HRESULT             OnRender10( float fElapsedTime );
+    HRESULT             OnRender11( float fElapsedTime );
 
     static double s_fTimeRefresh;
     double m_fTimeLastRefresh;
@@ -416,8 +419,8 @@ struct DXUTTextureNode
     DWORD dwWidth;
     DWORD dwHeight;
     IDirect3DTexture9* pTexture9;
-    ID3D10Texture2D* pTexture10;
-    ID3D10ShaderResourceView* pTexResView;
+    ID3D11Texture2D* pTexture11;
+    ID3D11ShaderResourceView* pTexResView11;
 };
 
 struct DXUTFontNode
@@ -426,9 +429,14 @@ struct DXUTFontNode
     LONG nHeight;
     LONG nWeight;
     ID3DXFont* pFont9;
-    ID3DX10Font* pFont10;
 };
 
+struct DXUTSpriteVertex
+{
+    D3DXVECTOR3 vPos;
+    D3DXCOLOR vColor;
+    D3DXVECTOR2 vTex;
+};
 
 //-----------------------------------------------------------------------------
 // Manages shared resources of dialogs
@@ -451,14 +459,24 @@ public:
         return m_pd3d9Device;
     }
 
-    // D3D10 specific
-    HRESULT OnD3D10CreateDevice( ID3D10Device* pd3dDevice );
-    HRESULT OnD3D10ResizedSwapChain( ID3D10Device* pd3dDevice, const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc );
-    void    OnD3D10ReleasingSwapChain();
-    void    OnD3D10DestroyDevice();
-    ID3D10Device* GetD3D10Device()
+    // D3D11 specific
+    HRESULT OnD3D11CreateDevice( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3d11DeviceContext );
+    HRESULT OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc );
+    void    OnD3D11ReleasingSwapChain();
+    void    OnD3D11DestroyDevice();
+    void    StoreD3D11State( ID3D11DeviceContext* pd3dImmediateContext );
+    void    RestoreD3D11State( ID3D11DeviceContext* pd3dImmediateContext );
+    void    ApplyRenderUI11( ID3D11DeviceContext* pd3dImmediateContext );
+    void	ApplyRenderUIUntex11( ID3D11DeviceContext* pd3dImmediateContext );
+    void	BeginSprites11( );
+    void	EndSprites11( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext );
+    ID3D11Device* GetD3D11Device()
     {
-        return m_pd3d10Device;
+        return m_pd3d11Device;
+    }
+    ID3D11DeviceContext* GetD3D11DeviceContext()
+    {
+        return m_pd3d11DeviceContext;
     }
 
     DXUTFontNode* GetFontNode( int iIndex )
@@ -484,15 +502,35 @@ public:
     IDirect3DStateBlock9* m_pStateBlock;
     ID3DXSprite* m_pSprite;          // Sprite used for drawing
 
-    // D3D10
-    ID3D10Effect* m_pEffect10;        // Effect used to render UI with D3D10
-    ID3D10EffectTechnique* m_pTechRenderUI10;  // Technique: RenderUI
-    ID3D10EffectTechnique* m_pTechRenderUIUntex10;  // Technique: RenderUI without texture
-    ID3D10EffectShaderResourceVariable* m_pFxTexture10;
-    ID3D10InputLayout* m_pInputLayout10;
-    ID3D10Buffer* m_pVBScreenQuad10;
-    ID3D10StateBlock* m_pStateBlock10;
-    ID3DX10Sprite* m_pSprite10;
+    // D3D11
+    // Shaders
+    ID3D11VertexShader* m_pVSRenderUI11;
+    ID3D11PixelShader* m_pPSRenderUI11;
+    ID3D11PixelShader* m_pPSRenderUIUntex11;
+
+    // States
+    ID3D11DepthStencilState* m_pDepthStencilStateUI11;
+    ID3D11RasterizerState* m_pRasterizerStateUI11;
+    ID3D11BlendState* m_pBlendStateUI11;
+    ID3D11SamplerState* m_pSamplerStateUI11;
+
+    // Stored states
+    ID3D11DepthStencilState* m_pDepthStencilStateStored11;
+    UINT m_StencilRefStored11;
+    ID3D11RasterizerState* m_pRasterizerStateStored11;
+    ID3D11BlendState* m_pBlendStateStored11;
+    float m_BlendFactorStored11[4];
+    UINT m_SampleMaskStored11;
+    ID3D11SamplerState* m_pSamplerStateStored11;
+
+    ID3D11InputLayout* m_pInputLayout11;
+    ID3D11Buffer* m_pVBScreenQuad11;
+
+    // Sprite workaround
+    ID3D11Buffer* m_pSpriteBuffer11;
+    UINT m_SpriteBufferBytes11;
+    CGrowableArray<DXUTSpriteVertex> m_SpriteVertices;
+
     UINT m_nBackBufferWidth;
     UINT m_nBackBufferHeight;
 
@@ -504,15 +542,21 @@ protected:
     HRESULT CreateFont9( UINT index );
     HRESULT CreateTexture9( UINT index );
 
-    // D3D10 specific
-    ID3D10Device* m_pd3d10Device;
-    HRESULT CreateFont10( UINT index );
-    HRESULT CreateTexture10( UINT index );
+    // D3D11 specific
+    ID3D11Device* m_pd3d11Device;
+    ID3D11DeviceContext* m_pd3d11DeviceContext;
+    HRESULT CreateFont11( UINT index );
+    HRESULT CreateTexture11( UINT index );
 
     CGrowableArray <DXUTTextureNode*> m_TextureCache;   // Shared textures
     CGrowableArray <DXUTFontNode*> m_FontCache;         // Shared fonts
 };
 
+void BeginText11();
+void DrawText11DXUT( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3d11DeviceContext,
+                 LPCWSTR strText, RECT rcScreen, D3DXCOLOR vFontColor,
+                 float fBBWidth, float fBBHeight, bool bCenter );
+void EndText11( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3d11DeviceContext );
 
 //-----------------------------------------------------------------------------
 // Base class for controls
@@ -948,7 +992,6 @@ public:
     HRESULT         AddItem( const WCHAR* wszText, void* pData );
     HRESULT         InsertItem( int nIndex, const WCHAR* wszText, void* pData );
     void            RemoveItem( int nIndex );
-    void            RemoveItemByData( void* pData );
     void            RemoveAllItems();
 
     DXUTListBoxItem* GetItem( int nIndex );
@@ -1273,7 +1316,7 @@ public:
     {
         return m_Buffer.GetTextSize();
     }  // Returns text length in chars excluding NULL.
-    HRESULT         GetTextCopy( __out_ecount(bufferCount) LPWSTR strDest, 
+    HRESULT         GetTextCopy(  __out_ecount(bufferCount) LPWSTR strDest, 
                     UINT bufferCount );
     void            ClearText();
     virtual void    SetTextColor( D3DCOLOR Color )

@@ -8291,39 +8291,40 @@ HRESULT WINAPI DXUTCreateGUITextureFromInternalArray9( LPDIRECT3DDEVICE9 pd3dDev
                                                 D3DX_DEFAULT, D3DX_DEFAULT, 0, pInfo, NULL, ppTexture );
 }
 
-
 //--------------------------------------------------------------------------------------
-HRESULT WINAPI DXUTCreateGUITextureFromInternalArray10( ID3D10Device *pd3dDevice, ID3D10Texture2D** ppTexture, D3DX10_IMAGE_INFO* pInfo )
+HRESULT WINAPI DXUTCreateGUITextureFromInternalArray11(ID3D11Device* pd3dDevice, ID3D11Texture2D** ppTexture, D3DX11_IMAGE_INFO* pInfo)
 {
     HRESULT hr;
 
-    D3DX10_IMAGE_INFO SrcInfo;
+    D3DX11_IMAGE_INFO SrcInfo;
     if( !pInfo )
     {
-        D3DX10GetImageInfoFromMemory( g_DXUTGUITextureSrcData, g_DXUTGUITextureSrcDataSizeInBytes, NULL, &SrcInfo, NULL );
+        D3DX11GetImageInfoFromMemory( g_DXUTGUITextureSrcData, g_DXUTGUITextureSrcDataSizeInBytes, NULL, &SrcInfo, NULL );
         pInfo = &SrcInfo;
     }
 
-    ID3D10Resource *pRes;
-    D3DX10_IMAGE_LOAD_INFO loadInfo;
-    loadInfo.Width = D3DX10_DEFAULT;
-    loadInfo.Height  = D3DX10_DEFAULT;
-    loadInfo.Depth  = D3DX10_DEFAULT;
+    ID3D11Resource *pRes;
+    D3DX11_IMAGE_LOAD_INFO loadInfo;
+    loadInfo.Width = D3DX11_DEFAULT;
+    loadInfo.Height  = D3DX11_DEFAULT;
+    loadInfo.Depth  = D3DX11_DEFAULT;
     loadInfo.FirstMipLevel = 0;
     loadInfo.MipLevels = 1;
-    loadInfo.Usage = D3D10_USAGE_DEFAULT;
-    loadInfo.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+    loadInfo.Usage = D3D11_USAGE_DEFAULT;
+    loadInfo.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     loadInfo.CpuAccessFlags = 0;
     loadInfo.MiscFlags = 0;
-    loadInfo.Format = MAKE_TYPELESS( pInfo->Format );
-    loadInfo.Filter = D3DX10_FILTER_NONE;
-    loadInfo.MipFilter = D3DX10_FILTER_NONE;
+    //loadInfo.Format = MAKE_TYPELESS( pInfo->Format );
+    loadInfo.Format = MAKE_SRGB( pInfo->Format );
+    loadInfo.Filter = D3DX11_FILTER_NONE;
+    loadInfo.MipFilter = D3DX11_FILTER_NONE;
     loadInfo.pSrcInfo = pInfo;
 
-    hr = D3DX10CreateTextureFromMemory( pd3dDevice, g_DXUTGUITextureSrcData, g_DXUTGUITextureSrcDataSizeInBytes, &loadInfo, NULL, &pRes, NULL );
+    hr = D3DX11CreateTextureFromMemory( pd3dDevice, g_DXUTGUITextureSrcData, g_DXUTGUITextureSrcDataSizeInBytes, &loadInfo, NULL, &pRes, NULL );
     if( FAILED( hr ) )
         return hr;
-    hr = pRes->QueryInterface( __uuidof( ID3D10Texture2D ), (LPVOID*)ppTexture );
+    DXUT_SetDebugName( pRes, "DXUT" );
+    hr = pRes->QueryInterface( __uuidof( ID3D11Texture2D ), (LPVOID*)ppTexture );
     SAFE_RELEASE( pRes );
 
     return S_OK;

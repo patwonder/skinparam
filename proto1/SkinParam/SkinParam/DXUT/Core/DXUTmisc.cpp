@@ -114,8 +114,7 @@ void CDXUTTimer::GetTimeValues( double* pfTime, double* pfAbsoluteTime, float* p
 
     LARGE_INTEGER qwTime = GetAdjustedCurrentTime();
 
-    float fElapsedTime = ( float )( ( double )( qwTime.QuadPart - m_llLastElapsedTime ) / ( double )
-                                    m_llQPFTicksPerSec );
+    float fElapsedTime = (float) ((double) ( qwTime.QuadPart - m_llLastElapsedTime ) / (double) m_llQPFTicksPerSec);
     m_llLastElapsedTime = qwTime.QuadPart;
 
     // Clamp the timer to non-negative values to ensure the timer is accurate.
@@ -139,8 +138,7 @@ float CDXUTTimer::GetElapsedTime()
 {
     LARGE_INTEGER qwTime = GetAdjustedCurrentTime();
 
-    double fElapsedTime = ( float )( ( double )( qwTime.QuadPart - m_llLastElapsedTime ) / ( double )
-                                     m_llQPFTicksPerSec );
+    double fElapsedTime = (float) ((double) ( qwTime.QuadPart - m_llLastElapsedTime ) / (double) m_llQPFTicksPerSec);
     m_llLastElapsedTime = qwTime.QuadPart;
 
     // See the explanation about clamping in CDXUTTimer::GetTimeValues()
@@ -556,7 +554,7 @@ VOID WINAPI DXUTOutputDebugStringA( LPCSTR strMsg, ... )
 
     va_list args;
     va_start(args, strMsg);
-    vsprintf_s( strBuffer, 512, strMsg, args );
+    sprintf_s( strBuffer, 512, strMsg, args );
     strBuffer[511] = '\0';
     va_end(args);
 
@@ -573,38 +571,16 @@ VOID WINAPI DXUTOutputDebugStringA( LPCSTR strMsg, ... )
 //--------------------------------------------------------------------------------------
 
 // Function prototypes
-typedef IDirect3D9*                         ( WINAPI* LPDIRECT3DCREATE9 )( UINT );
-typedef INT ( WINAPI* LPD3DPERF_BEGINEVENT )( D3DCOLOR, LPCWSTR );
-typedef INT ( WINAPI* LPD3DPERF_ENDEVENT )( void );
-typedef VOID ( WINAPI* LPD3DPERF_SETMARKER )( D3DCOLOR, LPCWSTR );
-typedef VOID ( WINAPI* LPD3DPERF_SETREGION )( D3DCOLOR, LPCWSTR );
-typedef BOOL ( WINAPI* LPD3DPERF_QUERYREPEATFRAME )( void );
-typedef VOID ( WINAPI* LPD3DPERF_SETOPTIONS )( DWORD dwOptions );
-typedef DWORD ( WINAPI* LPD3DPERF_GETSTATUS )( void );
-typedef HRESULT ( WINAPI* LPCREATEDXGIFACTORY )( REFIID, void** );
-typedef HRESULT ( WINAPI* LPD3D10CREATEDEVICE )( IDXGIAdapter*, D3D10_DRIVER_TYPE, HMODULE, UINT, UINT32,
-                                                 ID3D10Device** );
-typedef HRESULT ( WINAPI* LPD3D10CREATEDEVICE1 )( IDXGIAdapter*, D3D10_DRIVER_TYPE, HMODULE, UINT,
-                                                  D3D10_FEATURE_LEVEL1, UINT, ID3D10Device1** );
-typedef HRESULT ( WINAPI* LPD3D10CREATESTATEBLOCK )( ID3D10Device* pDevice, D3D10_STATE_BLOCK_MASK* pStateBlockMask,
-                                                     ID3D10StateBlock** ppStateBlock );
-typedef HRESULT ( WINAPI* LPD3D10STATEBLOCKMASKUNION )( D3D10_STATE_BLOCK_MASK* pA, D3D10_STATE_BLOCK_MASK* pB,
-                                                        D3D10_STATE_BLOCK_MASK* pResult );
-typedef HRESULT ( WINAPI* LPD3D10STATEBLOCKMASKINTERSECT )( D3D10_STATE_BLOCK_MASK* pA, D3D10_STATE_BLOCK_MASK* pB,
-                                                            D3D10_STATE_BLOCK_MASK* pResult );
-typedef HRESULT ( WINAPI* LPD3D10STATEBLOCKMASKDIFFERENCE )( D3D10_STATE_BLOCK_MASK* pA, D3D10_STATE_BLOCK_MASK* pB,
-                                                             D3D10_STATE_BLOCK_MASK* pResult );
-typedef HRESULT ( WINAPI* LPD3D10STATEBLOCKMASKENABLECAPTURE )( D3D10_STATE_BLOCK_MASK* pMask,
-                                                                D3D10_DEVICE_STATE_TYPES StateType, UINT RangeStart,
-                                                                UINT RangeLength );
-typedef HRESULT ( WINAPI* LPD3D10STATEBLOCKMASKDISABLECAPTURE )( D3D10_STATE_BLOCK_MASK* pMask,
-                                                                 D3D10_DEVICE_STATE_TYPES StateType, UINT RangeStart,
-                                                                 UINT RangeLength );
-typedef HRESULT ( WINAPI* LPD3D10STATEBLOCKMASKENABLEALL )( D3D10_STATE_BLOCK_MASK* pMask );
-typedef HRESULT ( WINAPI* LPD3D10STATEBLOCKMASKDISABLEALL )( D3D10_STATE_BLOCK_MASK* pMask );
-typedef BOOL ( WINAPI* LPD3D10STATEBLOCKMASKGETSETTING )( D3D10_STATE_BLOCK_MASK* pMask,
-                                                          D3D10_DEVICE_STATE_TYPES StateType, UINT Entry );
-
+typedef IDirect3D9* (WINAPI * LPDIRECT3DCREATE9) (UINT);
+typedef INT         (WINAPI * LPD3DPERF_BEGINEVENT)(D3DCOLOR, LPCWSTR);
+typedef INT         (WINAPI * LPD3DPERF_ENDEVENT)(void);
+typedef VOID        (WINAPI * LPD3DPERF_SETMARKER)(D3DCOLOR, LPCWSTR);
+typedef VOID        (WINAPI * LPD3DPERF_SETREGION)(D3DCOLOR, LPCWSTR);
+typedef BOOL        (WINAPI * LPD3DPERF_QUERYREPEATFRAME)(void);
+typedef VOID        (WINAPI * LPD3DPERF_SETOPTIONS)( DWORD dwOptions );
+typedef DWORD       (WINAPI * LPD3DPERF_GETSTATUS)( void );
+typedef HRESULT     (WINAPI * LPCREATEDXGIFACTORY)(REFIID, void ** );
+typedef HRESULT     (WINAPI * LPD3D11CREATEDEVICE)( IDXGIAdapter*, D3D_DRIVER_TYPE, HMODULE, UINT32, D3D_FEATURE_LEVEL*, UINT, UINT32, ID3D11Device**, D3D_FEATURE_LEVEL*, ID3D11DeviceContext** );
 
 // Module and function pointers
 static HMODULE                              s_hModD3D9 = NULL;
@@ -618,20 +594,8 @@ static LPD3DPERF_SETOPTIONS                 s_DynamicD3DPERF_SetOptions = NULL;
 static LPD3DPERF_GETSTATUS                  s_DynamicD3DPERF_GetStatus = NULL;
 static HMODULE                              s_hModDXGI = NULL;
 static LPCREATEDXGIFACTORY                  s_DynamicCreateDXGIFactory = NULL;
-static HMODULE                              s_hModD3D10 = NULL;
-static HMODULE                              s_hModD3D101 = NULL;
-static LPD3D10CREATESTATEBLOCK              s_DynamicD3D10CreateStateBlock = NULL;
-static LPD3D10CREATEDEVICE                  s_DynamicD3D10CreateDevice = NULL;
-static LPD3D10CREATEDEVICE1                 s_DynamicD3D10CreateDevice1 = NULL;
-static LPD3D10STATEBLOCKMASKUNION           s_DynamicD3D10StateBlockMaskUnion = NULL;
-static LPD3D10STATEBLOCKMASKINTERSECT       s_DynamicD3D10StateBlockMaskIntersect = NULL;
-static LPD3D10STATEBLOCKMASKDIFFERENCE      s_DynamicD3D10StateBlockMaskDifference = NULL;
-static LPD3D10STATEBLOCKMASKENABLECAPTURE   s_DynamicD3D10StateBlockMaskEnableCapture = NULL;
-static LPD3D10STATEBLOCKMASKDISABLECAPTURE  s_DynamicD3D10StateBlockMaskDisableCapture = NULL;
-static LPD3D10STATEBLOCKMASKENABLEALL       s_DynamicD3D10StateBlockMaskEnableAll = NULL;
-static LPD3D10STATEBLOCKMASKDISABLEALL      s_DynamicD3D10StateBlockMaskDisableAll = NULL;
-static LPD3D10STATEBLOCKMASKGETSETTING      s_DynamicD3D10StateBlockMaskGetSetting = NULL;
-
+static HMODULE                              s_hModD3D11 = NULL;
+static LPD3D11CREATEDEVICE                  s_DynamicD3D11CreateDevice = NULL;
 
 // Ensure function pointers are initialized
 static bool DXUT_EnsureD3D9APIs( void )
@@ -645,67 +609,45 @@ static bool DXUT_EnsureD3D9APIs( void )
     s_hModD3D9 = LoadLibrary( L"d3d9.dll" );
     if( s_hModD3D9 != NULL )
     {
-        s_DynamicDirect3DCreate9 = ( LPDIRECT3DCREATE9 )GetProcAddress( s_hModD3D9, "Direct3DCreate9" );
-        s_DynamicD3DPERF_BeginEvent = ( LPD3DPERF_BEGINEVENT )GetProcAddress( s_hModD3D9, "D3DPERF_BeginEvent" );
-        s_DynamicD3DPERF_EndEvent = ( LPD3DPERF_ENDEVENT )GetProcAddress( s_hModD3D9, "D3DPERF_EndEvent" );
-        s_DynamicD3DPERF_SetMarker = ( LPD3DPERF_SETMARKER )GetProcAddress( s_hModD3D9, "D3DPERF_SetMarker" );
-        s_DynamicD3DPERF_SetRegion = ( LPD3DPERF_SETREGION )GetProcAddress( s_hModD3D9, "D3DPERF_SetRegion" );
-        s_DynamicD3DPERF_QueryRepeatFrame = ( LPD3DPERF_QUERYREPEATFRAME )GetProcAddress( s_hModD3D9,
-                                                                                          "D3DPERF_QueryRepeatFrame" );
-        s_DynamicD3DPERF_SetOptions = ( LPD3DPERF_SETOPTIONS )GetProcAddress( s_hModD3D9, "D3DPERF_SetOptions" );
-        s_DynamicD3DPERF_GetStatus = ( LPD3DPERF_GETSTATUS )GetProcAddress( s_hModD3D9, "D3DPERF_GetStatus" );
+        s_DynamicDirect3DCreate9 = (LPDIRECT3DCREATE9)GetProcAddress( s_hModD3D9, "Direct3DCreate9" );
+        s_DynamicD3DPERF_BeginEvent = (LPD3DPERF_BEGINEVENT)GetProcAddress( s_hModD3D9, "D3DPERF_BeginEvent" );
+        s_DynamicD3DPERF_EndEvent = (LPD3DPERF_ENDEVENT)GetProcAddress( s_hModD3D9, "D3DPERF_EndEvent" );
+        s_DynamicD3DPERF_SetMarker = (LPD3DPERF_SETMARKER)GetProcAddress( s_hModD3D9, "D3DPERF_SetMarker" );
+        s_DynamicD3DPERF_SetRegion = (LPD3DPERF_SETREGION)GetProcAddress( s_hModD3D9, "D3DPERF_SetRegion" );
+        s_DynamicD3DPERF_QueryRepeatFrame = (LPD3DPERF_QUERYREPEATFRAME)GetProcAddress( s_hModD3D9, "D3DPERF_QueryRepeatFrame" );
+        s_DynamicD3DPERF_SetOptions = (LPD3DPERF_SETOPTIONS)GetProcAddress( s_hModD3D9, "D3DPERF_SetOptions" );
+        s_DynamicD3DPERF_GetStatus = (LPD3DPERF_GETSTATUS)GetProcAddress( s_hModD3D9, "D3DPERF_GetStatus" );
     }
 
     return s_hModD3D9 != NULL;
 }
 
-static bool DXUT_EnsureD3D10APIs( void )
+bool DXUT_EnsureD3D11APIs( void )
 {
-    // If any module is non-NULL, this function has already been called.  Note
+    // If both modules are non-NULL, this function has already been called.  Note
     // that this doesn't guarantee that all ProcAddresses were found.
-    if( s_hModD3D10 != NULL || s_hModDXGI != NULL || s_hModD3D101 != NULL )
+    if( s_hModD3D11 != NULL && s_hModDXGI != NULL )
         return true;
 
-    // This may fail if Direct3D 10 isn't installed
-    s_hModD3D10 = LoadLibrary( L"d3d10.dll" );
-    if( s_hModD3D10 != NULL )
+    // This may fail if Direct3D 11 isn't installed
+    s_hModD3D11 = LoadLibrary( L"d3d11.dll" );
+    if( s_hModD3D11 != NULL )
     {
-        s_DynamicD3D10CreateStateBlock = ( LPD3D10CREATESTATEBLOCK )GetProcAddress( s_hModD3D10,
-                                                                                    "D3D10CreateStateBlock" );
-        s_DynamicD3D10CreateDevice = ( LPD3D10CREATEDEVICE )GetProcAddress( s_hModD3D10, "D3D10CreateDevice" );
-
-        s_DynamicD3D10StateBlockMaskUnion = ( LPD3D10STATEBLOCKMASKUNION )GetProcAddress( s_hModD3D10,
-                                                                                          "D3D10StateBlockMaskUnion" );
-        s_DynamicD3D10StateBlockMaskIntersect = ( LPD3D10STATEBLOCKMASKINTERSECT )GetProcAddress( s_hModD3D10,
-                                                                                                  "D3D10StateBlockMaskIntersect" );
-        s_DynamicD3D10StateBlockMaskDifference = ( LPD3D10STATEBLOCKMASKDIFFERENCE )GetProcAddress( s_hModD3D10,
-                                                                                                    "D3D10StateBlockMaskDifference" );
-        s_DynamicD3D10StateBlockMaskEnableCapture = ( LPD3D10STATEBLOCKMASKENABLECAPTURE )GetProcAddress( s_hModD3D10,
-                                                                                                          "D3D10StateBlockMaskEnableCapture" );
-        s_DynamicD3D10StateBlockMaskDisableCapture = ( LPD3D10STATEBLOCKMASKDISABLECAPTURE )
-            GetProcAddress( s_hModD3D10, "D3D10StateBlockMaskDisableCapture" );
-        s_DynamicD3D10StateBlockMaskEnableAll = ( LPD3D10STATEBLOCKMASKENABLEALL )GetProcAddress( s_hModD3D10,
-                                                                                                  "D3D10StateBlockMaskEnableAll" );
-        s_DynamicD3D10StateBlockMaskDisableAll = ( LPD3D10STATEBLOCKMASKDISABLEALL )GetProcAddress( s_hModD3D10,
-                                                                                                    "D3D10StateBlockMaskDisableAll" );
-        s_DynamicD3D10StateBlockMaskGetSetting = ( LPD3D10STATEBLOCKMASKGETSETTING )GetProcAddress( s_hModD3D10,
-                                                                                                    "D3D10StateBlockMaskGetSetting" );
+        s_DynamicD3D11CreateDevice = ( LPD3D11CREATEDEVICE )GetProcAddress( s_hModD3D11, "D3D11CreateDevice" );
     }
 
-    s_hModDXGI = LoadLibrary( L"dxgi.dll" );
-    if( s_hModDXGI )
+    if( !s_DynamicCreateDXGIFactory )
     {
-        s_DynamicCreateDXGIFactory = ( LPCREATEDXGIFACTORY )GetProcAddress( s_hModDXGI, "CreateDXGIFactory" );
+        s_hModDXGI = LoadLibrary( L"dxgi.dll" );
+        if( s_hModDXGI )
+        {
+            s_DynamicCreateDXGIFactory = ( LPCREATEDXGIFACTORY )GetProcAddress( s_hModDXGI, "CreateDXGIFactory1" );
+        }
+
+        return ( s_hModDXGI != NULL ) && ( s_hModD3D11 != NULL );
     }
 
-    // This may fail if this machine isn't Windows Vista SP1 or later
-    s_hModD3D101 = LoadLibrary( L"d3d10_1.dll" );
-    if( s_hModD3D101 != NULL )
-    {
-        s_DynamicD3D10CreateDevice1 = ( LPD3D10CREATEDEVICE1 )GetProcAddress( s_hModD3D101, "D3D10CreateDevice1" );
-    }
-
-    return ( s_hModDXGI != NULL ) && ( s_hModD3D10 != NULL );
+    return ( s_hModD3D11 != NULL );
 }
 
 IDirect3D9* WINAPI DXUT_Dynamic_Direct3DCreate9( UINT SDKVersion )
@@ -766,122 +708,32 @@ DWORD WINAPI DXUT_Dynamic_D3DPERF_GetStatus( void )
         return 0;
 }
 
-HRESULT WINAPI DXUT_Dynamic_CreateDXGIFactory( REFIID rInterface, void** ppOut )
+HRESULT WINAPI DXUT_Dynamic_CreateDXGIFactory1( REFIID rInterface, void** ppOut )
 {
-    if( DXUT_EnsureD3D10APIs() && s_DynamicCreateDXGIFactory != NULL )
+    if( DXUT_EnsureD3D11APIs() && s_DynamicCreateDXGIFactory != NULL )
         return s_DynamicCreateDXGIFactory( rInterface, ppOut );
     else
-        return E_FAIL;
+        return DXUTERR_NODIRECT3D11;
 }
 
-HRESULT WINAPI DXUT_Dynamic_D3D10CreateDevice( IDXGIAdapter* pAdapter,
-                                               D3D10_DRIVER_TYPE DriverType,
+
+
+HRESULT WINAPI DXUT_Dynamic_D3D11CreateDevice( IDXGIAdapter* pAdapter,
+                                               D3D_DRIVER_TYPE DriverType,
                                                HMODULE Software,
                                                UINT32 Flags,
-                                               CONST void* pExtensions,
+                                               D3D_FEATURE_LEVEL* pFeatureLevels,
+                                               UINT FeatureLevels,
                                                UINT32 SDKVersion,
-                                               ID3D10Device** ppDevice )
- {
-    if( DXUT_EnsureD3D10APIs() && s_DynamicD3D10CreateDevice != NULL )
-        return s_DynamicD3D10CreateDevice( pAdapter, DriverType, Software, Flags, SDKVersion, ppDevice );
-    else
-        return E_FAIL;
-}
-
-HRESULT WINAPI DXUT_Dynamic_D3D10CreateDevice1( IDXGIAdapter* pAdapter,
-                                                D3D10_DRIVER_TYPE DriverType,
-                                                HMODULE Software,
-                                                UINT Flags,
-                                                D3D10_FEATURE_LEVEL1 HardwareLevel,
-                                                UINT SDKVersion,
-                                                ID3D10Device1** ppDevice )
+                                               ID3D11Device** ppDevice,
+                                               D3D_FEATURE_LEVEL* pFeatureLevel,
+                                               ID3D11DeviceContext** ppImmediateContext )
 {
-    if( DXUT_EnsureD3D10APIs() && s_DynamicD3D10CreateDevice1 != NULL )
-        return s_DynamicD3D10CreateDevice1( pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion,
-                                            ppDevice );
+    if( DXUT_EnsureD3D11APIs() && s_DynamicD3D11CreateDevice != NULL )
+        return s_DynamicD3D11CreateDevice( pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels,
+                                           SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext );
     else
-        return E_FAIL;
-}
-
-HRESULT WINAPI DXUT_Dynamic_D3D10CreateStateBlock( ID3D10Device* pDevice, D3D10_STATE_BLOCK_MASK* pStateBlockMask,
-                                                   ID3D10StateBlock** ppStateBlock )
-{
-    if( DXUT_EnsureD3D10APIs() && s_DynamicD3D10CreateStateBlock != NULL )
-        return s_DynamicD3D10CreateStateBlock( pDevice, pStateBlockMask, ppStateBlock );
-    else
-        return E_FAIL;
-}
-
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskUnion( D3D10_STATE_BLOCK_MASK* pA, D3D10_STATE_BLOCK_MASK* pB,
-                                                      D3D10_STATE_BLOCK_MASK* pResult )
-{
-    if( DXUT_EnsureD3D10APIs() && s_DynamicD3D10StateBlockMaskUnion != NULL )
-        return s_DynamicD3D10StateBlockMaskUnion( pA, pB, pResult );
-    else
-        return E_FAIL;
-}
-
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskIntersect( D3D10_STATE_BLOCK_MASK* pA, D3D10_STATE_BLOCK_MASK* pB,
-                                                          D3D10_STATE_BLOCK_MASK* pResult )
-{
-    if( DXUT_EnsureD3D10APIs() && s_DynamicD3D10StateBlockMaskIntersect != NULL )
-        return s_DynamicD3D10StateBlockMaskIntersect( pA, pB, pResult );
-    else
-        return E_FAIL;
-}
-
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskDifference( D3D10_STATE_BLOCK_MASK* pA, D3D10_STATE_BLOCK_MASK* pB,
-                                                           D3D10_STATE_BLOCK_MASK* pResult )
-{
-    if( DXUT_EnsureD3D10APIs() && s_DynamicD3D10StateBlockMaskDifference != NULL )
-        return s_DynamicD3D10StateBlockMaskDifference( pA, pB, pResult );
-    else
-        return E_FAIL;
-}
-
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskEnableCapture( D3D10_STATE_BLOCK_MASK* pMask,
-                                                              D3D10_DEVICE_STATE_TYPES StateType, UINT RangeStart,
-                                                              UINT RangeLength )
-{
-    if( DXUT_EnsureD3D10APIs() && s_DynamicD3D10StateBlockMaskEnableCapture != NULL )
-        return s_DynamicD3D10StateBlockMaskEnableCapture( pMask, StateType, RangeStart, RangeLength );
-    else
-        return E_FAIL;
-}
-
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskDisableCapture( D3D10_STATE_BLOCK_MASK* pMask,
-                                                               D3D10_DEVICE_STATE_TYPES StateType, UINT RangeStart,
-                                                               UINT RangeLength )
-{
-    if( DXUT_EnsureD3D10APIs() && s_DynamicD3D10StateBlockMaskDisableCapture != NULL )
-        return s_DynamicD3D10StateBlockMaskDisableCapture( pMask, StateType, RangeStart, RangeLength );
-    else
-        return E_FAIL;
-}
-
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskEnableAll( D3D10_STATE_BLOCK_MASK* pMask )
-{
-    if( DXUT_EnsureD3D10APIs() && s_DynamicD3D10StateBlockMaskEnableAll != NULL )
-        return s_DynamicD3D10StateBlockMaskEnableAll( pMask );
-    else
-        return E_FAIL;
-}
-
-HRESULT WINAPI DXUT_Dynamic_D3D10StateBlockMaskDisableAll( D3D10_STATE_BLOCK_MASK* pMask )
-{
-    if( DXUT_EnsureD3D10APIs() && s_DynamicD3D10StateBlockMaskDisableAll != NULL )
-        return s_DynamicD3D10StateBlockMaskDisableAll( pMask );
-    else
-        return E_FAIL;
-}
-
-BOOL WINAPI DXUT_Dynamic_D3D10StateBlockMaskGetSetting( D3D10_STATE_BLOCK_MASK* pMask,
-                                                        D3D10_DEVICE_STATE_TYPES StateType, UINT Entry )
-{
-    if( DXUT_EnsureD3D10APIs() && s_DynamicD3D10StateBlockMaskGetSetting != NULL )
-        return s_DynamicD3D10StateBlockMaskGetSetting( pMask, StateType, Entry );
-    else
-        return FALSE;
+        return DXUTERR_NODIRECT3D11;
 }
 
 //--------------------------------------------------------------------------------------
@@ -1259,8 +1111,10 @@ BOOL WINAPI DXUTGetMonitorInfo( HMONITOR hMonitor, LPMONITORINFO lpMonitorInfo )
         HMODULE hUser32 = GetModuleHandle( L"USER32" );
         if( hUser32 )
         {
-            OSVERSIONINFOA osvi = {0}; osvi.dwOSVersionInfoSize = sizeof( osvi );
-            GetVersionExA( ( OSVERSIONINFOA* )&osvi );
+            OSVERSIONINFOA osvi =
+            {
+                0
+            }; osvi.dwOSVersionInfoSize = sizeof( osvi ); GetVersionExA( ( OSVERSIONINFOA* )&osvi );
             bool bNT = ( VER_PLATFORM_WIN32_NT == osvi.dwPlatformId );
             s_pFnGetMonitorInfo = ( LPGETMONITORINFO )( bNT ? GetProcAddress( hUser32,
                                                                               "GetMonitorInfoW" ) :
@@ -1339,6 +1193,7 @@ void WINAPI DXUTGetDesktopResolution( UINT AdapterOrdinal, UINT* pWidth, UINT* p
     if( DeviceSettings.ver == DXUT_D3D9_DEVICE )
     {
         CD3D9Enumeration* pd3dEnum = DXUTGetD3D9Enumeration();
+        assert( pd3dEnum != NULL );
         CD3D9EnumAdapterInfo* pAdapterInfo = pd3dEnum->GetAdapterInfo( AdapterOrdinal );
         if( pAdapterInfo )
         {
@@ -1348,8 +1203,9 @@ void WINAPI DXUTGetDesktopResolution( UINT AdapterOrdinal, UINT* pWidth, UINT* p
     }
     else
     {
-        CD3D10Enumeration* pd3dEnum = DXUTGetD3D10Enumeration();
-        CD3D10EnumOutputInfo* pOutputInfo = pd3dEnum->GetOutputInfo( AdapterOrdinal, DeviceSettings.d3d10.Output );
+        CD3D11Enumeration* pd3dEnum = DXUTGetD3D11Enumeration();
+        assert( pd3dEnum != NULL );
+        CD3D11EnumOutputInfo* pOutputInfo = pd3dEnum->GetOutputInfo( AdapterOrdinal, DeviceSettings.d3d11.Output );
         if( pOutputInfo )
         {
             wcscpy_s( strDeviceName, 256, pOutputInfo->Desc.DeviceName );
@@ -1379,15 +1235,17 @@ HRESULT WINAPI DXUTTrace( const CHAR* strFile, DWORD dwLine, HRESULT hr,
 
 
 //--------------------------------------------------------------------------------------
-void WINAPI DXUTConvertDeviceSettings10to9( DXUTD3D10DeviceSettings* pIn, DXUTD3D9DeviceSettings* pOut )
+
+//--------------------------------------------------------------------------------------
+void WINAPI DXUTConvertDeviceSettings11to9( DXUTD3D11DeviceSettings* pIn, DXUTD3D9DeviceSettings* pOut )
 {
     pOut->AdapterOrdinal = pIn->AdapterOrdinal;
 
-    if( pIn->DriverType == D3D10_DRIVER_TYPE_HARDWARE )
+    if( pIn->DriverType == D3D_DRIVER_TYPE_HARDWARE )
         pOut->DeviceType = D3DDEVTYPE_HAL;
-    else if( pIn->DriverType == D3D10_DRIVER_TYPE_REFERENCE )
+    else if( pIn->DriverType == D3D_DRIVER_TYPE_REFERENCE )
         pOut->DeviceType = D3DDEVTYPE_REF;
-    else if( pIn->DriverType == D3D10_DRIVER_TYPE_NULL )
+    else if( pIn->DriverType == D3D_DRIVER_TYPE_NULL )
         pOut->DeviceType = D3DDEVTYPE_NULLREF;
 
     pOut->AdapterFormat = ConvertFormatDXGIToD3D9( pIn->sd.BufferDesc.Format );
@@ -1430,23 +1288,23 @@ void WINAPI DXUTConvertDeviceSettings10to9( DXUTD3D10DeviceSettings* pIn, DXUTD3
 
 
 //--------------------------------------------------------------------------------------
-void WINAPI DXUTConvertDeviceSettings9to10( DXUTD3D9DeviceSettings* pIn, DXUTD3D10DeviceSettings* pOut )
+void WINAPI DXUTConvertDeviceSettings9to11( DXUTD3D9DeviceSettings* pIn, DXUTD3D11DeviceSettings* pOut )
 {
     pOut->AdapterOrdinal = pIn->AdapterOrdinal;
 
     if( pIn->DeviceType == D3DDEVTYPE_HAL )
-        pOut->DriverType = D3D10_DRIVER_TYPE_HARDWARE;
+        pOut->DriverType = D3D_DRIVER_TYPE_HARDWARE;
     else if( pIn->DeviceType == D3DDEVTYPE_REF )
-        pOut->DriverType = D3D10_DRIVER_TYPE_REFERENCE;
+        pOut->DriverType = D3D_DRIVER_TYPE_REFERENCE;
     else if( pIn->DeviceType == D3DDEVTYPE_NULLREF )
-        pOut->DriverType = D3D10_DRIVER_TYPE_NULL;
+        pOut->DriverType = D3D_DRIVER_TYPE_NULL;
 
     pOut->Output = 0;
 
     pOut->sd.BufferDesc.Width = pIn->pp.BackBufferWidth;
     pOut->sd.BufferDesc.Height = pIn->pp.BackBufferHeight;
-    pOut->sd.BufferDesc.RefreshRate.Numerator = 0;
-    pOut->sd.BufferDesc.RefreshRate.Denominator = 0;
+    pOut->sd.BufferDesc.RefreshRate.Numerator = pIn->pp.FullScreen_RefreshRateInHz;
+    pOut->sd.BufferDesc.RefreshRate.Denominator = 1;
     pOut->sd.BufferDesc.Format = ConvertFormatD3D9ToDXGI( pIn->pp.BackBufferFormat );
 
     if( pIn->pp.MultiSampleType == D3DMULTISAMPLE_NONMASKABLE )
@@ -1466,7 +1324,7 @@ void WINAPI DXUTConvertDeviceSettings9to10( DXUTD3D9DeviceSettings* pIn, DXUTD3D
     pOut->sd.Windowed = pIn->pp.Windowed;
 
 #if defined(DEBUG) || defined(_DEBUG)
-    pOut->CreateFlags = D3D10_CREATE_DEVICE_DEBUG;
+    pOut->CreateFlags = D3D11_CREATE_DEVICE_DEBUG;
 #else
     pOut->CreateFlags = 0;
 #endif
@@ -1492,6 +1350,7 @@ void WINAPI DXUTConvertDeviceSettings9to10( DXUTD3D9DeviceSettings* pIn, DXUTD3D
 
     pOut->PresentFlags = 0;
 }
+
 
 
 DXGI_FORMAT WINAPI ConvertFormatD3D9ToDXGI( D3DFORMAT fmt )
@@ -1614,16 +1473,6 @@ IDirect3DDevice9* WINAPI DXUTCreateRefDevice9( HWND hWnd, bool bNullRef )
     return pd3dDevice;
 }
 
-//--------------------------------------------------------------------------------------
-ID3D10Device* WINAPI DXUTCreateRefDevice10( bool bNullRef )
-{
-    HRESULT hr = S_OK;
-    ID3D10Device* pDevice = NULL;
-    hr = DXUT_Dynamic_D3D10CreateDevice(
-        NULL, bNullRef ? D3D10_DRIVER_TYPE_NULL : D3D10_DRIVER_TYPE_REFERENCE,
-        ( HMODULE )0, 0, 0, D3D10_SDK_VERSION, &pDevice );
-    return pDevice;
-}
 
 //--------------------------------------------------------------------------------------
 // Helper function to launch the Media Center UI after the program terminates
@@ -1864,4 +1713,78 @@ DXGI_FORMAT MAKE_TYPELESS( DXGI_FORMAT format )
     };
 
     return format;
+}
+
+//--------------------------------------------------------------------------------------
+HRESULT DXUTSnapD3D9Screenshot( LPCTSTR szFileName )
+{
+    HRESULT hr = S_OK;
+    IDirect3DDevice9* pDev = DXUTGetD3D9Device();
+    if( !pDev )
+        return E_FAIL;
+
+    IDirect3DSurface9* pBackBuffer = NULL;
+    V_RETURN( pDev->GetBackBuffer( 0, 0, D3DBACKBUFFER_TYPE_MONO, &pBackBuffer ) );
+
+    return D3DXSaveSurfaceToFile( szFileName, D3DXIFF_BMP, pBackBuffer, NULL, NULL );
+}
+
+
+
+
+//-------------------------------------------------------------------------------------- 
+HRESULT DXUTSnapD3D11Screenshot( LPCTSTR szFileName, D3DX11_IMAGE_FILE_FORMAT iff )
+{
+    IDXGISwapChain *pSwap = DXUTGetDXGISwapChain();
+
+    if (!pSwap)
+        return E_FAIL;
+    
+    ID3D11Texture2D* pBackBuffer;
+    HRESULT hr = pSwap->GetBuffer( 0, __uuidof( *pBackBuffer ), ( LPVOID* )&pBackBuffer );
+    if (hr != S_OK)
+        return hr;
+
+    ID3D11DeviceContext *dc  = DXUTGetD3D11DeviceContext();
+    if (!dc) {
+        SAFE_RELEASE(pBackBuffer);
+        return E_FAIL;
+    }
+    ID3D11Device *pDevice = DXUTGetD3D11Device();
+    if (!dc) {
+        SAFE_RELEASE(pBackBuffer);
+        return E_FAIL;
+    }
+
+    D3D11_TEXTURE2D_DESC dsc;
+    pBackBuffer->GetDesc(&dsc);
+    D3D11_RESOURCE_DIMENSION dim;
+    pBackBuffer->GetType(&dim);
+    // special case msaa textures
+    ID3D11Texture2D *pCompatableTexture = pBackBuffer;
+    if ( dsc.SampleDesc.Count > 1) {
+        D3D11_TEXTURE2D_DESC dsc_new = dsc;
+        dsc_new.SampleDesc.Count = 1;
+        dsc_new.SampleDesc.Quality = 0;
+        dsc_new.Usage = D3D11_USAGE_DEFAULT;
+        dsc_new.BindFlags = 0;
+        dsc_new.CPUAccessFlags = 0;
+        ID3D11Texture2D *resolveTexture;
+        hr = pDevice->CreateTexture2D(&dsc_new, NULL, &resolveTexture);
+        if ( SUCCEEDED(hr) )
+        {
+            DXUT_SetDebugName(resolveTexture, "DXUT");
+            dc->ResolveSubresource(resolveTexture, 0, pBackBuffer, 0, dsc.Format);
+            pCompatableTexture = resolveTexture;
+        }
+        pCompatableTexture->GetDesc(&dsc);
+    }
+
+    hr = D3DX11SaveTextureToFileW(dc, pCompatableTexture, iff, szFileName); 
+        
+    SAFE_RELEASE(pBackBuffer);
+    SAFE_RELEASE(pCompatableTexture);
+
+    return hr;
+
 }

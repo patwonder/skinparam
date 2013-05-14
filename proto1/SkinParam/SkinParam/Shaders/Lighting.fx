@@ -26,7 +26,6 @@ struct Light {
 	float3 specular;
 	float3 attenuation;
 	float3 position;
-	float sss_intensity;
 };
 
 cbuffer Transform : register(b0) {

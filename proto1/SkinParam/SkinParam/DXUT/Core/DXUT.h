@@ -4,30 +4,18 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 //--------------------------------------------------------------------------------------
 #pragma once
+
+#pragma warning( disable : 4005 ) // disable duplicate macro definition warnings for vs2012
+
 #ifndef DXUT_H
 #define DXUT_H
 
 #ifndef UNICODE
-#error "DXUT requires a Unicode build. See the nearby comments for details"
-//
-// If you are using Microsoft Visual C++ .NET, under the General tab of the project 
-// properties change the Character Set to 'Use Unicode Character Set'.  
-//
-// Windows XP and later are native Unicode so Unicode applications will perform better.  
-// For Windows 98 and Windows Me support, consider using the Microsoft Layer for Unicode (MSLU).  
-//
-// To use MSLU, link against a set of libraries similar to this
-//      /nod:kernel32.lib /nod:advapi32.lib /nod:user32.lib /nod:gdi32.lib /nod:shell32.lib /nod:comdlg32.lib /nod:version.lib /nod:mpr.lib /nod:rasapi32.lib /nod:winmm.lib /nod:winspool.lib /nod:vfw32.lib /nod:secur32.lib /nod:oleacc.lib /nod:oledlg.lib /nod:sensapi.lib UnicoWS.lib kernel32.lib advapi32.lib user32.lib gdi32.lib shell32.lib comdlg32.lib version.lib mpr.lib rasapi32.lib winmm.lib winspool.lib vfw32.lib secur32.lib oleacc.lib oledlg.lib sensapi.lib dxerr.lib dxguid.lib d3dx9d.lib d3d9.lib comctl32.lib
-// and put the unicows.dll (available for download from msdn.microsoft.com) in the exe's folder.
-// 
-// For more details see the MSDN article titled:
-// "MSLU: Develop Unicode Applications for Windows 9x Platforms with the Microsoft Layer for Unicode"
-// at http://msdn.microsoft.com/msdnmag/issues/01/10/MSLU/default.aspx 
-//
+#error "DXUT requires a Unicode build."
 #endif
 
 #include "dxsdkver.h"
-#if ( _DXSDK_PRODUCT_MAJOR < 9 || _DXSDK_BUILD_MAJOR < 1455 )
+#if ( _DXSDK_PRODUCT_MAJOR < 9 || _DXSDK_BUILD_MAJOR < 1949 )
 #error The installed DXSDK is out of date.
 #endif
 
@@ -35,12 +23,12 @@
 #define STRICT
 #endif
 
-// If app hasn't choosen, set to work with Windows 98, Windows Me, Windows 2000, Windows XP and beyond
+// If app hasn't choosen, set to work with Windows XP and beyond
 #ifndef WINVER
-#define WINVER         0x0500
+#define WINVER         0x0501
 #endif
 #ifndef _WIN32_WINDOWS
-#define _WIN32_WINDOWS 0x0500 
+#define _WIN32_WINDOWS 0x0501
 #endif
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT   0x0600
@@ -51,20 +39,19 @@
 #pragma comment( lib, "dxerr.lib" )
 #pragma comment( lib, "dxguid.lib" )
 #pragma comment( lib, "d3d9.lib" )
-#pragma comment( lib, "d3d10.lib" )
 #if defined(DEBUG) || defined(_DEBUG)
 #pragma comment( lib, "d3dx9d.lib" )
-#pragma comment( lib, "d3dx10d.lib" )
+#pragma comment( lib, "d3dx11d.lib" )
 #else
 #pragma comment( lib, "d3dx9.lib" )
-#pragma comment( lib, "d3dx10.lib" )
+#pragma comment( lib, "d3dx11.lib" )
 #endif
+#pragma comment( lib, "d3dcompiler.lib" )
 #pragma comment( lib, "winmm.lib" )
 #pragma comment( lib, "comctl32.lib" )
 #endif
 
 #pragma warning( disable : 4100 ) // disable unreference formal parameter warnings for /W4 builds
-#pragma warning( disable : 4005 ) // disable duplicate macro definition warnings for vs2012
 
 // Enable extra D3D debugging in debug builds if using the debug DirectX runtime.  
 // This makes D3D objects work well in the debugger watch window, but slows down 
@@ -85,8 +72,8 @@
 #include <shellapi.h> // for ExtractIcon()
 #include <new.h>      // for placement new
 #include <shlobj.h>
-#include <math.h>      
-#include <limits.h>      
+#include <math.h>
+#include <limits.h>
 #include <stdio.h>
 
 // CRT's memory leak detection
@@ -98,16 +85,17 @@
 #include <d3d9.h>
 #include <d3dx9.h>
 
-// Direct3D10 includes
+// Direct3D11 includes
+#include <d3dcommon.h>
 #include <dxgi.h>
-#include <d3d10_1.h>
-#include <d3d10.h>
-#include <d3dx10.h>
+#include <d3d11.h>
+#include <d3dcompiler.h>
+#include <d3dx11.h>
 
 // XInput includes
 #include <xinput.h>
 
-// HRESULT translation for Direct3D10 and other APIs 
+// HRESULT translation for Direct3D and other APIs 
 #include <dxerr.h>
 
 
@@ -129,10 +117,10 @@
 
 #ifndef SAFE_DELETE
 #define SAFE_DELETE(p)       { if (p) { delete (p);     (p)=NULL; } }
-#endif    
+#endif
 #ifndef SAFE_DELETE_ARRAY
 #define SAFE_DELETE_ARRAY(p) { if (p) { delete[] (p);   (p)=NULL; } }
-#endif    
+#endif
 #ifndef SAFE_RELEASE
 #define SAFE_RELEASE(p)      { if (p) { (p)->Release(); (p)=NULL; } }
 #endif
@@ -151,28 +139,32 @@ struct DXUTD3D9DeviceSettings
     D3DPRESENT_PARAMETERS pp;
 };
 
-struct DXUTD3D10DeviceSettings
+struct DXUTD3D11DeviceSettings
 {
     UINT AdapterOrdinal;
-    D3D10_DRIVER_TYPE DriverType;
+    D3D_DRIVER_TYPE DriverType;
     UINT Output;
     DXGI_SWAP_CHAIN_DESC sd;
     UINT32 CreateFlags;
     UINT32 SyncInterval;
     DWORD PresentFlags;
-    bool AutoCreateDepthStencil; // DXUT will create the a depth stencil resource and view if true
+    bool AutoCreateDepthStencil; // DXUT will create the depth stencil resource and view if true
     DXGI_FORMAT AutoDepthStencilFormat;
+    D3D_FEATURE_LEVEL DeviceFeatureLevel;
 };
 
-enum DXUTDeviceVersion { DXUT_D3D9_DEVICE, DXUT_D3D10_DEVICE };
+enum DXUTDeviceVersion
+{
+    DXUT_D3D9_DEVICE,
+    DXUT_D3D11_DEVICE
+};
+
 struct DXUTDeviceSettings
 {
     DXUTDeviceVersion ver;
-    union
-    {
-        DXUTD3D9DeviceSettings d3d9; // only valid if ver == DXUT_D3D9_DEVICE
-        DXUTD3D10DeviceSettings d3d10; // only valid if ver == DXUT_D3D10_DEVICE
-    };
+    D3D_FEATURE_LEVEL MinimumFeatureLevel;
+    DXUTD3D9DeviceSettings d3d9; // only valid if ver == DXUT_D3D9_DEVICE
+    DXUTD3D11DeviceSettings d3d11; // only valid if ver == DXUT_D3D11_DEVICE
 };
 
 
@@ -188,6 +180,7 @@ struct DXUTDeviceSettings
 #define DXUTERR_CREATINGDEVICEOBJECTS   MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0x0907)
 #define DXUTERR_RESETTINGDEVICEOBJECTS  MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0x0908)
 #define DXUTERR_DEVICEREMOVED           MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0x090A)
+#define DXUTERR_NODIRECT3D11            MAKE_HRESULT(SEVERITY_ERROR, FACILITY_ITF, 0x090)
 
 //--------------------------------------------------------------------------------------
 // Callback registration 
@@ -210,13 +203,15 @@ typedef void    (CALLBACK *LPDXUTCALLBACKD3D9FRAMERENDER)( IDirect3DDevice9* pd3
 typedef void    (CALLBACK *LPDXUTCALLBACKD3D9DEVICELOST)( void* pUserContext );
 typedef void    (CALLBACK *LPDXUTCALLBACKD3D9DEVICEDESTROYED)( void* pUserContext );
 
-// Direct3D 10 callbacks
-typedef bool    (CALLBACK *LPDXUTCALLBACKISD3D10DEVICEACCEPTABLE)( UINT Adapter, UINT Output, D3D10_DRIVER_TYPE DeviceType, DXGI_FORMAT BackBufferFormat, bool bWindowed, void* pUserContext );
-typedef HRESULT (CALLBACK *LPDXUTCALLBACKD3D10DEVICECREATED)( ID3D10Device* pd3dDevice, const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc, void* pUserContext );
-typedef HRESULT (CALLBACK *LPDXUTCALLBACKD3D10SWAPCHAINRESIZED)( ID3D10Device* pd3dDevice, IDXGISwapChain *pSwapChain, const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc, void* pUserContext );
-typedef void    (CALLBACK *LPDXUTCALLBACKD3D10FRAMERENDER)( ID3D10Device* pd3dDevice, double fTime, float fElapsedTime, void* pUserContext );
-typedef void    (CALLBACK *LPDXUTCALLBACKD3D10SWAPCHAINRELEASING)( void* pUserContext );
-typedef void    (CALLBACK *LPDXUTCALLBACKD3D10DEVICEDESTROYED)( void* pUserContext );
+class CD3D11EnumAdapterInfo;
+class CD3D11EnumDeviceInfo;
+// Direct3D 11 callbacks
+typedef bool    (CALLBACK *LPDXUTCALLBACKISD3D11DEVICEACCEPTABLE)( const CD3D11EnumAdapterInfo *AdapterInfo, UINT Output, const CD3D11EnumDeviceInfo *DeviceInfo, DXGI_FORMAT BackBufferFormat, bool bWindowed, void* pUserContext );
+typedef HRESULT (CALLBACK *LPDXUTCALLBACKD3D11DEVICECREATED)( ID3D11Device* pd3dDevice, const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc, void* pUserContext );
+typedef HRESULT (CALLBACK *LPDXUTCALLBACKD3D11SWAPCHAINRESIZED)( ID3D11Device* pd3dDevice, IDXGISwapChain *pSwapChain, const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc, void* pUserContext );
+typedef void    (CALLBACK *LPDXUTCALLBACKD3D11FRAMERENDER)( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext, double fTime, float fElapsedTime, void* pUserContext );
+typedef void    (CALLBACK *LPDXUTCALLBACKD3D11SWAPCHAINRELEASING)( void* pUserContext );
+typedef void    (CALLBACK *LPDXUTCALLBACKD3D11DEVICEDESTROYED)( void* pUserContext );
 
 // General callbacks
 void WINAPI DXUTSetCallbackFrameMove( LPDXUTCALLBACKFRAMEMOVE pCallback, void* pUserContext = NULL );
@@ -234,41 +229,42 @@ void WINAPI DXUTSetCallbackD3D9FrameRender( LPDXUTCALLBACKD3D9FRAMERENDER pCallb
 void WINAPI DXUTSetCallbackD3D9DeviceLost( LPDXUTCALLBACKD3D9DEVICELOST pCallback, void* pUserContext = NULL );
 void WINAPI DXUTSetCallbackD3D9DeviceDestroyed( LPDXUTCALLBACKD3D9DEVICEDESTROYED pCallback, void* pUserContext = NULL );
 
-// Direct3D 10 callbacks
-void WINAPI DXUTSetCallbackD3D10DeviceAcceptable( LPDXUTCALLBACKISD3D10DEVICEACCEPTABLE pCallback, void* pUserContext = NULL );
-void WINAPI DXUTSetCallbackD3D10DeviceCreated( LPDXUTCALLBACKD3D10DEVICECREATED pCallback, void* pUserContext = NULL );
-void WINAPI DXUTSetCallbackD3D10SwapChainResized( LPDXUTCALLBACKD3D10SWAPCHAINRESIZED pCallback, void* pUserContext = NULL );
-void WINAPI DXUTSetCallbackD3D10FrameRender( LPDXUTCALLBACKD3D10FRAMERENDER pCallback, void* pUserContext = NULL );
-void WINAPI DXUTSetCallbackD3D10SwapChainReleasing( LPDXUTCALLBACKD3D10SWAPCHAINRELEASING pCallback, void* pUserContext = NULL );
-void WINAPI DXUTSetCallbackD3D10DeviceDestroyed( LPDXUTCALLBACKD3D10DEVICEDESTROYED pCallback, void* pUserContext = NULL );
+// Direct3D 11 callbacks
+void WINAPI DXUTSetCallbackD3D11DeviceAcceptable( LPDXUTCALLBACKISD3D11DEVICEACCEPTABLE pCallback, void* pUserContext = NULL );
+void WINAPI DXUTSetCallbackD3D11DeviceCreated( LPDXUTCALLBACKD3D11DEVICECREATED pCallback, void* pUserContext = NULL );
+void WINAPI DXUTSetCallbackD3D11SwapChainResized( LPDXUTCALLBACKD3D11SWAPCHAINRESIZED pCallback, void* pUserContext = NULL );
+void WINAPI DXUTSetCallbackD3D11FrameRender( LPDXUTCALLBACKD3D11FRAMERENDER pCallback, void* pUserContext = NULL );
+void WINAPI DXUTSetCallbackD3D11SwapChainReleasing( LPDXUTCALLBACKD3D11SWAPCHAINRELEASING pCallback, void* pUserContext = NULL );
+void WINAPI DXUTSetCallbackD3D11DeviceDestroyed( LPDXUTCALLBACKD3D11DEVICEDESTROYED pCallback, void* pUserContext = NULL );
 
 
 //--------------------------------------------------------------------------------------
 // Initialization
 //--------------------------------------------------------------------------------------
 HRESULT WINAPI DXUTInit( bool bParseCommandLine = true, 
-                        bool bShowMsgBoxOnError = true, 
-                        __in_opt WCHAR* strExtraCommandLineParams = NULL, 
-                        bool bThreadSafeDXUT = false );
+                         bool bShowMsgBoxOnError = true, 
+                         __in_opt WCHAR* strExtraCommandLineParams = NULL,
+                         bool bThreadSafeDXUT = false );
 
 // Choose either DXUTCreateWindow or DXUTSetWindow.  If using DXUTSetWindow, consider using DXUTStaticWndProc
 HRESULT WINAPI DXUTCreateWindow( const WCHAR* strWindowTitle = L"Direct3D Window", 
-                                HINSTANCE hInstance = NULL, HICON hIcon = NULL, HMENU hMenu = NULL,
-                                int x = CW_USEDEFAULT, int y = CW_USEDEFAULT );
+                          HINSTANCE hInstance = NULL, HICON hIcon = NULL, HMENU hMenu = NULL,
+                          int x = CW_USEDEFAULT, int y = CW_USEDEFAULT );
 HRESULT WINAPI DXUTSetWindow( HWND hWndFocus, HWND hWndDeviceFullScreen, HWND hWndDeviceWindowed, bool bHandleMessages = true );
 LRESULT CALLBACK DXUTStaticWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam );
 
 // Choose either DXUTCreateDevice or DXUTSetD3D*Device or DXUTCreateD3DDeviceFromSettings
-HRESULT WINAPI DXUTCreateDevice( bool bWindowed = true, int nSuggestedWidth = 0, int nSuggestedHeight = 0 );
+
+HRESULT WINAPI DXUTCreateDevice(D3D_FEATURE_LEVEL reqFL,  bool bWindowed= true, int nSuggestedWidth =0, int nSuggestedHeight =0 );
 HRESULT WINAPI DXUTCreateDeviceFromSettings( DXUTDeviceSettings* pDeviceSettings, bool bPreserveInput = false, bool bClipWindowToSingleAdapter = true );
 HRESULT WINAPI DXUTSetD3D9Device( IDirect3DDevice9* pd3dDevice );
-HRESULT WINAPI DXUTSetD3D10Device( ID3D10Device* pd3dDevice, IDXGISwapChain* pSwapChain );
+HRESULT WINAPI DXUTSetD3D11Device( ID3D11Device* pd3dDevice, IDXGISwapChain* pSwapChain );
 
 // Choose either DXUTMainLoop or implement your own main loop 
 HRESULT WINAPI DXUTMainLoop( HACCEL hAccel = NULL );
 
 // If not using DXUTMainLoop consider using DXUTRender3DEnvironment
-void WINAPI DXUTRender3DEnvironment(); 
+void WINAPI DXUTRender3DEnvironment();
 
 
 //--------------------------------------------------------------------------------------
@@ -280,7 +276,7 @@ HRESULT WINAPI DXUTToggleWARP();
 void    WINAPI DXUTPause( bool bPauseTime, bool bPauseRendering );
 void    WINAPI DXUTSetConstantFrameTime( bool bConstantFrameTime, float fTimePerFrame = 0.0333f );
 void    WINAPI DXUTSetCursorSettings( bool bShowCursorWhenFullScreen = false, bool bClipCursorWhenFullScreen = false );
-void    WINAPI DXUTSetD3DVersionSupport( bool bAppCanUseD3D9 = true, bool bAppCanUseD3D10 = true );
+void    WINAPI DXUTSetD3DVersionSupport( bool bAppCanUseD3D9 = true, bool bAppCanUseD3D11 = true );
 void    WINAPI DXUTSetHotkeyHandling( bool bAltEnterToToggleFullscreen = true, bool bEscapeToQuit = true, bool bPauseToToggleTimePause = true );
 void    WINAPI DXUTSetMultimonSettings( bool bAutoChangeAdapter = true );
 void    WINAPI DXUTSetShortcutKeySettings( bool bAllowWhenFullscreen = false, bool bAllowWhenWindowed = true ); // Controls the Windows key, and accessibility shortcut keys
@@ -290,7 +286,7 @@ HRESULT WINAPI DXUTKillTimer( UINT nIDEvent );
 void    WINAPI DXUTResetFrameworkState();
 void    WINAPI DXUTShutdown( int nExitCode = 0 );
 void    WINAPI DXUTSetIsInGammaCorrectMode( bool bGammaCorrect );
-
+BOOL    WINAPI DXUTGetMSAASwapChainCreated();
 
 //--------------------------------------------------------------------------------------
 // State Retrieval  
@@ -306,17 +302,21 @@ HRESULT                  WINAPI DXUTGetD3D9DeviceCaps( DXUTDeviceSettings* pDevi
 bool                     WINAPI DXUTDoesAppSupportD3D9();
 bool                     WINAPI DXUTIsAppRenderingWithD3D9();
 
-// Direct3D 10
-bool                     WINAPI DXUTIsD3D10Available(); // If D3D10 APIs are availible
-IDXGIFactory*            WINAPI DXUTGetDXGIFactory(); // Does not addref unlike typical Get* APIs
-ID3D10Device*            WINAPI DXUTGetD3D10Device(); // Does not addref unlike typical Get* APIs
-ID3D10Device1*           WINAPI DXUTGetD3D10Device1(); // Does not addref unlike typical Get* APIs
+
+// Direct3D 11
+IDXGIFactory1*            WINAPI DXUTGetDXGIFactory(); // Does not addref unlike typical Get* APIs
 IDXGISwapChain*          WINAPI DXUTGetDXGISwapChain(); // Does not addref unlike typical Get* APIs
-ID3D10RenderTargetView*  WINAPI DXUTGetD3D10RenderTargetView(); // Does not addref unlike typical Get* APIs
-ID3D10DepthStencilView*  WINAPI DXUTGetD3D10DepthStencilView(); // Does not addref unlike typical Get* APIs
 const DXGI_SURFACE_DESC* WINAPI DXUTGetDXGIBackBufferSurfaceDesc();
-bool                     WINAPI DXUTDoesAppSupportD3D10();
-bool                     WINAPI DXUTIsAppRenderingWithD3D10();
+bool                     WINAPI DXUTIsD3D11Available(); // If D3D11 APIs are availible
+ID3D11Device*			 WINAPI DXUTGetD3D11Device(); // Does not addref unlike typical Get* APIs
+ID3D11DeviceContext*	 WINAPI DXUTGetD3D11DeviceContext(); // Does not addref unlike typical Get* APIs
+HRESULT                  WINAPI DXUTSetupD3D11Views( ID3D11DeviceContext* pd3dDeviceContext ); // Supports immediate or deferred context
+D3D_FEATURE_LEVEL	     WINAPI DXUTGetD3D11DeviceFeatureLevel(); // Returns the D3D11 devices current feature level
+ID3D11RenderTargetView*  WINAPI DXUTGetD3D11RenderTargetView(); // Does not addref unlike typical Get* APIs
+ID3D11DepthStencilView*  WINAPI DXUTGetD3D11DepthStencilView(); // Does not addref unlike typical Get* APIs
+bool                     WINAPI DXUTDoesAppSupportD3D11();
+bool                     WINAPI DXUTIsAppRenderingWithD3D11();
+
 
 // General
 DXUTDeviceSettings WINAPI DXUTGetDeviceSettings(); 
@@ -338,7 +338,7 @@ float     WINAPI DXUTGetFPS();
 LPCWSTR   WINAPI DXUTGetWindowTitle();
 LPCWSTR   WINAPI DXUTGetFrameStats( bool bIncludeFPS = false );
 LPCWSTR   WINAPI DXUTGetDeviceStats();
-LPCWSTR   WINAPI DXUTGetD3D10CounterStats();
+
 bool      WINAPI DXUTIsVsyncEnabled();
 bool      WINAPI DXUTIsRenderingPaused();
 bool      WINAPI DXUTIsTimePaused();
@@ -356,7 +356,10 @@ void      WINAPI DXUTDestroyState(); // Optional method to destroy DXUT's memory
 // DXUT core layer includes
 //--------------------------------------------------------------------------------------
 #include "DXUTmisc.h"
-#include "DXUTenum.h"
+#include "DXUTDevice9.h"
+#include "DXUTDevice11.h"
+
+
 
 
 #endif

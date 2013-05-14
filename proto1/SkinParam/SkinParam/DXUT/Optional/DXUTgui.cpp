@@ -8,6 +8,8 @@
 #include "DXUTsettingsDlg.h"
 #include "DXUTres.h"
 
+#include "SDKMisc.h"
+
 #undef min // use __min instead
 #undef max // use __max instead
 
@@ -38,10 +40,13 @@
 
 D3DCOLORVALUE D3DCOLOR_TO_D3DCOLORVALUE( D3DCOLOR c )
 {
-    D3DCOLORVALUE cv = { ( ( c >> 16 ) & 0xFF ) / 255.0f,
-            ( ( c >> 8 ) & 0xFF ) / 255.0f,
-            ( c & 0xFF ) / 255.0f,
-            ( ( c >> 24 ) & 0xFF ) / 255.0f };
+    D3DCOLORVALUE cv =
+    {
+        ( ( c >> 16 ) & 0xFF ) / 255.0f,
+        ( ( c >> 8 ) & 0xFF ) / 255.0f,
+        ( c & 0xFF ) / 255.0f,
+        ( ( c >> 24 ) & 0xFF ) / 255.0f
+    };
     return cv;
 }
 
@@ -97,7 +102,7 @@ CHAR g_strUIEffectFile[] = \
     "};"\
     "struct VS_OUTPUT"\
     "{"\
-    "    float4 Pos : SV_POSITION;"\
+    "    float4 Pos : POSITION;"\
     "    float4 Dif : COLOR;"\
     "    float2 Tex : TEXCOORD;"\
     "};"\
@@ -211,6 +216,8 @@ inline int RectHeight( RECT& rc )
 }
 
 
+HRESULT InitFont11( ID3D11Device* pd3d11Device, ID3D11InputLayout* pInputLayout );
+void EndFont11();
 
 //--------------------------------------------------------------------------------------
 // CDXUTDialog class
@@ -378,21 +385,27 @@ CDXUTDialogResourceManager::CDXUTDialogResourceManager()
     m_pd3d9Device = NULL;
     m_pStateBlock = NULL;
     m_pSprite = NULL;
-    // End D3D9-specific
 
-    // Begin D3D10-specific
-    m_pd3d10Device = NULL;
-    m_pEffect10 = NULL;
-    m_pTechRenderUI10 = NULL;
-    m_pTechRenderUIUntex10 = NULL;
-    m_pFxTexture10 = NULL;
-    m_pInputLayout10 = NULL;
-    m_pVBScreenQuad10 = NULL;
-    m_pStateBlock10 = NULL;
-    m_pSprite10 = NULL;
-    m_nBackBufferWidth = m_nBackBufferHeight = 0;
+    // Begin D3D11-specific
+    // Shaders
+    m_pVSRenderUI11 = NULL;
+    m_pPSRenderUI11 = NULL;
+    m_pPSRenderUIUntex11 = NULL;
 
-    // End D3D10-specific
+    // States
+    m_pDepthStencilStateUI11 = NULL;
+    m_pRasterizerStateUI11 = NULL;
+    m_pBlendStateUI11 = NULL;
+    m_pSamplerStateUI11 = NULL;
+    m_pDepthStencilStateStored11 = NULL;
+    m_pRasterizerStateStored11 = NULL;
+    m_pBlendStateStored11 = NULL;
+    m_pSamplerStateStored11 = NULL;
+
+    m_pInputLayout11 = NULL;
+    m_pVBScreenQuad11 = NULL;
+    m_pSpriteBuffer11 = NULL;
+    m_SpriteBufferBytes11 = 0;
 }
 
 
@@ -519,66 +532,142 @@ void CDXUTDialogResourceManager::OnD3D9DestroyDevice()
 }
 
 
-//--------------------------------------------------------------------------------------
-HRESULT CDXUTDialogResourceManager::OnD3D10CreateDevice( ID3D10Device* pd3dDevice )
+
+HRESULT CDXUTDialogResourceManager::OnD3D11CreateDevice( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3d11DeviceContext )
 {
-    m_pd3d10Device = pd3dDevice;
+    m_pd3d11Device = pd3dDevice;
+    m_pd3d11DeviceContext = pd3d11DeviceContext;
 
     HRESULT hr = S_OK;
 
-    // Create the UI effect object
-    V_RETURN( D3DX10CreateEffectFromMemory( g_strUIEffectFile, g_uUIEffectFileSize, NULL, NULL,
-                                            NULL, "fx_4_0", D3D10_SHADER_ENABLE_STRICTNESS, 0,
-                                            pd3dDevice, NULL, NULL, &m_pEffect10, NULL, NULL ) );
+    // Compile Shaders
+    ID3DBlob* pVSBlob = NULL;
+    ID3DBlob* pPSBlob = NULL;
+    ID3DBlob* pPSUntexBlob = NULL;
+    V_RETURN( D3DCompile( g_strUIEffectFile, g_uUIEffectFileSize, "none", NULL, NULL, "VS", "vs_4_0_level_9_1", 
+         D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY, 0, &pVSBlob, NULL ) );
+    V_RETURN( D3DCompile( g_strUIEffectFile, g_uUIEffectFileSize, "none", NULL, NULL, "PS", "ps_4_0_level_9_1", 
+         D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY, 0, &pPSBlob, NULL ) );
+    V_RETURN( D3DCompile( g_strUIEffectFile, g_uUIEffectFileSize, "none", NULL, NULL, "PSUntex", "ps_4_0_level_9_1", 
+         D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY, 0, &pPSUntexBlob, NULL ) );
 
-    m_pTechRenderUI10 = m_pEffect10->GetTechniqueByName( "RenderUI" );
-    m_pTechRenderUIUntex10 = m_pEffect10->GetTechniqueByName( "RenderUIUntex" );
-    m_pFxTexture10 = m_pEffect10->GetVariableByName( "g_Texture" )->AsShaderResource();
+    // Create Shaders
+    V_RETURN( pd3dDevice->CreateVertexShader( pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), NULL, &m_pVSRenderUI11 ) );
+    DXUT_SetDebugName( m_pVSRenderUI11, "CDXUTDialogResourceManager" );
+
+    V_RETURN( pd3dDevice->CreatePixelShader( pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, &m_pPSRenderUI11 ) );
+    DXUT_SetDebugName( m_pPSRenderUI11, "CDXUTDialogResourceManager" );
+
+    V_RETURN( pd3dDevice->CreatePixelShader( pPSUntexBlob->GetBufferPointer(), pPSUntexBlob->GetBufferSize(), NULL, &m_pPSRenderUIUntex11 ) );
+    DXUT_SetDebugName( m_pPSRenderUIUntex11, "CDXUTDialogResourceManager" );
+    
+    // States
+    D3D11_DEPTH_STENCIL_DESC DSDesc;
+    ZeroMemory( &DSDesc, sizeof( D3D11_DEPTH_STENCIL_DESC ) );
+    DSDesc.DepthEnable = FALSE;
+    DSDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    DSDesc.DepthFunc = D3D11_COMPARISON_LESS;
+    DSDesc.StencilEnable = FALSE;
+    V_RETURN( pd3dDevice->CreateDepthStencilState( &DSDesc, &m_pDepthStencilStateUI11 ) );
+    DXUT_SetDebugName( m_pDepthStencilStateUI11, "CDXUTDialogResourceManager" );
+
+    D3D11_RASTERIZER_DESC RSDesc;
+    RSDesc.AntialiasedLineEnable = FALSE;
+    RSDesc.CullMode = D3D11_CULL_BACK;
+    RSDesc.DepthBias = 0;
+    RSDesc.DepthBiasClamp = 0.0f;
+    RSDesc.DepthClipEnable = TRUE;
+    RSDesc.FillMode = D3D11_FILL_SOLID;
+    RSDesc.FrontCounterClockwise = FALSE;
+    RSDesc.MultisampleEnable = TRUE;
+    RSDesc.ScissorEnable = FALSE;
+    RSDesc.SlopeScaledDepthBias = 0.0f;
+    V_RETURN( pd3dDevice->CreateRasterizerState( &RSDesc, &m_pRasterizerStateUI11 ) );
+    DXUT_SetDebugName( m_pRasterizerStateUI11, "CDXUTDialogResourceManager" );
+
+    D3D11_BLEND_DESC BSDesc;
+    ZeroMemory( &BSDesc, sizeof( D3D11_BLEND_DESC ) );
+    
+    BSDesc.RenderTarget[0].BlendEnable = TRUE;
+    BSDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+    BSDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    BSDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    BSDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    BSDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+    BSDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    BSDesc.RenderTarget[0].RenderTargetWriteMask = 0x0F;
+
+    V_RETURN( pd3dDevice->CreateBlendState( &BSDesc, &m_pBlendStateUI11 ) );
+    DXUT_SetDebugName( m_pBlendStateUI11, "CDXUTDialogResourceManager" );
+
+    D3D11_SAMPLER_DESC SSDesc;
+    ZeroMemory( &SSDesc, sizeof( D3D11_SAMPLER_DESC ) );
+    SSDesc.Filter = D3D11_FILTER_ANISOTROPIC   ;
+    SSDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    SSDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    SSDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    SSDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    SSDesc.MaxAnisotropy = 16;
+    SSDesc.MinLOD = 0;
+    SSDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    if ( pd3dDevice->GetFeatureLevel() < D3D_FEATURE_LEVEL_9_3 ) {
+        SSDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        SSDesc.MaxAnisotropy = 0;
+    }
+    V_RETURN( pd3dDevice->CreateSamplerState( &SSDesc, &m_pSamplerStateUI11 ) );
+    DXUT_SetDebugName( m_pSamplerStateUI11, "CDXUTDialogResourceManager" );
 
     // Create the font and texture objects in the cache arrays.
     int i = 0;
     for( i = 0; i < m_FontCache.GetSize(); i++ )
     {
-        hr = CreateFont10( i );
+        hr = CreateFont11( i );
         if( FAILED( hr ) )
             return hr;
     }
 
     for( i = 0; i < m_TextureCache.GetSize(); i++ )
     {
-        hr = CreateTexture10( i );
+        hr = CreateTexture11( i );
         if( FAILED( hr ) )
             return hr;
     }
 
     // Create input layout
-    const D3D10_INPUT_ELEMENT_DESC layout[] =
+    const D3D11_INPUT_ELEMENT_DESC layout[] =
         {
-            { "POSITION",  0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D10_INPUT_PER_VERTEX_DATA, 0 },
-            { "COLOR",     0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D10_INPUT_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD",  0, DXGI_FORMAT_R32G32_FLOAT,       0, 28, D3D10_INPUT_PER_VERTEX_DATA, 0 },
+            { "POSITION",  0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "COLOR",     0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD",  0, DXGI_FORMAT_R32G32_FLOAT,       0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         };
 
-    D3D10_PASS_DESC PassDesc;
-    V_RETURN( m_pTechRenderUI10->GetPassByIndex( 0 )->GetDesc( &PassDesc ) );
-    V_RETURN( pd3dDevice->CreateInputLayout( layout, 3, PassDesc.pIAInputSignature,
-                                             PassDesc.IAInputSignatureSize, &m_pInputLayout10 ) );
+    V_RETURN( pd3dDevice->CreateInputLayout( layout, ARRAYSIZE( layout ), pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), &m_pInputLayout11 ) );
+    DXUT_SetDebugName( m_pInputLayout11, "CDXUTDialogResourceManager" );
+
+    // Release the blobs
+    SAFE_RELEASE( pVSBlob );
+    SAFE_RELEASE( pPSBlob );
+    SAFE_RELEASE( pPSUntexBlob );
 
     // Create a vertex buffer quad for rendering later
-    D3D10_BUFFER_DESC BufDesc;
+    D3D11_BUFFER_DESC BufDesc;
     BufDesc.ByteWidth = sizeof( DXUT_SCREEN_VERTEX_10 ) * 4;
-    BufDesc.Usage = D3D10_USAGE_DYNAMIC;
-    BufDesc.BindFlags = D3D10_BIND_VERTEX_BUFFER;
-    BufDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+    BufDesc.Usage = D3D11_USAGE_DYNAMIC;
+    BufDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    BufDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     BufDesc.MiscFlags = 0;
-    V_RETURN( pd3dDevice->CreateBuffer( &BufDesc, NULL, &m_pVBScreenQuad10 ) );
+    V_RETURN( pd3dDevice->CreateBuffer( &BufDesc, NULL, &m_pVBScreenQuad11 ) );
+    DXUT_SetDebugName( m_pVBScreenQuad11, "CDXUTDialogResourceManager" );
+
+    // Init the D3D11 font
+    InitFont11( pd3dDevice, m_pInputLayout11 );
 
     return S_OK;
 }
 
 
 //--------------------------------------------------------------------------------------
-HRESULT CDXUTDialogResourceManager::OnD3D10ResizedSwapChain( ID3D10Device* pd3dDevice,
+HRESULT CDXUTDialogResourceManager::OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice,
                                                              const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc )
 {
     HRESULT hr = S_OK;
@@ -586,56 +675,167 @@ HRESULT CDXUTDialogResourceManager::OnD3D10ResizedSwapChain( ID3D10Device* pd3dD
     m_nBackBufferWidth = pBackBufferSurfaceDesc->Width;
     m_nBackBufferHeight = pBackBufferSurfaceDesc->Height;
 
-    hr = D3DX10CreateSprite( pd3dDevice, DXUT_MAX_GUI_SPRITES, &m_pSprite10 );
-    if( FAILED( hr ) )
-        return DXUT_ERR( L"D3DX10CreateSprite", hr );
-
-    D3D10_STATE_BLOCK_MASK StateBlockMask;
-    DXUT_Dynamic_D3D10StateBlockMaskEnableAll( &StateBlockMask );
-    DXUT_Dynamic_D3D10StateBlockMaskDisableCapture( &StateBlockMask, D3D10_DST_OM_RENDER_TARGETS, 0, 1 );
-    V_RETURN( DXUT_Dynamic_D3D10CreateStateBlock( pd3dDevice, &StateBlockMask, &m_pStateBlock10 ) );
-
     return hr;
 }
 
 
 //--------------------------------------------------------------------------------------
-void CDXUTDialogResourceManager::OnD3D10ReleasingSwapChain()
+void CDXUTDialogResourceManager::OnD3D11ReleasingSwapChain()
 {
-    SAFE_RELEASE( m_pSprite10 );
-    SAFE_RELEASE( m_pStateBlock10 );
 }
 
 
 //--------------------------------------------------------------------------------------
-void CDXUTDialogResourceManager::OnD3D10DestroyDevice()
+void CDXUTDialogResourceManager::OnD3D11DestroyDevice()
 {
     int i;
 
-    m_pd3d10Device = NULL;
-
     // Release the resources but don't clear the cache, as these will need to be
     // recreated if the device is recreated
-    for( i = 0; i < m_FontCache.GetSize(); i++ )
-    {
-        DXUTFontNode* pFontNode = m_FontCache.GetAt( i );
-        SAFE_RELEASE( pFontNode->pFont10 );
-    }
 
     for( i = 0; i < m_TextureCache.GetSize(); i++ )
     {
         DXUTTextureNode* pTextureNode = m_TextureCache.GetAt( i );
-        SAFE_RELEASE( pTextureNode->pTexResView );
-        SAFE_RELEASE( pTextureNode->pTexture10 );
+        SAFE_RELEASE( pTextureNode->pTexResView11 );
+        SAFE_RELEASE( pTextureNode->pTexture11 );
     }
 
-    SAFE_RELEASE( m_pVBScreenQuad10 );
-    SAFE_RELEASE( m_pStateBlock10 );
-    SAFE_RELEASE( m_pSprite10 );
-    SAFE_RELEASE( m_pInputLayout10 );
-    SAFE_RELEASE( m_pEffect10 );
+    // D3D11
+    SAFE_RELEASE( m_pVBScreenQuad11 );
+    SAFE_RELEASE( m_pSpriteBuffer11 );
+    m_SpriteBufferBytes11 = 0;
+    SAFE_RELEASE( m_pInputLayout11 );
+
+    // Shaders
+    SAFE_RELEASE( m_pVSRenderUI11 );
+    SAFE_RELEASE( m_pPSRenderUI11 );
+    SAFE_RELEASE( m_pPSRenderUIUntex11 );
+
+    // States
+    SAFE_RELEASE( m_pDepthStencilStateUI11 );
+    SAFE_RELEASE( m_pRasterizerStateUI11 );
+    SAFE_RELEASE( m_pBlendStateUI11 );
+    SAFE_RELEASE( m_pSamplerStateUI11 );
+
+    SAFE_RELEASE( m_pDepthStencilStateStored11 );
+    SAFE_RELEASE( m_pRasterizerStateStored11 );
+    SAFE_RELEASE( m_pBlendStateStored11 );
+    SAFE_RELEASE( m_pSamplerStateStored11 );
+
+    EndFont11();
 }
 
+//--------------------------------------------------------------------------------------
+void CDXUTDialogResourceManager::StoreD3D11State( ID3D11DeviceContext* pd3dImmediateContext )
+{
+    pd3dImmediateContext->OMGetDepthStencilState( &m_pDepthStencilStateStored11, &m_StencilRefStored11 );
+    pd3dImmediateContext->RSGetState( &m_pRasterizerStateStored11 );
+    pd3dImmediateContext->OMGetBlendState( &m_pBlendStateStored11, m_BlendFactorStored11, &m_SampleMaskStored11 );
+    pd3dImmediateContext->PSGetSamplers( 0, 1, &m_pSamplerStateStored11 );
+}
+
+//--------------------------------------------------------------------------------------
+void CDXUTDialogResourceManager::RestoreD3D11State( ID3D11DeviceContext* pd3dImmediateContext )
+{
+    pd3dImmediateContext->OMSetDepthStencilState( m_pDepthStencilStateStored11, m_StencilRefStored11 );
+    pd3dImmediateContext->RSSetState( m_pRasterizerStateStored11 );
+    pd3dImmediateContext->OMSetBlendState( m_pBlendStateStored11, m_BlendFactorStored11, m_SampleMaskStored11 );
+    pd3dImmediateContext->PSSetSamplers( 0, 1, &m_pSamplerStateStored11 );
+
+    SAFE_RELEASE( m_pDepthStencilStateStored11 );
+    SAFE_RELEASE( m_pRasterizerStateStored11 );
+    SAFE_RELEASE( m_pBlendStateStored11 );
+    SAFE_RELEASE( m_pSamplerStateStored11 );
+}
+
+//--------------------------------------------------------------------------------------
+void CDXUTDialogResourceManager::ApplyRenderUI11( ID3D11DeviceContext* pd3dImmediateContext )
+{
+    // Shaders
+    pd3dImmediateContext->VSSetShader( m_pVSRenderUI11, NULL, 0 );
+    pd3dImmediateContext->HSSetShader( NULL, NULL, 0 );
+    pd3dImmediateContext->DSSetShader( NULL, NULL, 0 );
+    pd3dImmediateContext->GSSetShader( NULL, NULL, 0 );
+    pd3dImmediateContext->PSSetShader( m_pPSRenderUI11, NULL, 0 );
+
+    // States
+    pd3dImmediateContext->OMSetDepthStencilState( m_pDepthStencilStateUI11, 0 );
+    pd3dImmediateContext->RSSetState( m_pRasterizerStateUI11 );
+    float BlendFactor[4] = { 0, 0, 0, 0 };
+    pd3dImmediateContext->OMSetBlendState( m_pBlendStateUI11, BlendFactor, 0xFFFFFFFF );
+    pd3dImmediateContext->PSSetSamplers( 0, 1, &m_pSamplerStateUI11 );
+}
+
+//--------------------------------------------------------------------------------------
+void CDXUTDialogResourceManager::ApplyRenderUIUntex11( ID3D11DeviceContext* pd3dImmediateContext )
+{
+    // Shaders
+    pd3dImmediateContext->VSSetShader( m_pVSRenderUI11, NULL, 0 );
+    pd3dImmediateContext->HSSetShader( NULL, NULL, 0 );
+    pd3dImmediateContext->DSSetShader( NULL, NULL, 0 );
+    pd3dImmediateContext->GSSetShader( NULL, NULL, 0 );
+    pd3dImmediateContext->PSSetShader( m_pPSRenderUIUntex11, NULL, 0 );
+
+    // States
+    pd3dImmediateContext->OMSetDepthStencilState( m_pDepthStencilStateUI11, 0 );
+    pd3dImmediateContext->RSSetState( m_pRasterizerStateUI11 );
+    float BlendFactor[4] = { 0, 0, 0, 0 };
+    pd3dImmediateContext->OMSetBlendState( m_pBlendStateUI11, BlendFactor, 0xFFFFFFFF );
+    pd3dImmediateContext->PSSetSamplers( 0, 1, &m_pSamplerStateUI11 );
+}
+
+//--------------------------------------------------------------------------------------
+void CDXUTDialogResourceManager::BeginSprites11( )
+{
+    m_SpriteVertices.Reset();
+}
+
+//--------------------------------------------------------------------------------------
+void CDXUTDialogResourceManager::EndSprites11( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext )
+{
+
+    // ensure our buffer size can hold our sprites
+    UINT SpriteDataBytes = m_SpriteVertices.GetSize() * sizeof( DXUTSpriteVertex );
+    if( m_SpriteBufferBytes11 < SpriteDataBytes )
+    {
+        SAFE_RELEASE( m_pSpriteBuffer11 );
+        m_SpriteBufferBytes11 = SpriteDataBytes;
+
+        D3D11_BUFFER_DESC BufferDesc;
+        BufferDesc.ByteWidth = m_SpriteBufferBytes11;
+        BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+        BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        BufferDesc.MiscFlags = 0;
+
+        pd3dDevice->CreateBuffer( &BufferDesc, NULL, &m_pSpriteBuffer11 );
+        DXUT_SetDebugName( m_pSpriteBuffer11, "CDXUTDialogResourceManager" );
+    }
+
+    // Copy the sprites over
+    D3D11_BOX destRegion;
+    destRegion.left = 0;
+    destRegion.right = SpriteDataBytes;
+    destRegion.top = 0;
+    destRegion.bottom = 1;
+    destRegion.front = 0;
+    destRegion.back = 1;
+    D3D11_MAPPED_SUBRESOURCE MappedResource;
+    if ( S_OK == pd3dImmediateContext->Map( m_pSpriteBuffer11, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource ) ) { 
+        CopyMemory( MappedResource.pData, (void*)m_SpriteVertices.GetData(), SpriteDataBytes );
+        pd3dImmediateContext->Unmap(m_pSpriteBuffer11, 0);
+    }
+
+    // Draw
+    UINT Stride = sizeof( DXUTSpriteVertex );
+    UINT Offset = 0;
+    pd3dImmediateContext->IASetVertexBuffers( 0, 1, &m_pSpriteBuffer11, &Stride, &Offset );
+    pd3dImmediateContext->IASetInputLayout( m_pInputLayout11 );
+    pd3dImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+    pd3dImmediateContext->Draw( m_SpriteVertices.GetSize(), 0 );
+
+    m_SpriteVertices.Reset();
+}
 
 //--------------------------------------------------------------------------------------
 bool CDXUTDialogResourceManager::RegisterDialog( CDXUTDialog* pDialog )
@@ -726,7 +926,7 @@ HRESULT CDXUTDialog::OnRender( float fElapsedTime )
     if( m_pManager->GetD3D9Device() )
         return OnRender9( fElapsedTime );
     else
-        return OnRender10( fElapsedTime );
+        return OnRender11( fElapsedTime );
 }
 
 
@@ -755,6 +955,9 @@ HRESULT CDXUTDialog::OnRender9( float fElapsedTime )
     // Set up a state block here and restore it when finished drawing all the controls
     m_pManager->m_pStateBlock->Capture();
 
+    //pd3dDevice->SetSamplerState(0, D3DSAMP_SRGBTEXTURE, TRUE);
+    //pd3dDevice->SetRenderState( D3DRS_SRGBWRITEENABLE, TRUE );
+   
     pd3dDevice->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
     pd3dDevice->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
     pd3dDevice->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
@@ -782,12 +985,12 @@ HRESULT CDXUTDialog::OnRender9( float fElapsedTime )
     if( !m_bMinimized && bBackgroundIsVisible )
     {
         DXUT_SCREEN_VERTEX_UNTEX vertices[4] =
-            {
-                ( float )m_x,           ( float )m_y,            0.5f, 1.0f, m_colorTopLeft,
-                ( float )m_x + m_width, ( float )m_y,            0.5f, 1.0f, m_colorTopRight,
-                ( float )m_x + m_width, ( float )m_y + m_height, 0.5f, 1.0f, m_colorBottomRight,
-                ( float )m_x,           ( float )m_y + m_height, 0.5f, 1.0f, m_colorBottomLeft,
-            };
+        {
+            ( float )m_x,           ( float )m_y,            0.5f, 1.0f, m_colorTopLeft,
+            ( float )m_x + m_width, ( float )m_y,            0.5f, 1.0f, m_colorTopRight,
+            ( float )m_x + m_width, ( float )m_y + m_height, 0.5f, 1.0f, m_colorBottomRight,
+            ( float )m_x,           ( float )m_y + m_height, 0.5f, 1.0f, m_colorBottomLeft,
+        };
 
         pd3dDevice->SetVertexShader( NULL );
         pd3dDevice->SetPixelShader( NULL );
@@ -819,7 +1022,10 @@ HRESULT CDXUTDialog::OnRender9( float fElapsedTime )
         // DrawSprite will offset the rect down by
         // m_nCaptionHeight, so adjust the rect higher
         // here to negate the effect.
-        RECT rc = { 0, -m_nCaptionHeight, m_width, 0 };
+        RECT rc =
+        {
+            0, -m_nCaptionHeight, m_width, 0
+        };
         DrawSprite9( &m_CapElement, &rc );
         rc.left += 5; // Make a left margin
         WCHAR wszOutput[256];
@@ -856,12 +1062,13 @@ HRESULT CDXUTDialog::OnRender9( float fElapsedTime )
 }
 
 
+
 //--------------------------------------------------------------------------------------
-HRESULT CDXUTDialog::OnRender10( float fElapsedTime )
+HRESULT CDXUTDialog::OnRender11( float fElapsedTime )
 {
     // If this assert triggers, you need to call CDXUTDialogResourceManager::On*Device() from inside
     // the application's device callbacks.  See the SDK samples for an example of how to do this.
-    assert( m_pManager->GetD3D10Device() &&
+    assert( m_pManager->GetD3D11Device() &&
             L"To fix hook up CDXUTDialogResourceManager to device callbacks.  See comments for details" );
 
     // See if the dialog needs to be refreshed
@@ -876,10 +1083,11 @@ HRESULT CDXUTDialog::OnRender10( float fElapsedTime )
         ( m_bMinimized && !m_bCaption ) )
         return S_OK;
 
-    ID3D10Device* pd3dDevice = m_pManager->GetD3D10Device();
+    ID3D11Device* pd3dDevice = m_pManager->GetD3D11Device();
+    ID3D11DeviceContext* pd3dDeviceContext = m_pManager->GetD3D11DeviceContext();
 
     // Set up a state block here and restore it when finished drawing all the controls
-    m_pManager->m_pStateBlock10->Capture();
+    m_pManager->StoreD3D11State( pd3dDeviceContext );
 
     BOOL bBackgroundIsVisible = ( m_colorTopLeft | m_colorTopRight | m_colorBottomRight | m_colorBottomLeft ) &
         0xff000000;
@@ -893,44 +1101,42 @@ HRESULT CDXUTDialog::OnRender10( float fElapsedTime )
         Bottom = 1.0f - ( m_y + m_height ) * 2.0f / m_pManager->m_nBackBufferHeight;
 
         DXUT_SCREEN_VERTEX_10 vertices[4] =
-            {
-                Left,  Top,    0.5f, D3DCOLOR_TO_D3DCOLORVALUE( m_colorTopLeft ), 0.0f, 0.0f,
-                Right, Top,    0.5f, D3DCOLOR_TO_D3DCOLORVALUE( m_colorTopRight ), 1.0f, 0.0f,
-                Left,  Bottom, 0.5f, D3DCOLOR_TO_D3DCOLORVALUE( m_colorBottomLeft ), 0.0f, 1.0f,
-                Right, Bottom, 0.5f, D3DCOLOR_TO_D3DCOLORVALUE( m_colorBottomRight ), 1.0f, 1.0f,
-            };
-
-        DXUT_SCREEN_VERTEX_10* pVB;
-        if( SUCCEEDED( m_pManager->m_pVBScreenQuad10->Map( D3D10_MAP_WRITE_DISCARD, 0, ( LPVOID* )&pVB ) ) )
         {
-            CopyMemory( pVB, vertices, sizeof( vertices ) );
-            m_pManager->m_pVBScreenQuad10->Unmap();
+            Left,  Top,    0.5f, D3DCOLOR_TO_D3DCOLORVALUE( m_colorTopLeft ), 0.0f, 0.0f,
+            Right, Top,    0.5f, D3DCOLOR_TO_D3DCOLORVALUE( m_colorTopRight ), 1.0f, 0.0f,
+            Left,  Bottom, 0.5f, D3DCOLOR_TO_D3DCOLORVALUE( m_colorBottomLeft ), 0.0f, 1.0f,
+            Right, Bottom, 0.5f, D3DCOLOR_TO_D3DCOLORVALUE( m_colorBottomRight ), 1.0f, 1.0f,
+        };
+
+        //DXUT_SCREEN_VERTEX_10 *pVB;
+        D3D11_MAPPED_SUBRESOURCE MappedData;
+        if( SUCCEEDED( pd3dDeviceContext->Map( m_pManager->m_pVBScreenQuad11, 0, D3D11_MAP_WRITE_DISCARD,
+                                               0, &MappedData ) ) )
+        {
+            CopyMemory( MappedData.pData, vertices, sizeof( vertices ) );
+            pd3dDeviceContext->Unmap( m_pManager->m_pVBScreenQuad11, 0 );
         }
 
         // Set the quad VB as current
         UINT stride = sizeof( DXUT_SCREEN_VERTEX_10 );
         UINT offset = 0;
-        pd3dDevice->IASetVertexBuffers( 0, 1, &m_pManager->m_pVBScreenQuad10, &stride, &offset );
-        pd3dDevice->IASetInputLayout( m_pManager->m_pInputLayout10 );
-        pd3dDevice->IASetPrimitiveTopology( D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP );
+        pd3dDeviceContext->IASetVertexBuffers( 0, 1, &m_pManager->m_pVBScreenQuad11, &stride, &offset );
+        pd3dDeviceContext->IASetInputLayout( m_pManager->m_pInputLayout11 );
+        pd3dDeviceContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP );
 
-        // Draw dialog background
-        D3D10_TECHNIQUE_DESC techDesc;
-        m_pManager->m_pTechRenderUIUntex10->GetDesc( &techDesc );
-        for( UINT p = 0; p < techDesc.Passes; ++p )
-        {
-            m_pManager->m_pTechRenderUIUntex10->GetPassByIndex( p )->Apply( 0 );
-            pd3dDevice->Draw( 4, 0 );
-        }
+        // Setup for rendering
+        m_pManager->ApplyRenderUIUntex11( pd3dDeviceContext );
+        pd3dDeviceContext->Draw( 4, 0 );
     }
 
     DXUTTextureNode* pTextureNode = GetTexture( 0 );
-    m_pManager->m_pFxTexture10->SetResource( pTextureNode->pTexResView );
+    pd3dDeviceContext->PSSetShaderResources( 0, 1, &pTextureNode->pTexResView11 );
 
     // Sort depth back to front
-    m_pManager->m_pSprite10->Begin( 0 );
+    m_pManager->BeginSprites11();
+    BeginText11();
 
-    m_pManager->m_pTechRenderUI10->GetPassByIndex( 0 )->Apply( 0 );
+    m_pManager->ApplyRenderUI11( pd3dDeviceContext );
 
     // Render the caption if it's enabled.
     if( m_bCaption )
@@ -939,13 +1145,13 @@ HRESULT CDXUTDialog::OnRender10( float fElapsedTime )
         // m_nCaptionHeight, so adjust the rect higher
         // here to negate the effect.
         RECT rc = { 0, -m_nCaptionHeight, m_width, 0 };
-        DrawSprite10( &m_CapElement, &rc, 0.99f );
+        DrawSprite11( &m_CapElement, &rc, 0.99f );
         rc.left += 5; // Make a left margin
         WCHAR wszOutput[256];
         wcscpy_s( wszOutput, 256, m_wszCaption );
         if( m_bMinimized )
             wcscat_s( wszOutput, 256, L" (Minimized)" );
-        DrawText10( wszOutput, &m_CapElement, &rc, true );
+        DrawText11( pd3dDevice, pd3dDeviceContext, wszOutput, &m_CapElement, &rc, true );
     }
 
     // If the dialog is minimized, skip rendering
@@ -967,11 +1173,13 @@ HRESULT CDXUTDialog::OnRender10( float fElapsedTime )
             s_pControlFocus->Render( fElapsedTime );
     }
 
-    m_pManager->m_pSprite10->End();
-
-    m_pManager->m_pStateBlock10->Apply();
-    // Restore depth stencil state
-    m_pManager->m_pEffect10->GetTechniqueByName( "RestoreState" )->GetPassByIndex( 0 )->Apply( 0 );
+    // End sprites
+    if( m_bCaption )
+    {
+        m_pManager->EndSprites11( pd3dDevice, pd3dDeviceContext );
+        EndText11( pd3dDevice, pd3dDeviceContext );
+    }
+    m_pManager->RestoreD3D11State( pd3dDeviceContext );
 
     return S_OK;
 }
@@ -993,14 +1201,14 @@ VOID CDXUTDialog::SendEvent( UINT nEvent, bool bTriggeredByUser, CDXUTControl* p
 
 
 //--------------------------------------------------------------------------------------
-int CDXUTDialogResourceManager::AddFont( LPCWSTR strFaceName, LONG height, LONG weight )
+int CDXUTDialogResourceManager::AddFont( LPCWSTR strFaceName, LONG height, LONG weight ) 
 {
     // See if this font already exists
     for( int i = 0; i < m_FontCache.GetSize(); i++ )
     {
         DXUTFontNode* pFontNode = m_FontCache.GetAt( i );
         size_t nLen = 0;
-        nLen = wcslen( strFaceName );
+        nLen = wcsnlen( strFaceName, MAX_PATH);
         if( 0 == _wcsnicmp( pFontNode->strFace, strFaceName, nLen ) &&
             pFontNode->nHeight == height &&
             pFontNode->nWeight == weight )
@@ -1025,8 +1233,6 @@ int CDXUTDialogResourceManager::AddFont( LPCWSTR strFaceName, LONG height, LONG 
     // If a device is available, try to create immediately
     if( m_pd3d9Device )
         CreateFont9( iFont );
-    if( m_pd3d10Device )
-        CreateFont10( iFont );
 
     return iFont;
 }
@@ -1072,7 +1278,7 @@ int CDXUTDialogResourceManager::AddTexture( LPCWSTR strFilename )
     {
         DXUTTextureNode* pTextureNode = m_TextureCache.GetAt( i );
         size_t nLen = 0;
-        nLen = wcslen( strFilename );
+        nLen = wcsnlen( strFilename, MAX_PATH);
         if( pTextureNode->bFileSource &&  // Sources must match
             0 == _wcsnicmp( pTextureNode->strFilename, strFilename, nLen ) )
         {
@@ -1121,7 +1327,7 @@ int CDXUTDialogResourceManager::AddTexture( LPCWSTR strResourceName, HMODULE hRe
             {
                 // String-based ID
                 size_t nLen = 0;
-                nLen = wcslen( strResourceName );
+                nLen = wcsnlen ( strResourceName, MAX_PATH );
                 if( 0 == _wcsnicmp( pTextureNode->strFilename, strResourceName, nLen ) )
                     return i;
             }
@@ -1233,7 +1439,10 @@ bool CDXUTDialog::MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam )
     {
         if( uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONDBLCLK )
         {
-            POINT mousePoint = { short( LOWORD( lParam ) ), short( HIWORD( lParam ) ) };
+            POINT mousePoint =
+            {
+                short( LOWORD( lParam ) ), short( HIWORD( lParam ) )
+            };
 
             if( mousePoint.x >= m_x && mousePoint.x < m_x + m_width &&
                 mousePoint.y >= m_y && mousePoint.y < m_y + m_nCaptionHeight )
@@ -1245,7 +1454,10 @@ bool CDXUTDialog::MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam )
         }
         else if( uMsg == WM_LBUTTONUP && m_bDrag )
         {
-            POINT mousePoint = { short( LOWORD( lParam ) ), short( HIWORD( lParam ) ) };
+            POINT mousePoint =
+            {
+                short( LOWORD( lParam ) ), short( HIWORD( lParam ) )
+            };
 
             if( mousePoint.x >= m_x && mousePoint.x < m_x + m_width &&
                 mousePoint.y >= m_y && mousePoint.y < m_y + m_nCaptionHeight )
@@ -1281,7 +1493,10 @@ bool CDXUTDialog::MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam )
                 // Handle sizing and moving messages so that in case the mouse cursor is moved out
                 // of an UI control because of the window adjustment, we can properly
                 // unhighlight the highlighted control.
-                POINT pt = { -1, -1 };
+                POINT pt =
+                {
+                    -1, -1
+                };
                 OnMouseMove( pt );
                 break;
             }
@@ -1393,7 +1608,10 @@ bool CDXUTDialog::MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam )
                 if( !m_bMouseInput )
                     return false;
 
-                POINT mousePoint = { short( LOWORD( lParam ) ), short( HIWORD( lParam ) ) };
+                POINT mousePoint =
+                {
+                    short( LOWORD( lParam ) ), short( HIWORD( lParam ) )
+                };
                 mousePoint.x -= m_x;
                 mousePoint.y -= m_y;
 
@@ -2020,8 +2238,7 @@ HRESULT CDXUTDialog::DrawRect( RECT* pRect, D3DCOLOR color )
 {
     if( m_pManager->GetD3D9Device() )
         return DrawRect9( pRect, color );
-    else
-        return DrawRect10( pRect, color );
+    return E_FAIL;
 }
 
 
@@ -2036,12 +2253,12 @@ HRESULT CDXUTDialog::DrawRect9( RECT* pRect, D3DCOLOR color )
         OffsetRect( &rcScreen, 0, m_nCaptionHeight );
 
     DXUT_SCREEN_VERTEX vertices[4] =
-        {
-            ( float )rcScreen.left - 0.5f,  ( float )rcScreen.top - 0.5f,    0.5f, 1.0f, color, 0, 0,
-            ( float )rcScreen.right - 0.5f, ( float )rcScreen.top - 0.5f,    0.5f, 1.0f, color, 0, 0,
-            ( float )rcScreen.right - 0.5f, ( float )rcScreen.bottom - 0.5f, 0.5f, 1.0f, color, 0, 0,
-            ( float )rcScreen.left - 0.5f,  ( float )rcScreen.bottom - 0.5f, 0.5f, 1.0f, color, 0, 0,
-        };
+    {
+        ( float )rcScreen.left - 0.5f,  ( float )rcScreen.top - 0.5f,    0.5f, 1.0f, color, 0, 0,
+        ( float )rcScreen.right - 0.5f, ( float )rcScreen.top - 0.5f,    0.5f, 1.0f, color, 0, 0,
+        ( float )rcScreen.right - 0.5f, ( float )rcScreen.bottom - 0.5f, 0.5f, 1.0f, color, 0, 0,
+        ( float )rcScreen.left - 0.5f,  ( float )rcScreen.bottom - 0.5f, 0.5f, 1.0f, color, 0, 0,
+    };
 
     IDirect3DDevice9* pd3dDevice = m_pManager->GetD3D9Device();
 
@@ -2062,65 +2279,6 @@ HRESULT CDXUTDialog::DrawRect9( RECT* pRect, D3DCOLOR color )
     // Restore the vertex decl
     pd3dDevice->SetVertexDeclaration( pDecl );
     pDecl->Release();
-
-    return S_OK;
-}
-
-
-//--------------------------------------------------------------------------------------
-HRESULT CDXUTDialog::DrawRect10( RECT* pRect, D3DCOLOR color )
-{
-    RECT rcScreen = *pRect;
-    OffsetRect( &rcScreen, m_x, m_y );
-
-    // If caption is enabled, offset the Y position by its height.
-    if( m_bCaption )
-        OffsetRect( &rcScreen, 0, m_nCaptionHeight );
-
-    ID3D10Device* pd3dDevice = m_pManager->GetD3D10Device();
-
-    // Convert the rect from screen coordinates to clip space coordinates.
-    float Left, Right, Top, Bottom;
-    Left = rcScreen.left * 2.0f / m_pManager->m_nBackBufferWidth - 1.0f;
-    Right = rcScreen.right * 2.0f / m_pManager->m_nBackBufferWidth - 1.0f;
-    Top = 1.0f - rcScreen.top * 2.0f / m_pManager->m_nBackBufferHeight;
-    Bottom = 1.0f - rcScreen.bottom * 2.0f / m_pManager->m_nBackBufferHeight;
-    DXUT_SCREEN_VERTEX_10 vertices[4] =
-        {
-            { Left,     Top, 0.5f, D3DCOLOR_TO_D3DCOLORVALUE( color ), 0.0f, 0.0f },
-            { Right,    Top, 0.5f, D3DCOLOR_TO_D3DCOLORVALUE( color ), 1.0f, 0.0f },
-            { Left,  Bottom, 0.5f, D3DCOLOR_TO_D3DCOLORVALUE( color ), 0.0f, 1.0f },
-            { Right, Bottom, 0.5f, D3DCOLOR_TO_D3DCOLORVALUE( color ), 1.0f, 1.0f },
-        };
-    DXUT_SCREEN_VERTEX_10* pVB;
-    if( SUCCEEDED( m_pManager->m_pVBScreenQuad10->Map( D3D10_MAP_WRITE_DISCARD, 0, ( LPVOID* )&pVB ) ) )
-    {
-        CopyMemory( pVB, vertices, sizeof( vertices ) );
-        m_pManager->m_pVBScreenQuad10->Unmap();
-    }
-
-    // Since we're doing our own drawing here we need to flush the sprites
-    m_pManager->m_pSprite10->Flush();
-
-    ID3D10InputLayout* pOldLayout;
-    D3D10_PRIMITIVE_TOPOLOGY OldTopology;
-
-    pd3dDevice->IAGetInputLayout( &pOldLayout );
-    pd3dDevice->IAGetPrimitiveTopology( &OldTopology );
-    pd3dDevice->IASetInputLayout( m_pManager->m_pInputLayout10 );
-    pd3dDevice->IASetPrimitiveTopology( D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP );
-
-    D3D10_TECHNIQUE_DESC techDesc;
-    m_pManager->m_pTechRenderUI10->GetDesc( &techDesc );
-    for( UINT p = 0; p < techDesc.Passes; ++p )
-    {
-        m_pManager->m_pTechRenderUI10->GetPassByIndex( p )->Apply( 0 );
-        pd3dDevice->Draw( 4, 0 );
-    }
-
-    pd3dDevice->IASetInputLayout( pOldLayout );
-    pd3dDevice->IASetPrimitiveTopology( OldTopology );
-    SAFE_RELEASE( pOldLayout );
 
     return S_OK;
 }
@@ -2180,7 +2338,7 @@ HRESULT CDXUTDialog::DrawSprite( CDXUTElement* pElement, RECT* prcDest, float fD
     if( m_pManager->GetD3D9Device() )
         return DrawSprite9( pElement, prcDest );
     else
-        return DrawSprite10( pElement, prcDest, fDepth );
+        return DrawSprite11( pElement, prcDest, fDepth );
 }
 
 
@@ -2221,9 +2379,8 @@ HRESULT CDXUTDialog::DrawSprite9( CDXUTElement* pElement, RECT* prcDest )
                                         pElement->TextureColor.Current );
 }
 
-
 //--------------------------------------------------------------------------------------
-HRESULT CDXUTDialog::DrawSprite10( CDXUTElement* pElement, RECT* prcDest, float fDepth )
+HRESULT CDXUTDialog::DrawSprite11( CDXUTElement* pElement, RECT* prcDest, float fDepth )
 {
     // No need to draw fully transparent layers
     if( pElement->TextureColor.Current.a == 0 )
@@ -2233,7 +2390,6 @@ HRESULT CDXUTDialog::DrawSprite10( CDXUTElement* pElement, RECT* prcDest, float 
 
     RECT rcScreen = *prcDest;
     OffsetRect( &rcScreen, m_x, m_y );
-    OffsetRect( &rcScreen, RectWidth( rcScreen ) / 2, RectHeight( rcScreen ) / 2 );
 
     // If caption is enabled, offset the Y position by its height.
     if( m_bCaption )
@@ -2245,34 +2401,64 @@ HRESULT CDXUTDialog::DrawSprite10( CDXUTElement* pElement, RECT* prcDest, float 
 
     float fBBWidth = ( float )m_pManager->m_nBackBufferWidth;
     float fBBHeight = ( float )m_pManager->m_nBackBufferHeight;
-    float fScaleX = ( float )RectWidth( rcScreen );
-    float fScaleY = ( float )RectHeight( rcScreen );
-
-    D3DXVECTOR3 vPos( ( float )rcScreen.left, ( float )rcScreen.top, fDepth );
-
-    D3DXMATRIXA16 matScaling;
-    D3DXMATRIXA16 matTranslation;
-    D3DXMatrixScaling( &matScaling, fScaleX, fScaleY, 1.0f );
-    D3DXMatrixTranslation( &matTranslation, vPos.x, fBBHeight - vPos.y, vPos.z );
-
-    D3DXMATRIXA16 matProjection;
-    D3DXMatrixOrthoOffCenterLH( &matProjection, 0.0f, fBBWidth, 0.0f, fBBHeight, 0.1f, 10 );
-    m_pManager->m_pSprite10->SetProjectionTransform( &matProjection );
-
-    D3DX10_SPRITE Sprite;
-
-    Sprite.matWorld = matScaling * matTranslation;
-    Sprite.pTexture = pTextureNode->pTexResView;
     float fTexWidth = ( float )pTextureNode->dwWidth;
     float fTexHeight = ( float )pTextureNode->dwHeight;
-    Sprite.TexCoord.x = ( float )( rcTexture.left ) / fTexWidth;
-    Sprite.TexCoord.y = ( float )( rcTexture.top ) / fTexHeight;
-    Sprite.TexSize.x = ( float )( rcTexture.right - rcTexture.left ) / fTexWidth;
-    Sprite.TexSize.y = ( float )( rcTexture.bottom - rcTexture.top ) / fTexHeight;
-    Sprite.TextureIndex = 0;
-    Sprite.ColorModulate = pElement->TextureColor.Current;
 
-    return m_pManager->m_pSprite10->DrawSpritesBuffered( &Sprite, 1 );
+    float fRectLeft = rcScreen.left / fBBWidth;
+    float fRectTop = 1.0f - rcScreen.top / fBBHeight;
+    float fRectRight = rcScreen.right / fBBWidth;
+    float fRectBottom = 1.0f - rcScreen.bottom / fBBHeight;
+
+    fRectLeft = fRectLeft * 2.0f - 1.0f;
+    fRectTop = fRectTop * 2.0f - 1.0f;
+    fRectRight = fRectRight * 2.0f - 1.0f;
+    fRectBottom = fRectBottom * 2.0f - 1.0f;
+    
+    float fTexLeft = rcTexture.left / fTexWidth;
+    float fTexTop = rcTexture.top / fTexHeight;
+    float fTexRight = rcTexture.right / fTexWidth;
+    float fTexBottom = rcTexture.bottom / fTexHeight;
+
+    // Add 6 sprite vertices
+    DXUTSpriteVertex SpriteVertex;
+
+    // tri1
+    SpriteVertex.vPos = D3DXVECTOR3( fRectLeft, fRectTop, fDepth );
+    SpriteVertex.vTex = D3DXVECTOR2( fTexLeft, fTexTop );
+    SpriteVertex.vColor = pElement->TextureColor.Current;
+    m_pManager->m_SpriteVertices.Add( SpriteVertex );
+
+    SpriteVertex.vPos = D3DXVECTOR3( fRectRight, fRectTop, fDepth );
+    SpriteVertex.vTex = D3DXVECTOR2( fTexRight, fTexTop );
+    SpriteVertex.vColor = pElement->TextureColor.Current;
+    m_pManager->m_SpriteVertices.Add( SpriteVertex );
+
+    SpriteVertex.vPos = D3DXVECTOR3( fRectLeft, fRectBottom, fDepth );
+    SpriteVertex.vTex = D3DXVECTOR2( fTexLeft, fTexBottom );
+    SpriteVertex.vColor = pElement->TextureColor.Current;
+    m_pManager->m_SpriteVertices.Add( SpriteVertex );
+
+    // tri2
+    SpriteVertex.vPos = D3DXVECTOR3( fRectRight, fRectTop, fDepth );
+    SpriteVertex.vTex = D3DXVECTOR2( fTexRight, fTexTop );
+    SpriteVertex.vColor = pElement->TextureColor.Current;
+    m_pManager->m_SpriteVertices.Add( SpriteVertex );
+
+    SpriteVertex.vPos = D3DXVECTOR3( fRectRight, fRectBottom, fDepth );
+    SpriteVertex.vTex = D3DXVECTOR2( fTexRight, fTexBottom );
+    SpriteVertex.vColor = pElement->TextureColor.Current;
+    m_pManager->m_SpriteVertices.Add( SpriteVertex );
+
+    SpriteVertex.vPos = D3DXVECTOR3( fRectLeft, fRectBottom, fDepth );
+    SpriteVertex.vTex = D3DXVECTOR2( fTexLeft, fTexBottom );
+    SpriteVertex.vColor = pElement->TextureColor.Current;
+    m_pManager->m_SpriteVertices.Add( SpriteVertex );
+
+    // Why are we drawing the sprite every time?  This is very inefficient, but the sprite workaround doesn't have support for sorting now, so we have to
+    // draw a sprite every time to keep the order correct between sprites and text.
+    m_pManager->EndSprites11( DXUTGetD3D11Device(), DXUTGetD3D11DeviceContext() );
+
+    return S_OK;
 }
 
 
@@ -2287,13 +2473,7 @@ HRESULT CDXUTDialog::CalcTextRect( LPCWSTR strText, CDXUTElement* pElement, RECT
 
     DWORD dwTextFormat = pElement->dwTextFormat | DT_CALCRECT;
     // Since we are only computing the rectangle, we don't need a sprite.
-    if( pFontNode->pFont10 )
-    {
-        hr = pFontNode->pFont10->DrawText( NULL, strText, nCount, prcDest, dwTextFormat, pElement->FontColor.Current );
-        if( FAILED( hr ) )
-            return hr;
-    }
-    else if( pFontNode->pFont9 )
+    if( pFontNode->pFont9 )
     {
         hr = pFontNode->pFont9->DrawText( NULL, strText, nCount, prcDest, dwTextFormat, pElement->FontColor.Current );
         if( FAILED( hr ) )
@@ -2305,12 +2485,12 @@ HRESULT CDXUTDialog::CalcTextRect( LPCWSTR strText, CDXUTElement* pElement, RECT
 
 
 //--------------------------------------------------------------------------------------
-HRESULT CDXUTDialog::DrawText( LPCWSTR strText, CDXUTElement* pElement, RECT* prcDest, bool bShadow, int nCount )
+HRESULT CDXUTDialog::DrawText( LPCWSTR strText, CDXUTElement* pElement, RECT* prcDest, bool bShadow, int nCount, bool bCenter   )
 {
     if( m_pManager->GetD3D9Device() )
         return DrawText9( strText, pElement, prcDest, bShadow, nCount );
     else
-        return DrawText10( strText, pElement, prcDest, bShadow, nCount );
+        return DrawText11( m_pManager->GetD3D11Device(), m_pManager->GetD3D11DeviceContext(), strText, pElement, prcDest, bShadow, nCount, bCenter );
 }
 
 
@@ -2354,18 +2534,231 @@ HRESULT CDXUTDialog::DrawText9( LPCWSTR strText, CDXUTElement* pElement, RECT* p
     return S_OK;
 }
 
-
-//--------------------------------------------------------------------------------------
-HRESULT CDXUTDialog::DrawText10( LPCWSTR strText, CDXUTElement* pElement, RECT* prcDest, bool bShadow, int nCount )
+ID3D11Buffer* g_pFontBuffer11 = NULL;
+UINT g_FontBufferBytes11 = 0;
+CGrowableArray<DXUTSpriteVertex> g_FontVertices;
+ID3D11ShaderResourceView* g_pFont11 = NULL;
+ID3D11InputLayout* g_pInputLayout11 = NULL;
+HRESULT InitFont11( ID3D11Device* pd3d11Device, ID3D11InputLayout* pInputLayout )
 {
     HRESULT hr = S_OK;
+    WCHAR str[MAX_PATH];
+    V_RETURN( DXUTFindDXSDKMediaFileCch( str, MAX_PATH, L"UI\\Font.dds" ) );
+    
+    if (pd3d11Device->GetFeatureLevel() < D3D_FEATURE_LEVEL_10_0 ) {
+
+        D3DX11_IMAGE_INFO dii;
+        D3DX11GetImageInfoFromFile( str, NULL, &dii, NULL );
+
+        D3DX11_IMAGE_LOAD_INFO dili;
+        dili.BindFlags = D3DX11_DEFAULT;
+        dili.CpuAccessFlags = D3DX11_DEFAULT;
+        dili.Depth = D3DX11_DEFAULT;
+        dili.Filter = D3DX11_DEFAULT;
+        dili.FirstMipLevel = 0;
+        dili.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        dili.Height = D3DX11_DEFAULT;
+        dili.MipFilter = D3DX11_DEFAULT;
+        dili.MipLevels = 1;
+        dili.MiscFlags = D3DX11_DEFAULT;
+        dili.pSrcInfo = &dii;
+        dili.Usage = D3D11_USAGE_DEFAULT ;
+        dili.Width = D3DX11_DEFAULT;
+
+        V_RETURN( D3DX11CreateShaderResourceViewFromFile( pd3d11Device, str, &dili, NULL, &g_pFont11, &hr) );
+    }
+    else
+    {
+        V_RETURN( D3DX11CreateShaderResourceViewFromFile( pd3d11Device, str, NULL, NULL, &g_pFont11, &hr) );
+    }
+
+#if defined(PROFILE) || defined(DEBUG)
+    if (g_pFont11)
+    {
+        ID3D11Resource *pRes = NULL;
+        g_pFont11->GetResource( &pRes );
+        DXUT_SetDebugName( pRes, "DXUT Text11" );
+        SAFE_RELEASE( pRes );
+    }    
+
+    DXUT_SetDebugName( g_pFont11, "DXUT Text11" );
+#endif
+
+    g_pInputLayout11 = pInputLayout;
+    return hr;
+}
+
+void EndFont11()
+{
+    SAFE_RELEASE( g_pFontBuffer11 );
+    g_FontBufferBytes11 = 0;
+    SAFE_RELEASE( g_pFont11 );
+}
+
+void BeginText11()
+{
+    g_FontVertices.Reset();
+}
+
+void DrawText11DXUT( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3d11DeviceContext,
+                 LPCWSTR strText, RECT rcScreen, D3DXCOLOR vFontColor,
+                 float fBBWidth, float fBBHeight, bool bCenter )
+{
+    float fCharTexSizeX = 0.010526315f;
+    //float fGlyphSizeX = 14.0f / fBBWidth;
+    //float fGlyphSizeY = 32.0f / fBBHeight;
+    float fGlyphSizeX = 15.0f / fBBWidth;
+    float fGlyphSizeY = 42.0f / fBBHeight;
+
+
+    float fRectLeft = rcScreen.left / fBBWidth;
+    float fRectTop = 1.0f - rcScreen.top / fBBHeight;
+
+    fRectLeft = fRectLeft * 2.0f - 1.0f;
+    fRectTop = fRectTop * 2.0f - 1.0f;
+
+    int NumChars = (int)wcslen( strText );
+    if (bCenter) {
+        float fRectRight = rcScreen.right / fBBWidth;
+        fRectRight = fRectRight * 2.0f - 1.0f;
+        float fRectBottom = 1.0f - rcScreen.bottom / fBBHeight;
+        fRectBottom = fRectBottom * 2.0f - 1.0f;
+        float fcenterx = ((fRectRight - fRectLeft) - (float)NumChars*fGlyphSizeX) *0.5f;
+        float fcentery = ((fRectTop - fRectBottom) - (float)1*fGlyphSizeY) *0.5f;
+        fRectLeft += fcenterx ;    
+        fRectTop -= fcentery;
+    }
+    float fOriginalLeft = fRectLeft;
+    float fTexTop = 0.0f;
+    float fTexBottom = 1.0f;
+
+    float fDepth = 0.5f;
+    for( int i=0; i<NumChars; i++ )
+    {
+        if( strText[i] == '\n' )
+        {
+            fRectLeft = fOriginalLeft;
+            fRectTop -= fGlyphSizeY;
+
+            continue;
+        }
+        else if( strText[i] < 32 || strText[i] > 126 )
+        {
+            continue;
+        }
+
+        // Add 6 sprite vertices
+        DXUTSpriteVertex SpriteVertex;
+        float fRectRight = fRectLeft + fGlyphSizeX;
+        float fRectBottom = fRectTop - fGlyphSizeY;
+        float fTexLeft = ( strText[i] - 32 ) * fCharTexSizeX;
+        float fTexRight = fTexLeft + fCharTexSizeX;
+
+        // tri1
+        SpriteVertex.vPos = D3DXVECTOR3( fRectLeft, fRectTop, fDepth );
+        SpriteVertex.vTex = D3DXVECTOR2( fTexLeft, fTexTop );
+        SpriteVertex.vColor = vFontColor;
+        g_FontVertices.Add( SpriteVertex );
+
+        SpriteVertex.vPos = D3DXVECTOR3( fRectRight, fRectTop, fDepth );
+        SpriteVertex.vTex = D3DXVECTOR2( fTexRight, fTexTop );
+        SpriteVertex.vColor = vFontColor;
+        g_FontVertices.Add( SpriteVertex );
+
+        SpriteVertex.vPos = D3DXVECTOR3( fRectLeft, fRectBottom, fDepth );
+        SpriteVertex.vTex = D3DXVECTOR2( fTexLeft, fTexBottom );
+        SpriteVertex.vColor = vFontColor;
+        g_FontVertices.Add( SpriteVertex );
+
+        // tri2
+        SpriteVertex.vPos = D3DXVECTOR3( fRectRight, fRectTop, fDepth );
+        SpriteVertex.vTex = D3DXVECTOR2( fTexRight, fTexTop );
+        SpriteVertex.vColor = vFontColor;
+        g_FontVertices.Add( SpriteVertex );
+
+        SpriteVertex.vPos = D3DXVECTOR3( fRectRight, fRectBottom, fDepth );
+        SpriteVertex.vTex = D3DXVECTOR2( fTexRight, fTexBottom );
+        SpriteVertex.vColor = vFontColor;
+        g_FontVertices.Add( SpriteVertex );
+
+        SpriteVertex.vPos = D3DXVECTOR3( fRectLeft, fRectBottom, fDepth );
+        SpriteVertex.vTex = D3DXVECTOR2( fTexLeft, fTexBottom );
+        SpriteVertex.vColor = vFontColor;
+        g_FontVertices.Add( SpriteVertex );
+
+        fRectLeft += fGlyphSizeX;
+
+    }
+
+    // We have to end text after every line so that rendering order between sprites and fonts is preserved
+    EndText11( pd3dDevice, pd3d11DeviceContext );
+}
+
+void EndText11( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3d11DeviceContext )
+{
+
+    // ensure our buffer size can hold our sprites
+    UINT FontDataBytes = g_FontVertices.GetSize() * sizeof( DXUTSpriteVertex );
+    if( g_FontBufferBytes11 < FontDataBytes )
+    {
+        SAFE_RELEASE( g_pFontBuffer11 );
+        g_FontBufferBytes11 = FontDataBytes;
+
+        D3D11_BUFFER_DESC BufferDesc;
+        BufferDesc.ByteWidth = g_FontBufferBytes11;
+        BufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+        BufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        BufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        BufferDesc.MiscFlags = 0;
+
+        pd3dDevice->CreateBuffer( &BufferDesc, NULL, &g_pFontBuffer11 );
+        DXUT_SetDebugName( g_pFontBuffer11, "DXUT Text11" );
+    }
+
+    // Copy the sprites over
+    D3D11_BOX destRegion;
+    destRegion.left = 0;
+    destRegion.right = FontDataBytes;
+    destRegion.top = 0;
+    destRegion.bottom = 1;
+    destRegion.front = 0;
+    destRegion.back = 1;
+    D3D11_MAPPED_SUBRESOURCE MappedResource;
+    if ( S_OK == pd3d11DeviceContext->Map( g_pFontBuffer11, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource ) ) { 
+        CopyMemory( MappedResource.pData, (void*)g_FontVertices.GetData(), FontDataBytes );
+        pd3d11DeviceContext->Unmap(g_pFontBuffer11, 0);
+    }
+
+    ID3D11ShaderResourceView* pOldTexture = NULL;
+    pd3d11DeviceContext->PSGetShaderResources( 0, 1, &pOldTexture );
+    pd3d11DeviceContext->PSSetShaderResources( 0, 1, &g_pFont11 );
+
+    // Draw
+    UINT Stride = sizeof( DXUTSpriteVertex );
+    UINT Offset = 0;
+    pd3d11DeviceContext->IASetVertexBuffers( 0, 1, &g_pFontBuffer11, &Stride, &Offset );
+    pd3d11DeviceContext->IASetInputLayout( g_pInputLayout11 );
+    pd3d11DeviceContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+    pd3d11DeviceContext->Draw( g_FontVertices.GetSize(), 0 );
+
+    pd3d11DeviceContext->PSSetShaderResources( 0, 1, &pOldTexture );
+    SAFE_RELEASE( pOldTexture );
+
+    g_FontVertices.Reset();
+}
+
+//--------------------------------------------------------------------------------------
+HRESULT CDXUTDialog::DrawText11( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3d11DeviceContext,
+                                 LPCWSTR strText, CDXUTElement* pElement, RECT* prcDest, bool bShadow, int nCount, bool bCenter  )
+{
+    //HRESULT hr = S_OK;
 
     // No need to draw fully transparent layers
     if( pElement->FontColor.Current.a == 0 )
         return S_OK;
 
     RECT rcScreen = *prcDest;
-    OffsetRect( &rcScreen, m_x, m_y );
+    OffsetRect( &rcScreen, m_x, m_y);
 
     // If caption is enabled, offset the Y position by its height.
     if( m_bCaption )
@@ -2374,26 +2767,22 @@ HRESULT CDXUTDialog::DrawText10( LPCWSTR strText, CDXUTElement* pElement, RECT* 
     float fBBWidth = ( float )m_pManager->m_nBackBufferWidth;
     float fBBHeight = ( float )m_pManager->m_nBackBufferHeight;
 
-    D3DXMATRIX matProjection;
-    D3DXMatrixOrthoOffCenterLH( &matProjection, 0.0f, fBBWidth, 0.0f, fBBHeight, 0.1f, 10 );
-    m_pManager->m_pSprite10->SetProjectionTransform( &matProjection );
-
-    DXUTFontNode* pFontNode = GetFont( pElement->iFont );
-
     if( bShadow )
     {
         RECT rcShadow = rcScreen;
         OffsetRect( &rcShadow, 1, 1 );
-        hr = pFontNode->pFont10->DrawText( m_pManager->m_pSprite10, strText, nCount, &rcShadow, pElement->dwTextFormat,
-                                           D3DCOLOR_ARGB( DWORD( pElement->FontColor.Current.a * 255 ), 0, 0, 0 ) );
-        if( FAILED( hr ) )
-            return hr;
+
+        D3DXCOLOR vShadowColor( 0,0,0, 1.0f );
+        DrawText11DXUT( pd3dDevice, pd3d11DeviceContext,
+                 strText, rcShadow, vShadowColor,
+                 fBBWidth, fBBHeight, bCenter );
+
     }
 
-    hr = pFontNode->pFont10->DrawText( m_pManager->m_pSprite10, strText, nCount, &rcScreen, pElement->dwTextFormat,
-                                       pElement->FontColor.Current );
-    if( FAILED( hr ) )
-        return hr;
+    D3DXCOLOR vFontColor( pElement->FontColor.Current.r, pElement->FontColor.Current.g, pElement->FontColor.Current.b, 1.0f );
+    DrawText11DXUT( pd3dDevice, pd3d11DeviceContext,
+             strText, rcScreen, vFontColor,
+             fBBWidth, fBBHeight, bCenter );
 
     return S_OK;
 }
@@ -2587,19 +2976,10 @@ HRESULT CDXUTDialogResourceManager::CreateFont9( UINT iFont )
 }
 
 
+
 //--------------------------------------------------------------------------------------
-HRESULT CDXUTDialogResourceManager::CreateFont10( UINT iFont )
+HRESULT CDXUTDialogResourceManager::CreateFont11( UINT iFont )
 {
-    HRESULT hr = S_OK;
-
-    DXUTFontNode* pFontNode = m_FontCache.GetAt( iFont );
-
-    SAFE_RELEASE( pFontNode->pFont10 );
-
-    V_RETURN( D3DX10CreateFont( m_pd3d10Device, pFontNode->nHeight, 0, pFontNode->nWeight, 1, FALSE, DEFAULT_CHARSET,
-                                OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
-                                pFontNode->strFace, &pFontNode->pFont10 ) );
-
     return S_OK;
 }
 
@@ -2621,6 +3001,7 @@ HRESULT CDXUTDialogResourceManager::CreateTexture9( UINT iTexture )
             hr = DXUTCreateGUITextureFromInternalArray9( m_pd3d9Device, &pTextureNode->pTexture9, &info );
             if( FAILED( hr ) )
                 return DXTRACE_ERR( L"D3DXCreateTextureFromFileInMemoryEx", hr );
+            DXUT_SetDebugName( pTextureNode->pTexture9, "DXUT GUI Texture" );
         }
         else
         {
@@ -2663,7 +3044,7 @@ HRESULT CDXUTDialogResourceManager::CreateTexture9( UINT iTexture )
 
 
 //--------------------------------------------------------------------------------------
-HRESULT CDXUTDialogResourceManager::CreateTexture10( UINT iTexture )
+HRESULT CDXUTDialogResourceManager::CreateTexture11( UINT iTexture )
 {
     HRESULT hr = S_OK;
 
@@ -2673,94 +3054,98 @@ HRESULT CDXUTDialogResourceManager::CreateTexture10( UINT iTexture )
     {
         if( pTextureNode->nResourceID == 0xFFFF && pTextureNode->hResourceModule == ( HMODULE )0xFFFF )
         {
-            hr = DXUTCreateGUITextureFromInternalArray10( m_pd3d10Device, &pTextureNode->pTexture10, NULL );
+            hr = DXUTCreateGUITextureFromInternalArray11( m_pd3d11Device, &pTextureNode->pTexture11, NULL );
             if( FAILED( hr ) )
-                return DXTRACE_ERR( L"D3DX10CreateResourceFromFileInMemory", hr );
+                return DXTRACE_ERR( L"D3DX11CreateResourceFromFileInMemory", hr );
+            DXUT_SetDebugName( pTextureNode->pTexture11, "DXUT GUI Texture" );
         }
-        else
-        {
-            LPCWSTR pID = pTextureNode->nResourceID ? ( LPCWSTR )( size_t )pTextureNode->nResourceID :
-                pTextureNode->strFilename;
+        //else
+        //{
+        //    LPCWSTR pID = pTextureNode->nResourceID ? ( LPCWSTR )( size_t )pTextureNode->nResourceID :
+        //        pTextureNode->strFilename;
 
-            D3DX10_IMAGE_INFO SrcInfo;
-            D3DX10GetImageInfoFromResource( NULL, pID, NULL, &SrcInfo, NULL );
+        //    D3DX10_IMAGE_INFO SrcInfo;
+        //    D3DX10GetImageInfoFromResource( NULL, pID, NULL, &SrcInfo, NULL );
 
-            // Create texture from resource
-            ID3D10Resource* pRes;
-            D3DX10_IMAGE_LOAD_INFO loadInfo;
-            loadInfo.Width = D3DX10_DEFAULT;
-            loadInfo.Height = D3DX10_DEFAULT;
-            loadInfo.Depth = D3DX10_DEFAULT;
-            loadInfo.FirstMipLevel = 0;
-            loadInfo.MipLevels = 1;
-            loadInfo.Usage = D3D10_USAGE_DEFAULT;
-            loadInfo.BindFlags = D3D10_BIND_SHADER_RESOURCE;
-            loadInfo.CpuAccessFlags = 0;
-            loadInfo.MiscFlags = 0;
-            loadInfo.Format = MAKE_TYPELESS( SrcInfo.Format );
-            loadInfo.Filter = D3DX10_FILTER_NONE;
-            loadInfo.MipFilter = D3DX10_FILTER_NONE;
-            loadInfo.pSrcInfo = &SrcInfo;
+        //    // Create texture from resource
+        //    ID3D10Resource* pRes;
+        //    D3DX10_IMAGE_LOAD_INFO loadInfo;
+        //    loadInfo.Width = D3DX10_DEFAULT;
+        //    loadInfo.Height = D3DX10_DEFAULT;
+        //    loadInfo.Depth = D3DX10_DEFAULT;
+        //    loadInfo.FirstMipLevel = 0;
+        //    loadInfo.MipLevels = 1;
+        //    loadInfo.Usage = D3D10_USAGE_DEFAULT;
+        //    loadInfo.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+        //    loadInfo.CpuAccessFlags = 0;
+        //    loadInfo.MiscFlags = 0;
+        //    loadInfo.Format = MAKE_TYPELESS( SrcInfo.Format );
+        //    loadInfo.Filter = D3DX10_FILTER_NONE;
+        //    loadInfo.MipFilter = D3DX10_FILTER_NONE;
+        //    loadInfo.pSrcInfo = &SrcInfo;
 
-            hr = D3DX10CreateTextureFromResource( m_pd3d10Device, pTextureNode->hResourceModule, pID, &loadInfo,
-                                                  NULL, &pRes, NULL );
-            if( FAILED( hr ) )
-                return DXTRACE_ERR( L"D3DX10CreateResourceFromResource", hr );
-            hr = pRes->QueryInterface( __uuidof( ID3D10Texture2D ), ( LPVOID* )&pTextureNode->pTexture10 );
-            SAFE_RELEASE( pRes );
-            if( FAILED( hr ) )
-                return hr;
-        }
+        //    hr = D3DX10CreateTextureFromResource( m_pd3d10Device, pTextureNode->hResourceModule, pID, &loadInfo,
+        //                                          NULL, &pRes, NULL );
+        //    if( FAILED( hr ) )
+        //        return DXTRACE_ERR( L"D3DX10CreateResourceFromResource", hr );
+        //    hr = pRes->QueryInterface( __uuidof( ID3D10Texture2D ), ( LPVOID* )&pTextureNode->pTexture10 );
+        //    SAFE_RELEASE( pRes );
+        //    if( FAILED( hr ) )
+        //        return hr;
+        //}
     }
     else
     {
-        // Make sure there's a texture to create
-        if( pTextureNode->strFilename[0] == 0 )
-            return S_OK;
+        //
+        //// Make sure there's a texture to create
+        //if( pTextureNode->strFilename[0] == 0 )
+        //    return S_OK;
 
-        D3DX10_IMAGE_INFO SrcInfo;
-        D3DX10GetImageInfoFromFile( pTextureNode->strFilename, NULL, &SrcInfo, NULL );
+        //D3DX10_IMAGE_INFO SrcInfo;
+        //D3DX10GetImageInfoFromFile( pTextureNode->strFilename, NULL, &SrcInfo, NULL );
 
-        // Create texture from file
-        ID3D10Resource* pRes;
-        D3DX10_IMAGE_LOAD_INFO loadInfo;
-        loadInfo.Width = D3DX10_DEFAULT;
-        loadInfo.Height = D3DX10_DEFAULT;
-        loadInfo.Depth = D3DX10_DEFAULT;
-        loadInfo.FirstMipLevel = 0;
-        loadInfo.MipLevels = 1;
-        loadInfo.Usage = D3D10_USAGE_DEFAULT;
-        loadInfo.BindFlags = D3D10_BIND_SHADER_RESOURCE;
-        loadInfo.CpuAccessFlags = 0;
-        loadInfo.MiscFlags = 0;
-        loadInfo.Format = MAKE_TYPELESS( SrcInfo.Format );
-        loadInfo.Filter = D3DX10_FILTER_NONE;
-        loadInfo.MipFilter = D3DX10_FILTER_NONE;
-        loadInfo.pSrcInfo = &SrcInfo;
-        hr = D3DX10CreateTextureFromFile( m_pd3d10Device, pTextureNode->strFilename, &loadInfo, NULL, &pRes, NULL );
-        if( FAILED( hr ) )
-        {
-            return DXTRACE_ERR( L"D3DX10CreateResourceFromFileEx", hr );
-        }
-        hr = pRes->QueryInterface( __uuidof( ID3D10Texture2D ), ( LPVOID* )&pTextureNode->pTexture10 );
-        SAFE_RELEASE( pRes );
-        if( FAILED( hr ) )
-            return hr;
+        //// Create texture from file
+        //ID3D10Resource* pRes;
+        //D3DX10_IMAGE_LOAD_INFO loadInfo;
+        //loadInfo.Width = D3DX10_DEFAULT;
+        //loadInfo.Height = D3DX10_DEFAULT;
+        //loadInfo.Depth = D3DX10_DEFAULT;
+        //loadInfo.FirstMipLevel = 0;
+        //loadInfo.MipLevels = 1;
+        //loadInfo.Usage = D3D10_USAGE_DEFAULT;
+        //loadInfo.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+        //loadInfo.CpuAccessFlags = 0;
+        //loadInfo.MiscFlags = 0;
+        //loadInfo.Format = MAKE_TYPELESS( SrcInfo.Format );
+        //loadInfo.Filter = D3DX10_FILTER_NONE;
+        //loadInfo.MipFilter = D3DX10_FILTER_NONE;
+        //loadInfo.pSrcInfo = &SrcInfo;
+        //hr = D3DX10CreateTextureFromFile( m_pd3d10Device, pTextureNode->strFilename, &loadInfo, NULL, &pRes, NULL );
+        //if( FAILED( hr ) )
+        //{
+        //    return DXTRACE_ERR( L"D3DX10CreateResourceFromFileEx", hr );
+        //}
+        //hr = pRes->QueryInterface( __uuidof( ID3D10Texture2D ), ( LPVOID* )&pTextureNode->pTexture10 );
+        //SAFE_RELEASE( pRes );
+        //if( FAILED( hr ) )
+        //    return hr;
+        //
     }
 
     // Store dimensions
-    D3D10_TEXTURE2D_DESC desc;
-    pTextureNode->pTexture10->GetDesc( &desc );
+    D3D11_TEXTURE2D_DESC desc;
+    pTextureNode->pTexture11->GetDesc( &desc );
     pTextureNode->dwWidth = desc.Width;
     pTextureNode->dwHeight = desc.Height;
 
     // Create resource view
-    D3D10_SHADER_RESOURCE_VIEW_DESC SRVDesc;
-    SRVDesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
+    D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
+    SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     SRVDesc.Format = MAKE_SRGB( desc.Format );
     SRVDesc.Texture2D.MipLevels = 1;
     SRVDesc.Texture2D.MostDetailedMip = 0;
-    hr = m_pd3d10Device->CreateShaderResourceView( pTextureNode->pTexture10, &SRVDesc, &pTextureNode->pTexResView );
+    hr = m_pd3d11Device->CreateShaderResourceView( pTextureNode->pTexture11, &SRVDesc, &pTextureNode->pTexResView11 );
+    DXUT_SetDebugName( pTextureNode->pTexResView11, "DXUT GUI Texture" );
 
     return hr;
 }
@@ -3084,12 +3469,12 @@ CDXUTControl::CDXUTControl( CDXUTDialog* pDialog )
 
     m_pDialog = NULL;
 
-	m_nHotkey = 0;
-
     m_x = 0;
     m_y = 0;
     m_width = 0;
     m_height = 0;
+    
+	m_nHotkey = 0;
 
     ZeroMemory( &m_rcBoundingBox, sizeof( m_rcBoundingBox ) );
 }
@@ -3204,7 +3589,7 @@ void CDXUTStatic::Render( float fElapsedTime )
 
     pElement->FontColor.Blend( iState, fElapsedTime );
 
-    m_pDialog->DrawText( m_strText, pElement, &m_rcBoundingBox, true );
+    m_pDialog->DrawText( m_strText, pElement, &m_rcBoundingBox, false, -1, false);
 }
 
 
@@ -3342,6 +3727,9 @@ bool CDXUTButton::HandleMouse( UINT uMsg, POINT pt, WPARAM wParam, LPARAM lParam
 //--------------------------------------------------------------------------------------
 void CDXUTButton::Render( float fElapsedTime )
 {
+    if( m_bVisible == false )
+        return;
+
     int nOffsetX = 0;
     int nOffsetY = 0;
 
@@ -3375,7 +3763,6 @@ void CDXUTButton::Render( float fElapsedTime )
     }
 
     // Background fill layer
-    //TODO: remove magic numbers
     CDXUTElement* pElement = m_Elements.GetAt( 0 );
 
     float fBlendRate = ( iState == DXUT_STATE_PRESSED ) ? 0.0f : 0.8f;
@@ -3389,7 +3776,7 @@ void CDXUTButton::Render( float fElapsedTime )
     pElement->FontColor.Blend( iState, fElapsedTime, fBlendRate );
 
     m_pDialog->DrawSprite( pElement, &rcWindow, DXUT_FAR_BUTTON_DEPTH );
-    m_pDialog->DrawText( m_strText, pElement, &rcWindow );
+    m_pDialog->DrawText( m_strText, pElement, &rcWindow, false, -1, true );
 
     // Main button
     pElement = m_Elements.GetAt( 1 );
@@ -3399,7 +3786,7 @@ void CDXUTButton::Render( float fElapsedTime )
     pElement->FontColor.Blend( iState, fElapsedTime, fBlendRate );
 
     m_pDialog->DrawSprite( pElement, &rcWindow, DXUT_NEAR_BUTTON_DEPTH );
-    m_pDialog->DrawText( m_strText, pElement, &rcWindow );
+    m_pDialog->DrawText( m_strText, pElement, &rcWindow, false, -1, true );
 }
 
 
@@ -3537,6 +3924,8 @@ void CDXUTCheckBox::UpdateRects()
 //--------------------------------------------------------------------------------------
 void CDXUTCheckBox::Render( float fElapsedTime )
 {
+    if( m_bVisible == false )
+        return;
     DXUT_CONTROL_STATE iState = DXUT_STATE_NORMAL;
 
     if( m_bVisible == false )
@@ -3558,7 +3947,7 @@ void CDXUTCheckBox::Render( float fElapsedTime )
     pElement->FontColor.Blend( iState, fElapsedTime, fBlendRate );
 
     m_pDialog->DrawSprite( pElement, &m_rcButton, DXUT_NEAR_BUTTON_DEPTH );
-    m_pDialog->DrawText( m_strText, pElement, &m_rcText, true );
+    m_pDialog->DrawText( m_strText, pElement, &m_rcText, false, -1, false );
 
     if( !m_bChecked )
         iState = DXUT_STATE_HIDDEN;
@@ -4047,6 +4436,8 @@ void CDXUTComboBox::OnHotkey()
 //--------------------------------------------------------------------------------------
 void CDXUTComboBox::Render( float fElapsedTime )
 {
+    if( m_bVisible == false )
+        return;
     DXUT_CONTROL_STATE iState = DXUT_STATE_NORMAL;
 
     if( !m_bOpened )
@@ -4172,7 +4563,6 @@ void CDXUTComboBox::Render( float fElapsedTime )
         iState = DXUT_STATE_PRESSED;
 
     // Main text box
-    //TODO: remove magic numbers
     pElement = m_Elements.GetAt( 0 );
 
     // Blend current color
@@ -4186,7 +4576,7 @@ void CDXUTComboBox::Render( float fElapsedTime )
         DXUTComboBoxItem* pItem = m_Items.GetAt( m_iSelected );
         if( pItem != NULL )
         {
-            m_pDialog->DrawText( pItem->strText, pElement, &m_rcText );
+            m_pDialog->DrawText( pItem->strText, pElement, &m_rcText, false, -1, true );
 
         }
     }
@@ -4538,7 +4928,7 @@ bool CDXUTSlider::HandleMouse( UINT uMsg, POINT pt, WPARAM wParam, LPARAM lParam
             {
                 m_bPressed = false;
                 ReleaseCapture();
-                m_pDialog->SendEvent( EVENT_SLIDER_VALUE_CHANGED, true, this );
+                m_pDialog->SendEvent( EVENT_SLIDER_VALUE_CHANGED_UP, true, this );
 
                 return true;
             }
@@ -4599,6 +4989,9 @@ void CDXUTSlider::SetValueInternal( int nValue, bool bFromInput )
 //--------------------------------------------------------------------------------------
 void CDXUTSlider::Render( float fElapsedTime )
 {
+    if( m_bVisible == false )
+        return;
+
     int nOffsetX = 0;
     int nOffsetY = 0;
 
@@ -4639,7 +5032,6 @@ void CDXUTSlider::Render( float fElapsedTime )
     pElement->TextureColor.Blend( iState, fElapsedTime, fBlendRate );
     m_pDialog->DrawSprite( pElement, &m_rcBoundingBox, DXUT_FAR_BUTTON_DEPTH );
 
-    //TODO: remove magic numbers
     pElement = m_Elements.GetAt( 1 );
 
     // Blend current color
@@ -4798,7 +5190,7 @@ bool CDXUTScrollBar::HandleMouse( UINT uMsg, POINT pt, WPARAM wParam, LPARAM lPa
                 if( PtInRect( &m_rcDownButton, pt ) )
                 {
                     SetCapture( DXUTGetHWND() );
-                    if( m_nPosition + m_nPageSize < m_nEnd )
+                    if( m_nPosition + m_nPageSize <= m_nEnd )
                         ++m_nPosition;
                     UpdateThumbRect();
                     m_Arrow = CLICKED_DOWN;
@@ -4861,7 +5253,7 @@ bool CDXUTScrollBar::HandleMouse( UINT uMsg, POINT pt, WPARAM wParam, LPARAM lPa
 
                 // Compute first item index based on thumb position
 
-                int nMaxFirstItem = m_nEnd - m_nStart - m_nPageSize;  // Largest possible index for first item
+                int nMaxFirstItem = m_nEnd - m_nStart - m_nPageSize + 1;  // Largest possible index for first item
                 int nMaxThumb = RectHeight( m_rcTrack ) - RectHeight( m_rcThumb );  // Largest possible thumb position from the top
 
                 m_nPosition = m_nStart +
@@ -4898,6 +5290,9 @@ bool CDXUTScrollBar::MsgProc( UINT uMsg, WPARAM wParam, LPARAM lParam )
 //--------------------------------------------------------------------------------------
 void CDXUTScrollBar::Render( float fElapsedTime )
 {
+    if( m_bVisible == false )
+        return;
+
     // Check if the arrow button has been held for a while.
     // If so, update the thumb position to simulate repeated
     // scroll.
@@ -5011,7 +5406,7 @@ void CDXUTScrollBar::Cap()  // Clips position at boundaries. Ensures it stays wi
         m_nPosition = m_nStart;
     }
     else if( m_nPosition + m_nPageSize > m_nEnd )
-        m_nPosition = m_nEnd - m_nPageSize;
+        m_nPosition = m_nEnd - m_nPageSize + 1;
 }
 
 //--------------------------------------------------------------------------------------
@@ -5134,14 +5529,7 @@ void CDXUTListBox::RemoveItem( int nIndex )
 }
 
 
-//--------------------------------------------------------------------------------------
 
-
-
-//--------------------------------------------------------------------------------------
-void CDXUTListBox::RemoveItemByData( void* pData )
-{
-}
 
 
 //--------------------------------------------------------------------------------------
@@ -5795,7 +6183,7 @@ void CDXUTEditBox::SetText( LPCWSTR wszText, bool bSelected )
 
 //--------------------------------------------------------------------------------------
 HRESULT CDXUTEditBox::GetTextCopy( __out_ecount(bufferCount) LPWSTR strDest, 
-                                   UINT bufferCount )
+                                   UINT bufferCount  )
 {
     assert( strDest );
 
@@ -6336,8 +6724,11 @@ void CDXUTEditBox::Render( float fElapsedTime )
     if( m_bHasFocus && m_bCaretOn && !s_bHideCaret )
     {
         // Start the rectangle with insert mode caret
-        RECT rcCaret = { m_rcText.left - nXFirst + nCaretX - 1, m_rcText.top,
-                m_rcText.left - nXFirst + nCaretX + 1, m_rcText.bottom };
+        RECT rcCaret =
+        {
+            m_rcText.left - nXFirst + nCaretX - 1, m_rcText.top,
+            m_rcText.left - nXFirst + nCaretX + 1, m_rcText.bottom
+        };
 
         // If we are in overwrite mode, adjust the caret rectangle
         // to fill the entire character.
@@ -6391,7 +6782,10 @@ void CDXUTEditBox::ParseFloatArray( float* pNumbers, int nCount )
 
 void CDXUTEditBox::SetTextFloatArray( const float* pNumbers, int nCount )
 {
-    WCHAR wszBuffer[512] = {0};
+    WCHAR wszBuffer[512] =
+    {
+        0
+    };
     WCHAR wszTmp[64];
 
     if( pNumbers == NULL )
@@ -6503,7 +6897,7 @@ HRESULT CUniBuffer::Analyse()
     if( !m_pFontNode )
         return E_FAIL;
 
-    HDC hDC = m_pFontNode->pFont10 ? m_pFontNode->pFont10->GetDC() :
+    HDC hDC = 
         ( m_pFontNode->pFont9 ? m_pFontNode->pFont9->GetDC() : NULL );
     HRESULT hr = _ScriptStringAnalyse( hDC,
                                        m_pwszBuffer,

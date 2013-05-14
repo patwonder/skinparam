@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "Renderable.h"
+#include "RenderableManager.h"
 #include "Color.h"
 
 namespace Skin {
@@ -20,6 +21,7 @@ namespace Skin {
 		HWND m_hwnd;
 		CRect m_rectView;
 		Config* m_pConfig;
+		RenderableManager* m_pRenderableManager;
 
 		// D3D stuff
 		D3D_DRIVER_TYPE m_driverType;
@@ -72,11 +74,17 @@ namespace Skin {
 				float pad;
 			} g_weights[NUM_SSS_GAUSSIANS];
 		};
+		struct SSSConstantBuffer {
+			float g_sss_intensity;
+			float pad[3];
+		};
 
 		ID3D11Buffer* m_pGaussianConstantBuffer;
 		GaussianConstantBuffer m_cbGaussian;
 		ID3D11Buffer* m_pCombineConstantBuffer;
 		CombineConstantBuffer m_cbCombine;
+		ID3D11Buffer* m_pSSSConstantBuffer;
+		SSSConstantBuffer m_cbSSS;
 
 		// Post-process Anti-aliasing
 		ShaderGroup* m_psgPostProcessAA;
@@ -120,7 +128,7 @@ namespace Skin {
 			XMFLOAT3 attenuation;
 			float pad4;
 			XMFLOAT3 position;
-			float sss_intensity;
+			float pad5;
 		};
 		struct LightingConstantBuffer {
 			RLight g_lights[NUM_LIGHTS];
@@ -201,7 +209,8 @@ namespace Skin {
 			Irradiance,
 			Gaussian,
 			Combine,
-			PostProcessAA
+			PostProcessAA,
+			UI
 		};
 		RenderStage m_rsCurrent;
 
@@ -229,13 +238,13 @@ namespace Skin {
 
 		void initSSS();
 		void renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11RenderTargetView* pRTAlbedo,
-			ID3D11RenderTargetView* pRTDiffuseStencil, ID3D11RenderTargetView* pRTSpecular);
+			ID3D11RenderTargetView* pRTDiffuseStencil, ID3D11RenderTargetView* pRTSpecular, bool* opbNeedBlur = nullptr);
 		void setGaussianKernelSize(float size);
 		void unbindInputBuffers();
 		void bindGaussianConstantBuffer();
 		void bindCombineConstantBuffer();
 		void doGaussianBlurs();
-		void doCombineShading();
+		void doCombineShading(bool bNeedBlur);
 
 		void initPostProcessAA();
 		void bindPostProcessConstantBuffer();
@@ -249,9 +258,10 @@ namespace Skin {
 
 		void setConstantBuffers();
 		void computeStats();
-		void renderScene();
+		void renderScene(bool* opbNeedBlur = nullptr);
+		void renderRest();
 	public:
-		Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera);
+		Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, RenderableManager* pRenderableManager);
 		~Renderer();
 
 		void addRenderable(Renderable* renderable);

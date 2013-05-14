@@ -34,6 +34,10 @@ namespace Skin {
 		virtual void render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) = 0;
 		virtual void cleanup(IRenderer* pRenderer) = 0;
 		virtual ~Renderable() {}
+
+		/** optional to implement */
+		virtual bool supportsSSS() const { return false; }
+		virtual bool inScene() const { return true; }
 	};
 
 } // namespace Skin

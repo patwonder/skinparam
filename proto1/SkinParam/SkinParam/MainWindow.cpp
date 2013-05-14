@@ -17,13 +17,41 @@ namespace Skin {
 	CMainApp app;
 } // namespace Skin
 
+class CMainWindow::UIRenderable : public Renderable {
+private:
+	CDXUTDialog* m_pDialog;
+	DWORD lastTick;
+public:
+	UIRenderable(CDXUTDialog* pDialog) {
+		m_pDialog = pDialog;
+		lastTick = GetTickCount();
+	}
+	void init(ID3D11Device* pd3dDevice, IRenderer* pRenderer) override {
+
+	}
+	void cleanup(IRenderer* pRenderer) override {
+
+	}
+	bool inScene() const override {
+		return false;
+	}
+	void render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) override {
+		DWORD tick = GetTickCount();
+		float elapsedTime = (tick - lastTick) / 1000.0f;
+		if (elapsedTime > 1.0f)
+			elapsedTime = 1.0f;
+		m_pDialog->OnRender(elapsedTime);
+		lastTick = tick;
+	}
+};
+
 CMainWindow* CMainApp::GetMainWindow()
 {
 	return static_cast<CMainWindow*>(m_pMainWnd);
 }
 
 BOOL CMainApp::InitInstance() {
-	//_crtBreakAlloc = 418;
+	//_crtBreakAlloc = 204;
 	CoInitialize(nullptr);
 	SetRegistryKey(_APP_NAME_);
 
@@ -73,7 +101,12 @@ CMainWindow::CMainWindow()
 		resolution.cy + windowRect.Height() - m_rectClient.Height());
 	GetClientRect(&m_rectClient);
 
-	m_pRenderer = new Renderer(m_hWnd, CRect(0, 0, resolution.cx, resolution.cy), &m_config, &m_camera);
+	DXUTInit();
+	DXUTSetWindow(m_hWnd, m_hWnd, m_hWnd, false);
+
+	initUI();
+
+	m_pRenderer = new Renderer(m_hWnd, CRect(0, 0, resolution.cx, resolution.cy), &m_config, &m_camera, this);
 	m_pTriangle = new Triangle();
 	m_pHead = new Head();
 	//m_pRenderer->addRenderable(m_pTriangle);
@@ -86,6 +119,8 @@ CMainWindow::CMainWindow()
 
 	m_bChangingView = false;
 	m_camera.restrictView(2.0, 8.0);
+
+	m_pRenderer->addRenderable(m_puirGeneral);
 }
 
 CMainWindow::~CMainWindow() {
@@ -97,6 +132,10 @@ CMainWindow::~CMainWindow() {
 	delete m_pHead;
 	delete m_pLight1;
 	delete m_pLight2;
+
+	uninitUI();
+
+	DXUTShutdown();
 }
 
 void CMainWindow::showInfo() {
@@ -129,7 +168,110 @@ BOOL CMainWindow::OnIdle(LONG lCount) {
 	return TRUE;
 }
 
+void CMainWindow::onCreateDevice(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, IDXGISwapChain* pSwapChain) {
+	m_pDialogResourceManager->OnD3D11CreateDevice(pDevice, pDeviceContext);
+}
+
+void CMainWindow::onResizedSwapChain(ID3D11Device* pDevice, const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc) {
+	m_pDialogResourceManager->OnD3D11ResizedSwapChain(pDevice, pBackBufferSurfaceDesc);
+}
+
+void CMainWindow::onReleasingSwapChain() {
+	m_pDialogResourceManager->OnD3D11ReleasingSwapChain();
+}
+
+void CMainWindow::onDestroyDevice() {
+	m_pDialogResourceManager->OnD3D11DestroyDevice();
+}
+
+void CMainWindow::initGeneralDialog() {
+	m_pdlgTessellation = new CDXUTDialog();
+	m_puirGeneral = new UIRenderable(m_pdlgTessellation);
+
+	int tmp;
+	CDXUTStatic* lblTmp;
+	m_pdlgTessellation->Init(m_pDialogResourceManager);
+	m_pdlgTessellation->SetCallback(CMainWindow::OnGUIEvent, this);
+	m_pdlgTessellation->AddCheckBox(CID_GENERAL_CHK_TESSELLATION, _T("Tessellation"), 6, tmp = 6, 100, 20, true, 'T', false, &m_pchkTessellation);
+
+	//m_dlgTessellation.EnableNonUserEvents(true);
+	m_pdlgTessellation->SetFont(0, _T("Times New Roman"), 16, 0);
+	m_pdlgTessellation->SetVisible(true);
+
+	registerEventHandler(CID_GENERAL_CHK_TESSELLATION, &CMainWindow::chkTessellation_Handler);
+}
+
+void CMainWindow::initUI() {
+	m_pDialogResourceManager = new CDXUTDialogResourceManager();
+
+	m_puirGeneral = nullptr;
+	m_pdlgTessellation = nullptr;
+	m_vppuirs.push_back(&m_puirGeneral);
+	m_vppdlgs.push_back(&m_pdlgTessellation);
+	
+	initGeneralDialog();
+}
+
+void CMainWindow::uninitUI() {
+	for (CDXUTDialog** ppdlg : m_vppdlgs) {
+		if (*ppdlg)
+			delete *ppdlg;
+		*ppdlg = nullptr;
+	}
+	m_vppdlgs.clear();
+	for (UIRenderable** ppuir : m_vppuirs) {
+		if (*ppuir)
+			delete *ppuir;
+		*ppuir = nullptr;
+	}
+	m_vppuirs.clear();
+
+	delete m_pDialogResourceManager;
+}
+
+void CMainWindow::OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl) {
+	auto iter = m_mapMessages.find(nControlID);
+	if (m_mapMessages.end() == iter) return;
+
+	GUIEventHandler handler = iter->second;
+	(this->*handler)(pControl, nEvent);
+}
+
+void CALLBACK CMainWindow::OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext) {
+	if (pUserContext == NULL)
+		return;
+	try {
+		CMainWindow* pWindow = static_cast<CMainWindow*>(pUserContext);
+		pWindow->OnGUIEvent(nEvent, nControlID, pControl);
+	} catch (...) {
+		return;
+	}
+}
+
+void CMainWindow::registerEventHandler(int nControlID, GUIEventHandler handler) {
+	m_mapMessages[nControlID] = handler;
+}
+
+void CMainWindow::unregisterEventHandler(int nControlID) {
+	m_mapMessages.erase(nControlID);
+}
+
+void CMainWindow::chkTessellation_Handler(CDXUTControl* sender, UINT nEvent) {
+	m_pRenderer->toggleTessellation();
+}
+
 BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {
+	if (m_bChangingView)
+		return FALSE;
+
+	if (m_pDialogResourceManager->MsgProc(pMsg->hwnd, pMsg->message, pMsg->wParam, pMsg->lParam)) {
+		return TRUE;
+	}
+
+	if (m_pdlgTessellation->MsgProc(pMsg->hwnd, pMsg->message, pMsg->wParam, pMsg->lParam)) {
+		return TRUE;
+	}
+
 	return FALSE;
 }
 

@@ -299,7 +299,7 @@ bool CDXUTIMEEditBox::HandleMouse( UINT uMsg, POINT pt, WPARAM wParam, LPARAM lP
 {
     if( !m_bEnabled || !m_bVisible )
         return false;
-    
+	
     switch( uMsg )
     {
         case WM_LBUTTONDOWN:
@@ -581,7 +581,7 @@ void CDXUTIMEEditBox::RenderCandidateReadingWindow( float fElapsedTime, bool bRe
             }
             wszCand[lstrlen( wszCand ) - 1] = L'\0';  // Remove the last space
             s_CandList.HoriCand.SetText( wszCand );
-            
+			
             m_pDialog->CalcTextRect( s_CandList.HoriCand.GetBuffer(), m_Elements.GetAt( 1 ), &rc );
         }
         nWidthRequired = rc.right - rc.left;
@@ -710,18 +710,24 @@ void CDXUTIMEEditBox::RenderCandidateReadingWindow( float fElapsedTime, bool bRe
 //--------------------------------------------------------------------------------------
 void CDXUTIMEEditBox::RenderComposition( float fElapsedTime )
 {
-    
+	
     s_CompString.SetText( ImeUi_GetCompositionString() );
 
-    RECT rcCaret = { 0, 0, 0, 0 };
+    RECT rcCaret =
+    {
+        0, 0, 0, 0
+    };
     int nX, nXFirst;
     m_Buffer.CPtoX( m_nCaret, FALSE, &nX );
     m_Buffer.CPtoX( m_nFirstVisible, FALSE, &nXFirst );
     CDXUTElement* pElement = m_Elements.GetAt( 1 );
 
     // Get the required width
-    RECT rc = { m_rcText.left + nX - nXFirst, m_rcText.top,
-            m_rcText.left + nX - nXFirst, m_rcText.bottom };
+    RECT rc =
+    {
+        m_rcText.left + nX - nXFirst, m_rcText.top,
+        m_rcText.left + nX - nXFirst, m_rcText.bottom
+    };
     m_pDialog->CalcTextRect( s_CompString.GetBuffer(), pElement, &rc );
 
     // If the composition string is too long to fit within
@@ -847,7 +853,10 @@ void CDXUTIMEEditBox::RenderComposition( float fElapsedTime )
             continue;
         }
 
-        RECT rcTarget = { rc.left + nXLeft - nXFirst, rc.top, rc.left + nXRight - nXFirst, rc.bottom };
+        RECT rcTarget =
+        {
+            rc.left + nXLeft - nXFirst, rc.top, rc.left + nXRight - nXFirst, rc.bottom
+        };
         m_pDialog->DrawRect( &rcTarget, bkColor );
         m_pDialog->DrawText( pcComp, pElement, &rcTarget, false, 1 );
 
@@ -885,7 +894,10 @@ void CDXUTIMEEditBox::RenderIndicator( float fElapsedTime )
     InflateRect( &rc, -m_nSpacing, -m_nSpacing );
 
     pElement->FontColor.Current = m_IndicatorImeColor;
-    RECT rcCalc = { 0, 0, 0, 0 };
+    RECT rcCalc =
+    {
+        0, 0, 0, 0
+    };
     // If IME system is off, draw English indicator.
     WCHAR* pwszIndicator = ImeUi_IsEnabled() ? ImeUi_GetIndicatior() : L"En";
 
@@ -904,7 +916,10 @@ void CDXUTIMEEditBox::Render( float fElapsedTime )
     // do it.
     if( !m_nIndicatorWidth )
     {
-        RECT rc = { 0, 0, 0, 0 };
+        RECT rc =
+        {
+            0, 0, 0, 0
+        };
         m_pDialog->CalcTextRect( L"En", m_Elements.GetAt( 9 ), &rc );
         m_nIndicatorWidth = rc.right - rc.left;
 
@@ -967,17 +982,9 @@ void CDXUTIMEEditBox::Initialize( HWND hWnd )
     ImeUiCallback_DrawFans = NULL;
 
     ImeUi_Initialize( hWnd );
-    
+	
     s_CompString.SetBufferSize( MAX_COMPSTRING_SIZE );
     ImeUi_EnableIme( true );
-}
-
-
-//--------------------------------------------------------------------------------------
-void CDXUTIMEEditBox::Uninitialize()
-{
-    ImeUi_EnableIme( false );
-    ImeUi_Uninitialize( );
 }
 
 

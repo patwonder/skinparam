@@ -27,7 +27,7 @@ MeshRenderable::MeshRenderable(const TString& strObjFilePath)
 	m_pModel = loader.ReturnObj();
 	computeNormals();
 	computeTangentSpace();
-
+	/*
 	std::map<UINT, UINT> mapVertexToTexCoord;
 	for (const ObjPart& part : m_pModel->Parts) {
 		for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
@@ -41,7 +41,7 @@ MeshRenderable::MeshRenderable(const TString& strObjFilePath)
 				}
 			}
 		}
-	}
+	}*/
 }
 
 MeshRenderable::~MeshRenderable() {

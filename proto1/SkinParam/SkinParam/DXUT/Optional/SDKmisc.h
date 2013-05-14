@@ -34,12 +34,12 @@ struct DXUTCache_Texture
     union
     {
         DWORD Usage9;
-        D3D10_USAGE Usage10;
+        D3D11_USAGE Usage11;
     };
     union
     {
         D3DFORMAT Format9;
-        DXGI_FORMAT Format10;
+        DXGI_FORMAT Format;
     };
     union
     {
@@ -52,12 +52,12 @@ struct DXUTCache_Texture
         UINT BindFlags;
     };
     IDirect3DBaseTexture9* pTexture9;
-    ID3D10ShaderResourceView* pSRV10;
+    ID3D11ShaderResourceView* pSRV11;
 
             DXUTCache_Texture()
             {
                 pTexture9 = NULL;
-                pSRV10 = NULL;
+                pSRV11 = NULL;
             }
 };
 
@@ -85,18 +85,18 @@ public:
                                                    LPDIRECT3DTEXTURE9* ppTexture );
     HRESULT                 CreateTextureFromFile( LPDIRECT3DDEVICE9 pDevice, LPCSTR pSrcFile,
                                                    LPDIRECT3DTEXTURE9* ppTexture );
-    HRESULT                 CreateTextureFromFile( ID3D10Device* pDevice, LPCTSTR pSrcFile,
-                                                   ID3D10ShaderResourceView** ppOutputRV, bool bSRGB=false );
-    HRESULT                 CreateTextureFromFile( ID3D10Device* pDevice, LPCSTR pSrcFile,
-                                                   ID3D10ShaderResourceView** ppOutputRV, bool bSRGB=false );
+    HRESULT                 CreateTextureFromFile( ID3D11Device* pDevice, ID3D11DeviceContext *pContext, LPCTSTR pSrcFile,
+                                                   ID3D11ShaderResourceView** ppOutputRV, bool bSRGB=false );
+    HRESULT                 CreateTextureFromFile( ID3D11Device* pDevice, ID3D11DeviceContext *pContext, LPCSTR pSrcFile,
+                                                   ID3D11ShaderResourceView** ppOutputRV, bool bSRGB=false );
     HRESULT                 CreateTextureFromFileEx( LPDIRECT3DDEVICE9 pDevice, LPCTSTR pSrcFile, UINT Width,
                                                      UINT Height, UINT MipLevels, DWORD Usage, D3DFORMAT Format,
                                                      D3DPOOL Pool, DWORD Filter, DWORD MipFilter, D3DCOLOR ColorKey,
                                                      D3DXIMAGE_INFO* pSrcInfo, PALETTEENTRY* pPalette,
                                                      LPDIRECT3DTEXTURE9* ppTexture );
-    HRESULT                 CreateTextureFromFileEx( ID3D10Device* pDevice, LPCTSTR pSrcFile,
-                                                     D3DX10_IMAGE_LOAD_INFO* pLoadInfo, ID3DX10ThreadPump* pPump,
-                                                     ID3D10ShaderResourceView** ppOutputRV, bool bSRGB );
+    HRESULT                 CreateTextureFromFileEx( ID3D11Device* pDevice, ID3D11DeviceContext* pContext, LPCTSTR pSrcFile,
+                                                     D3DX11_IMAGE_LOAD_INFO* pLoadInfo, ID3DX11ThreadPump* pPump,
+                                                     ID3D11ShaderResourceView** ppOutputRV, bool bSRGB );
     HRESULT                 CreateTextureFromResource( LPDIRECT3DDEVICE9 pDevice, HMODULE hSrcModule,
                                                        LPCTSTR pSrcResource, LPDIRECT3DTEXTURE9* ppTexture );
     HRESULT                 CreateTextureFromResourceEx( LPDIRECT3DDEVICE9 pDevice, HMODULE hSrcModule,
@@ -178,17 +178,17 @@ CDXUTResourceCache& WINAPI DXUTGetGlobalResourceCache();
 //--------------------------------------------------------------------------------------
 // Manages the insertion point when drawing text
 //--------------------------------------------------------------------------------------
+class CDXUTDialogResourceManager;
 class CDXUTTextHelper
 {
 public:
-            CDXUTTextHelper( ID3DXFont* pFont9 = NULL, ID3DXSprite* pSprite9 = NULL, ID3DX10Font* pFont10 = NULL,
-                             ID3DX10Sprite* pSprite10 = NULL, int nLineHeight = 15 );
-            CDXUTTextHelper( ID3DXFont* pFont9, ID3DXSprite* pSprite9, int nLineHeight = 15 );
-            CDXUTTextHelper( ID3DX10Font* pFont10, ID3DX10Sprite* pSprite10, int nLineHeight = 15 );
+            CDXUTTextHelper( ID3DXFont* pFont9 = NULL, ID3DXSprite* pSprite9 = NULL,
+                             int nLineHeight = 15 );
+			CDXUTTextHelper( ID3D11Device* pd3d11Device, ID3D11DeviceContext* pd3dDeviceContext, CDXUTDialogResourceManager* pManager, int nLineHeight );
             ~CDXUTTextHelper();
 
-    void    Init( ID3DXFont* pFont9 = NULL, ID3DXSprite* pSprite9 = NULL, ID3DX10Font* pFont10 = NULL,
-                  ID3DX10Sprite* pSprite10 = NULL, int nLineHeight = 15 );
+    void    Init( ID3DXFont* pFont9 = NULL, ID3DXSprite* pSprite9 = NULL, 
+                  int nLineHeight = 15 );
 
     void    SetInsertionPos( int x, int y )
     {
@@ -209,13 +209,14 @@ public:
 protected:
     ID3DXFont* m_pFont9;
     ID3DXSprite* m_pSprite9;
-    ID3DX10Font* m_pFont10;
-    ID3DX10Sprite* m_pSprite10;
     D3DXCOLOR m_clr;
     POINT m_pt;
     int m_nLineHeight;
 
-    ID3D10BlendState* m_pFontBlendState10;
+	// D3D11 font 
+	ID3D11Device* m_pd3d11Device;
+	ID3D11DeviceContext* m_pd3d11DeviceContext;
+	CDXUTDialogResourceManager* m_pManager;
 };
 
 
@@ -266,8 +267,8 @@ void WINAPI DXUTDisplaySwitchingToREFWarning( DXUTDeviceVersion ver );
 //--------------------------------------------------------------------------------------
 // Tries to finds a media file by searching in common locations
 //--------------------------------------------------------------------------------------
-HRESULT WINAPI DXUTFindDXSDKMediaFileCch( __in_ecount(cchDest) WCHAR* strDestPath,
-                                          int cchDest, 
+HRESULT WINAPI DXUTFindDXSDKMediaFileCch( __out_ecount(cchDest) WCHAR* strDestPath,
+                                          __in int cchDest, 
                                           __in LPCWSTR strFilename );
 HRESULT WINAPI DXUTSetMediaSearchPath( LPCWSTR strPath );
 LPCWSTR WINAPI DXUTGetMediaSearchPath();
@@ -278,12 +279,6 @@ LPCWSTR WINAPI DXUTGetMediaSearchPath();
 //--------------------------------------------------------------------------------------
 D3DXMATRIX WINAPI DXUTGetCubeMapViewMatrix( DWORD dwFace );
 
-
-//--------------------------------------------------------------------------------------
-// Takes a screen shot of a 32bit D3D10 back buffer and saves the images to a BMP file
-//--------------------------------------------------------------------------------------
-HRESULT DXUTSnapD3D9Screenshot( LPCTSTR szFileName );
-HRESULT DXUTSnapD3D10Screenshot( LPCTSTR szFileName );
 
 //--------------------------------------------------------------------------------------
 // Simple helper stack class

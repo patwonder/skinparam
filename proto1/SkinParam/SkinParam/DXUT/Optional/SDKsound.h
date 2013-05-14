@@ -10,10 +10,7 @@
 // Header Includes
 //-----------------------------------------------------------------------------
 #include <dsound.h>
-#define _KS_NO_ANONYMOUS_STRUCTURES_        // avoids most nameless structure in ks.h
-#pragma warning( disable : 4201 )           // disable nonstandard extension used : nameless struct/union
 #include <ks.h>
-#pragma warning( default : 4201 ) 
 
 //-----------------------------------------------------------------------------
 // Classes used by this header

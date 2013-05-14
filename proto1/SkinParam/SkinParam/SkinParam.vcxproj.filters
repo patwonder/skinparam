@@ -24,9 +24,6 @@
     <ClInclude Include="DXUT\Core\DXUT.h">
       <Filter>DXUT</Filter>
     </ClInclude>
-    <ClInclude Include="DXUT\Core\DXUTenum.h">
-      <Filter>DXUT</Filter>
-    </ClInclude>
     <ClInclude Include="DXUT\Core\DXUTmisc.h">
       <Filter>DXUT</Filter>
     </ClInclude>
@@ -46,9 +43,6 @@
       <Filter>DXUT</Filter>
     </ClInclude>
     <ClInclude Include="DXUT\Optional\DXUTsettingsdlg.h">
-      <Filter>DXUT</Filter>
-    </ClInclude>
-    <ClInclude Include="DXUT\Optional\DXUTShapes.h">
       <Filter>DXUT</Filter>
     </ClInclude>
     <ClInclude Include="DXUT\Optional\ImeUi.h">
@@ -90,15 +84,22 @@
     <ClInclude Include="Utils\WICSingleton.h">
       <Filter>Utils</Filter>
     </ClInclude>
+    <ClInclude Include="DXUT\Core\DXUTDevice11.h">
+      <Filter>DXUT</Filter>
+    </ClInclude>
+    <ClInclude Include="DXUT\Core\DXUTDevice9.h">
+      <Filter>DXUT</Filter>
+    </ClInclude>
+    <ClInclude Include="DXUT\Optional\SDKmisc.h">
+      <Filter>DXUT</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderableManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="DXUT\Core\DXUT.cpp">
-      <Filter>DXUT</Filter>
-    </ClCompile>
-    <ClCompile Include="DXUT\Core\DXUTenum.cpp">
       <Filter>DXUT</Filter>
     </ClCompile>
     <ClCompile Include="DXUT\Core\DXUTmisc.cpp">
@@ -117,9 +118,6 @@
       <Filter>DXUT</Filter>
     </ClCompile>
     <ClCompile Include="DXUT\Optional\DXUTsettingsdlg.cpp">
-      <Filter>DXUT</Filter>
-    </ClCompile>
-    <ClCompile Include="DXUT\Optional\DXUTShapes.cpp">
       <Filter>DXUT</Filter>
     </ClCompile>
     <ClCompile Include="DXUT\Optional\ImeUi.cpp">
@@ -156,6 +154,15 @@
     </ClCompile>
     <ClCompile Include="Utils\WICSingleton.cpp">
       <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="DXUT\Core\DXUTDevice11.cpp">
+      <Filter>DXUT</Filter>
+    </ClCompile>
+    <ClCompile Include="DXUT\Core\DXUTDevice9.cpp">
+      <Filter>DXUT</Filter>
+    </ClCompile>
+    <ClCompile Include="DXUT\Optional\SDKmisc.cpp">
+      <Filter>DXUT</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -201,10 +208,6 @@
     <None Include="Shaders\PostProcessAA.fx">
       <Filter>Shaders</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\GaussianShadow.fx">
-      <Filter>Shaders</Filter>
-    </FxCompile>
+    <None Include="Shaders\GaussianShadow.fx" />
   </ItemGroup>
 </Project>

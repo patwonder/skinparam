@@ -353,7 +353,10 @@ LRESULT CBaseCamera::HandleMessages( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
         case WM_LBUTTONDBLCLK:
             {
                 // Compute the drag rectangle in screen coord.
-                POINT ptCursor = { ( short )LOWORD( lParam ), ( short )HIWORD( lParam ) };
+                POINT ptCursor =
+                {
+                    ( short )LOWORD( lParam ), ( short )HIWORD( lParam )
+                };
 
                 // Update member var state
                 if( ( uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONDBLCLK ) && PtInRect( &m_rcDrag, ptCursor ) )
@@ -1103,15 +1106,7 @@ D3DXHANDLE                  CDXUTDirectionWidget::s_hMaterialDiffuseColor = NULL
 D3DXHANDLE                  CDXUTDirectionWidget::s_hLightDir = NULL;
 D3DXHANDLE                  CDXUTDirectionWidget::s_hWorldViewProjection = NULL;
 D3DXHANDLE                  CDXUTDirectionWidget::s_hWorld = NULL;
-// D3D10
-ID3D10Device*               CDXUTDirectionWidget::s_pd3d10Device = NULL;
-ID3D10Effect*               CDXUTDirectionWidget::s_pD3D10Effect = NULL;
-ID3D10InputLayout*          CDXUTDirectionWidget::s_pVertexLayout = NULL;
-ID3D10EffectTechnique*      CDXUTDirectionWidget::s_pRenderTech = NULL;
-ID3D10EffectVectorVariable* CDXUTDirectionWidget::g_pMaterialDiffuseColor = NULL;
-ID3D10EffectVectorVariable* CDXUTDirectionWidget::g_pLightDir = NULL;
-ID3D10EffectMatrixVariable* CDXUTDirectionWidget::g_pmWorld = NULL;
-ID3D10EffectMatrixVariable* CDXUTDirectionWidget::g_pmWorldViewProjection = NULL;
+
 
 //--------------------------------------------------------------------------------------
 CDXUTDirectionWidget::CDXUTDirectionWidget()
@@ -1182,7 +1177,12 @@ HRESULT CDXUTDirectionWidget::StaticOnD3D9CreateDevice( IDirect3DDevice9* pd3dDe
 
     UINT dwBufferSize = ( UINT )strlen( g_strBuffer ) + 1;
 
-    V_RETURN( D3DXCreateEffect( s_pd3d9Device, g_strBuffer, dwBufferSize, NULL, NULL, D3DXFX_NOT_CLONEABLE,
+    DWORD Flags = D3DXFX_NOT_CLONEABLE;
+#ifdef D3DXFX_LARGEADDRESS_HANDLE
+    Flags |= D3DXFX_LARGEADDRESSAWARE;
+#endif
+
+    V_RETURN( D3DXCreateEffect( s_pd3d9Device, g_strBuffer, dwBufferSize, NULL, NULL, Flags,
                                 NULL, &s_pD3D9Effect, NULL ) );
 
     // Save technique handles for use when rendering
@@ -1234,138 +1234,6 @@ void CDXUTDirectionWidget::StaticOnD3D9DestroyDevice()
 {
     SAFE_RELEASE( s_pD3D9Effect );
     SAFE_RELEASE( s_pD3D9Mesh );
-}
-
-
-//--------------------------------------------------------------------------------------
-HRESULT CDXUTDirectionWidget::StaticOnD3D10CreateDevice( ID3D10Device* pd3dDevice )
-{
-    s_pd3d10Device = pd3dDevice;
-
-    const char* g_strBuffer =
-        "float4 g_MaterialDiffuseColor;      // Material's diffuse color\r\n"
-        "float4 g_LightDir;                  // Light's direction in world space\r\n"
-        "float4x4 g_mWorld;                  // World matrix for object\r\n"
-        "float4x4 g_mWorldViewProjection;    // World * View * Projection matrix\r\n"
-        "\r\n"
-        "struct VS_OUTPUT\r\n"
-        "{\r\n"
-        "    float4 Position   : SV_POSITION;   // vertex position\r\n"
-        "    float4 Diffuse    : COLOR0;     // vertex diffuse color\r\n"
-        "};\r\n"
-        "\r\n"
-        "VS_OUTPUT RenderWith1LightNoTextureVS( float3 vPos : POSITION,\r\n"
-        "                                       float3 vNormal : NORMAL )\r\n"
-        "{\r\n"
-        "    VS_OUTPUT Output;\r\n"
-        "\r\n"
-        "    // Transform the position from object space to homogeneous projection space\r\n"
-        "    Output.Position = mul( float4(vPos,1), g_mWorldViewProjection);\r\n"
-        "\r\n"
-        "    // Transform the normal from object space to world space\r\n"
-        "    float3 vNormalWorldSpace;\r\n"
-        "    vNormalWorldSpace = normalize(mul(vNormal, (float3x3)g_mWorld)); // normal (world space)\r\n"
-        "\r\n"
-        "    // Compute simple directional lighting equation\r\n"
-        "    Output.Diffuse.rgb = g_MaterialDiffuseColor * max(0,dot(vNormalWorldSpace, g_LightDir));\r\n"
-        "    Output.Diffuse.a = 1.0f;\r\n"
-        "\r\n"
-        "    return Output;\r\n"
-        "}\r\n"
-        "\r\n"
-        "float4 RenderWith1LightNoTexturePS( VS_OUTPUT Input ) : SV_TARGET\r\n"
-        "{\r\n"
-        "    return Input.Diffuse;\r\n"
-        "}\r\n"
-        "\r\n"
-        "technique10 RenderWith1LightNoTexture\r\n"
-        "{\r\n"
-        "    pass p0\r\n"
-        "    {\r\n"
-        "       SetVertexShader( CompileShader( vs_4_0, RenderWith1LightNoTextureVS() ) );\r\n"
-        "       SetGeometryShader( NULL );\r\n"
-        "       SetPixelShader( CompileShader( ps_4_0, RenderWith1LightNoTexturePS() ) );\r\n"
-        "    }\r\n"
-        "}\r\n"
-        "";
-
-    UINT dwBufferSize = ( UINT )strlen( g_strBuffer ) + 1;
-
-    HRESULT hr = D3DX10CreateEffectFromMemory( g_strBuffer, dwBufferSize, "None", NULL, NULL, "fx_4_0",
-                                               D3D10_SHADER_ENABLE_STRICTNESS, 0, pd3dDevice, NULL,
-                                               NULL, &s_pD3D10Effect, NULL, NULL );
-    if( FAILED( hr ) )
-        return hr;
-
-    s_pRenderTech = s_pD3D10Effect->GetTechniqueByName( "RenderWith1LightNoTexture" );
-    g_pMaterialDiffuseColor = s_pD3D10Effect->GetVariableByName( "g_MaterialDiffuseColor" )->AsVector();
-    g_pLightDir = s_pD3D10Effect->GetVariableByName( "g_LightDir" )->AsVector();
-    g_pmWorld = s_pD3D10Effect->GetVariableByName( "g_mWorld" )->AsMatrix();
-    g_pmWorldViewProjection = s_pD3D10Effect->GetVariableByName( "g_mWorldViewProjection" )->AsMatrix();
-
-    const D3D10_INPUT_ELEMENT_DESC layout[] =
-        {
-            { "POSITION",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0,  D3D10_INPUT_PER_VERTEX_DATA, 0 },
-            { "NORMAL",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D10_INPUT_PER_VERTEX_DATA, 0 },
-        };
-    D3D10_PASS_DESC PassDesc;
-    V_RETURN( s_pRenderTech->GetPassByIndex( 0 )->GetDesc( &PassDesc ) );
-    V_RETURN( pd3dDevice->CreateInputLayout( layout, 2, PassDesc.pIAInputSignature,
-                                             PassDesc.IAInputSignatureSize, &s_pVertexLayout ) );
-
-    //TODO:  Add loading code here
-
-    return S_OK;
-}
-
-//--------------------------------------------------------------------------------------
-HRESULT CDXUTDirectionWidget::OnRender10( D3DXCOLOR color, const D3DXMATRIX* pmView, const D3DXMATRIX* pmProj,
-                                          const D3DXVECTOR3* pEyePt )
-{
-    m_mView = *pmView;
-
-    // Render the light spheres so the user can visually see the light dir
-    D3DXMATRIX mRotate;
-    D3DXMATRIX mScale;
-    D3DXMATRIX mTrans;
-    D3DXMATRIXA16 mWorldViewProj;
-
-    g_pMaterialDiffuseColor->SetFloatVector( ( float* )&color );
-    D3DXVECTOR3 vEyePt;
-    D3DXVec3Normalize( &vEyePt, pEyePt );
-    g_pLightDir->SetFloatVector( ( float* )&vEyePt );
-
-    // Rotate arrow model to point towards origin
-    D3DXMATRIX mRotateA, mRotateB;
-    D3DXVECTOR3 vAt = D3DXVECTOR3( 0, 0, 0 );
-    D3DXVECTOR3 vUp = D3DXVECTOR3( 0, 1, 0 );
-    D3DXMatrixRotationX( &mRotateB, D3DX_PI );
-    D3DXMatrixLookAtLH( &mRotateA, &m_vCurrentDir, &vAt, &vUp );
-    D3DXMatrixInverse( &mRotateA, NULL, &mRotateA );
-    mRotate = mRotateB * mRotateA;
-
-    D3DXVECTOR3 vL = m_vCurrentDir * m_fRadius * 1.0f;
-    D3DXMatrixTranslation( &mTrans, vL.x, vL.y, vL.z );
-    D3DXMatrixScaling( &mScale, m_fRadius * 0.2f, m_fRadius * 0.2f, m_fRadius * 0.2f );
-
-    D3DXMATRIX mWorld = mRotate * mScale * mTrans;
-    mWorldViewProj = mWorld * ( m_mView )*( *pmProj );
-
-    g_pmWorldViewProjection->SetMatrix( ( float* )&mWorldViewProj );
-    g_pmWorld->SetMatrix( ( float* )&mWorld );
-
-    s_pd3d10Device->IASetInputLayout( s_pVertexLayout );
-
-    //TODO:  Add rendering code here
-
-    return S_OK;
-}
-
-//--------------------------------------------------------------------------------------
-void CDXUTDirectionWidget::StaticOnD3D10DestroyDevice()
-{
-    SAFE_RELEASE( s_pVertexLayout );
-    SAFE_RELEASE( s_pD3D10Effect );
 }
 
 
@@ -1527,3 +1395,134 @@ HRESULT CDXUTDirectionWidget::UpdateLightDir()
     return S_OK;
 }
 
+//--------------------------------------------------------------------------------------
+HRESULT CDXUTDirectionWidget::StaticOnD3D11CreateDevice( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext )
+{
+    
+
+    //s_pd3d10Device = pd3dDevice;
+
+    //const char* g_strBuffer =
+    //    "float4 g_MaterialDiffuseColor;      // Material's diffuse color\r\n"
+    //    "float4 g_LightDir;                  // Light's direction in world space\r\n"
+    //    "float4x4 g_mWorld;                  // World matrix for object\r\n"
+    //    "float4x4 g_mWorldViewProjection;    // World * View * Projection matrix\r\n"
+    //    "\r\n"
+    //    "struct VS_OUTPUT\r\n"
+    //    "{\r\n"
+    //    "    float4 Position   : SV_POSITION;   // vertex position\r\n"
+    //    "    float4 Diffuse    : COLOR0;     // vertex diffuse color\r\n"
+    //    "};\r\n"
+    //    "\r\n"
+    //    "VS_OUTPUT RenderWith1LightNoTextureVS( float3 vPos : POSITION,\r\n"
+    //    "                                       float3 vNormal : NORMAL )\r\n"
+    //    "{\r\n"
+    //    "    VS_OUTPUT Output;\r\n"
+    //    "\r\n"
+    //    "    // Transform the position from object space to homogeneous projection space\r\n"
+    //    "    Output.Position = mul( float4(vPos,1), g_mWorldViewProjection);\r\n"
+    //    "\r\n"
+    //    "    // Transform the normal from object space to world space\r\n"
+    //    "    float3 vNormalWorldSpace;\r\n"
+    //    "    vNormalWorldSpace = normalize(mul(vNormal, (float3x3)g_mWorld)); // normal (world space)\r\n"
+    //    "\r\n"
+    //    "    // Compute simple directional lighting equation\r\n"
+    //    "    Output.Diffuse.rgb = g_MaterialDiffuseColor * max(0,dot(vNormalWorldSpace, g_LightDir));\r\n"
+    //    "    Output.Diffuse.a = 1.0f;\r\n"
+    //    "\r\n"
+    //    "    return Output;\r\n"
+    //    "}\r\n"
+    //    "\r\n"
+    //    "float4 RenderWith1LightNoTexturePS( VS_OUTPUT Input ) : SV_TARGET\r\n"
+    //    "{\r\n"
+    //    "    return Input.Diffuse;\r\n"
+    //    "}\r\n"
+    //    "\r\n"
+    //    "technique10 RenderWith1LightNoTexture\r\n"
+    //    "{\r\n"
+    //    "    pass p0\r\n"
+    //    "    {\r\n"
+    //    "       SetVertexShader( CompileShader( vs_4_0, RenderWith1LightNoTextureVS() ) );\r\n"
+    //    "       SetGeometryShader( NULL );\r\n"
+    //    "       SetPixelShader( CompileShader( ps_4_0, RenderWith1LightNoTexturePS() ) );\r\n"
+    //    "    }\r\n"
+    //    "}\r\n"
+    //    "";
+
+    //UINT dwBufferSize = ( UINT )strlen( g_strBuffer ) + 1;
+
+    //HRESULT hr = D3DX10CreateEffectFromMemory( g_strBuffer, dwBufferSize, "None", NULL, NULL, "fx_4_0",
+    //                                           D3D10_SHADER_ENABLE_STRICTNESS, 0, pd3dDevice, NULL,
+    //                                           NULL, &s_pD3D10Effect, NULL, NULL );
+    //if( FAILED( hr ) )
+    //    return hr;
+
+    //s_pRenderTech = s_pD3D10Effect->GetTechniqueByName( "RenderWith1LightNoTexture" );
+    //g_pMaterialDiffuseColor = s_pD3D10Effect->GetVariableByName( "g_MaterialDiffuseColor" )->AsVector();
+    //g_pLightDir = s_pD3D10Effect->GetVariableByName( "g_LightDir" )->AsVector();
+    //g_pmWorld = s_pD3D10Effect->GetVariableByName( "g_mWorld" )->AsMatrix();
+    //g_pmWorldViewProjection = s_pD3D10Effect->GetVariableByName( "g_mWorldViewProjection" )->AsMatrix();
+
+    //const D3D10_INPUT_ELEMENT_DESC layout[] =
+    //{
+    //    { "POSITION",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0,  D3D10_INPUT_PER_VERTEX_DATA, 0 },
+    //    { "NORMAL",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D10_INPUT_PER_VERTEX_DATA, 0 },
+    //};
+    //D3D10_PASS_DESC PassDesc;
+    //V_RETURN( s_pRenderTech->GetPassByIndex( 0 )->GetDesc( &PassDesc ) );
+    //V_RETURN( pd3dDevice->CreateInputLayout( layout, 2, PassDesc.pIAInputSignature,
+    //                                         PassDesc.IAInputSignatureSize, &s_pVertexLayout ) );
+    
+    return S_OK;
+}
+
+//--------------------------------------------------------------------------------------
+HRESULT CDXUTDirectionWidget::OnRender11( D3DXCOLOR color, const D3DXMATRIX* pmView, const D3DXMATRIX* pmProj,
+                                          const D3DXVECTOR3* pEyePt )
+{
+   // NO 11 version of D3DX11Mesh YET
+   // m_mView = *pmView;
+
+   // // Render the light spheres so the user can visually see the light dir
+   // D3DXMATRIX mRotate;
+   // D3DXMATRIX mScale;
+   // D3DXMATRIX mTrans;
+   // D3DXMATRIXA16 mWorldViewProj;
+
+   // g_pMaterialDiffuseColor->SetFloatVector( ( float* )&color );
+   // D3DXVECTOR3 vEyePt;
+   // D3DXVec3Normalize( &vEyePt, pEyePt );
+   // g_pLightDir->SetFloatVector( ( float* )&vEyePt );
+
+   // // Rotate arrow model to point towards origin
+   // D3DXMATRIX mRotateA, mRotateB;
+   // D3DXVECTOR3 vAt = D3DXVECTOR3( 0, 0, 0 );
+   // D3DXVECTOR3 vUp = D3DXVECTOR3( 0, 1, 0 );
+   // D3DXMatrixRotationX( &mRotateB, D3DX_PI );
+   // D3DXMatrixLookAtLH( &mRotateA, &m_vCurrentDir, &vAt, &vUp );
+   // D3DXMatrixInverse( &mRotateA, NULL, &mRotateA );
+   // mRotate = mRotateB * mRotateA;
+
+   // D3DXVECTOR3 vL = m_vCurrentDir * m_fRadius * 1.0f;
+   // D3DXMatrixTranslation( &mTrans, vL.x, vL.y, vL.z );
+   // D3DXMatrixScaling( &mScale, m_fRadius * 0.2f, m_fRadius * 0.2f, m_fRadius * 0.2f );
+
+   // D3DXMATRIX mWorld = mRotate * mScale * mTrans;
+   // mWorldViewProj = mWorld * ( m_mView )*( *pmProj );
+
+   // g_pmWorldViewProjection->SetMatrix( ( float* )&mWorldViewProj );
+   // g_pmWorld->SetMatrix( ( float* )&mWorld );
+
+   // s_pd3d10Device->IASetInputLayout( s_pVertexLayout );
+    
+   // Add rendering code here
+
+    return S_OK;
+}
+
+//--------------------------------------------------------------------------------------
+void CDXUTDirectionWidget::StaticOnD3D11DestroyDevice()
+{
+//    SAFE_RELEASE( s_pVertexLayout );
+//    SAFE_RELEASE( s_pD3D11Effect );
+}

@@ -17,9 +17,19 @@ public:
 
     // Functions to change behavior
     void                            Reset();
-    void SetTranslationRadius( FLOAT fRadiusTranslation ) { m_fRadiusTranslation = fRadiusTranslation; }
-    void SetWindow( INT nWidth, INT nHeight, FLOAT fRadius = 0.9f ) { m_nWidth = nWidth; m_nHeight = nHeight; m_fRadius = fRadius; m_vCenter = D3DXVECTOR2(m_nWidth/2.0f,m_nHeight/2.0f); }
-    void SetOffset( INT nX, INT nY ) { m_Offset.x = nX; m_Offset.y = nY; }
+    void                            SetTranslationRadius( FLOAT fRadiusTranslation )
+    {
+        m_fRadiusTranslation = fRadiusTranslation;
+    }
+    void                            SetWindow( INT nWidth, INT nHeight, FLOAT fRadius = 0.9f )
+    {
+        m_nWidth = nWidth; m_nHeight = nHeight; m_fRadius = fRadius;
+        m_vCenter = D3DXVECTOR2( m_nWidth / 2.0f, m_nHeight / 2.0f );
+    }
+    void                            SetOffset( INT nX, INT nY )
+    {
+        m_Offset.x = nX; m_Offset.y = nY;
+    }
 
     // Call these from client and use GetRotationMatrix() to read new rotation matrix
     void                            OnBegin( int nX, int nY );  // start the rotation (pass current mouse position)
@@ -30,12 +40,30 @@ public:
     LRESULT                         HandleMessages( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam );
 
     // Functions to get/set state
-    const D3DXMATRIX* GetRotationMatrix()                   { return D3DXMatrixRotationQuaternion(&m_mRotation, &m_qNow); };
-    const D3DXMATRIX* GetTranslationMatrix() const          { return &m_mTranslation; }
-    const D3DXMATRIX* GetTranslationDeltaMatrix() const     { return &m_mTranslationDelta; }
-    bool        IsBeingDragged() const                      { return m_bDrag; }
-    D3DXQUATERNION GetQuatNow() const                       { return m_qNow; }
-    void        SetQuatNow( D3DXQUATERNION q ) { m_qNow = q; }
+    const D3DXMATRIX* GetRotationMatrix()
+    {
+        return D3DXMatrixRotationQuaternion( &m_mRotation, &m_qNow );
+    };
+    const D3DXMATRIX* GetTranslationMatrix() const
+    {
+        return &m_mTranslation;
+    }
+    const D3DXMATRIX* GetTranslationDeltaMatrix() const
+    {
+        return &m_mTranslationDelta;
+    }
+    bool                            IsBeingDragged() const
+    {
+        return m_bDrag;
+    }
+    D3DXQUATERNION                  GetQuatNow() const
+    {
+        return m_qNow;
+    }
+    void                            SetQuatNow( D3DXQUATERNION q )
+    {
+        m_qNow = q;
+    }
 
     static D3DXQUATERNION WINAPI    QuatFromBallPoints( const D3DXVECTOR3& vFrom, const D3DXVECTOR3& vTo );
 
@@ -110,39 +138,105 @@ public:
     virtual void                SetProjParams( FLOAT fFOV, FLOAT fAspect, FLOAT fNearPlane, FLOAT fFarPlane );
 
     // Functions to change behavior
-    virtual void SetDragRect( RECT &rc ) { m_rcDrag = rc; }
-    void SetInvertPitch( bool bInvertPitch ) { m_bInvertPitch = bInvertPitch; }
-    void SetDrag( bool bMovementDrag, FLOAT fTotalDragTimeToZero = 0.25f ) { m_bMovementDrag = bMovementDrag; m_fTotalDragTimeToZero = fTotalDragTimeToZero; }
-    void SetEnableYAxisMovement( bool bEnableYAxisMovement ) { m_bEnableYAxisMovement = bEnableYAxisMovement; }
-    void SetEnablePositionMovement( bool bEnablePositionMovement ) { m_bEnablePositionMovement = bEnablePositionMovement; }
-    void SetClipToBoundary( bool bClipToBoundary, D3DXVECTOR3* pvMinBoundary, D3DXVECTOR3* pvMaxBoundary ) { m_bClipToBoundary = bClipToBoundary; if( pvMinBoundary ) m_vMinBoundary = *pvMinBoundary; if( pvMaxBoundary ) m_vMaxBoundary = *pvMaxBoundary; }
-    void SetScalers( FLOAT fRotationScaler = 0.01f, FLOAT fMoveScaler = 5.0f )  { m_fRotationScaler = fRotationScaler; m_fMoveScaler = fMoveScaler; }
-    void SetNumberOfFramesToSmoothMouseData( int nFrames ) { if( nFrames > 0 ) m_fFramesToSmoothMouseData = (float)nFrames; }
-    void SetResetCursorAfterMove( bool bResetCursorAfterMove ) { m_bResetCursorAfterMove = bResetCursorAfterMove; }
+    virtual void                SetDragRect( RECT& rc )
+    {
+        m_rcDrag = rc;
+    }
+    void                        SetInvertPitch( bool bInvertPitch )
+    {
+        m_bInvertPitch = bInvertPitch;
+    }
+    void                        SetDrag( bool bMovementDrag, FLOAT fTotalDragTimeToZero = 0.25f )
+    {
+        m_bMovementDrag = bMovementDrag; m_fTotalDragTimeToZero = fTotalDragTimeToZero;
+    }
+    void                        SetEnableYAxisMovement( bool bEnableYAxisMovement )
+    {
+        m_bEnableYAxisMovement = bEnableYAxisMovement;
+    }
+    void                        SetEnablePositionMovement( bool bEnablePositionMovement )
+    {
+        m_bEnablePositionMovement = bEnablePositionMovement;
+    }
+    void                        SetClipToBoundary( bool bClipToBoundary, D3DXVECTOR3* pvMinBoundary,
+                                                   D3DXVECTOR3* pvMaxBoundary )
+    {
+        m_bClipToBoundary = bClipToBoundary; if( pvMinBoundary ) m_vMinBoundary = *pvMinBoundary;
+        if( pvMaxBoundary ) m_vMaxBoundary = *pvMaxBoundary;
+    }
+    void                        SetScalers( FLOAT fRotationScaler = 0.01f, FLOAT fMoveScaler = 5.0f )
+    {
+        m_fRotationScaler = fRotationScaler; m_fMoveScaler = fMoveScaler;
+    }
+    void                        SetNumberOfFramesToSmoothMouseData( int nFrames )
+    {
+        if( nFrames > 0 ) m_fFramesToSmoothMouseData = ( float )nFrames;
+    }
+    void                        SetResetCursorAfterMove( bool bResetCursorAfterMove )
+    {
+        m_bResetCursorAfterMove = bResetCursorAfterMove;
+    }
 
     // Functions to get state
-    const D3DXMATRIX*  GetViewMatrix() const { return &m_mView; }
-    const D3DXMATRIX*  GetProjMatrix() const { return &m_mProj; }
-    const D3DXVECTOR3* GetEyePt() const      { return &m_vEye; }
-    const D3DXVECTOR3* GetLookAtPt() const   { return &m_vLookAt; }
-    float GetNearClip() const { return m_fNearPlane; }
-    float GetFarClip() const { return m_fFarPlane; }
+    const D3DXMATRIX* GetViewMatrix() const
+    {
+        return &m_mView;
+    }
+    const D3DXMATRIX* GetProjMatrix() const
+    {
+        return &m_mProj;
+    }
+    const D3DXVECTOR3* GetEyePt() const
+    {
+        return &m_vEye;
+    }
+    const D3DXVECTOR3* GetLookAtPt() const
+    {
+        return &m_vLookAt;
+    }
+    float                       GetNearClip() const
+    {
+        return m_fNearPlane;
+    }
+    float                       GetFarClip() const
+    {
+        return m_fFarPlane;
+    }
 
-    bool IsBeingDragged() const         { return (m_bMouseLButtonDown || m_bMouseMButtonDown || m_bMouseRButtonDown); }
-    bool IsMouseLButtonDown() const     { return m_bMouseLButtonDown; } 
-    bool IsMouseMButtonDown() const     { return m_bMouseMButtonDown; } 
-    bool IsMouseRButtonDown() const     { return m_bMouseRButtonDown; } 
+    bool                        IsBeingDragged() const
+    {
+        return ( m_bMouseLButtonDown || m_bMouseMButtonDown || m_bMouseRButtonDown );
+    }
+    bool                        IsMouseLButtonDown() const
+    {
+        return m_bMouseLButtonDown;
+    }
+    bool                        IsMouseMButtonDown() const
+    {
+        return m_bMouseMButtonDown;
+    }
+    bool                        IsMouseRButtonDown() const
+    {
+        return m_bMouseRButtonDown;
+    }
 
 protected:
     // Functions to map a WM_KEYDOWN key to a D3DUtil_CameraKeys enum
     virtual D3DUtil_CameraKeys  MapKey( UINT nKey );
-    bool IsKeyDown( BYTE key ) const { return( (key & KEY_IS_DOWN_MASK) == KEY_IS_DOWN_MASK ); }
-    bool WasKeyDown( BYTE key ) const { return( (key & KEY_WAS_DOWN_MASK) == KEY_WAS_DOWN_MASK ); }
+    bool                        IsKeyDown( BYTE key ) const
+    {
+        return( ( key & KEY_IS_DOWN_MASK ) == KEY_IS_DOWN_MASK );
+    }
+    bool                        WasKeyDown( BYTE key ) const
+    {
+        return( ( key & KEY_WAS_DOWN_MASK ) == KEY_WAS_DOWN_MASK );
+    }
 
     void                        ConstrainToBoundary( D3DXVECTOR3* pV );
     void                        UpdateMouseDelta();
     void                        UpdateVelocity( float fElapsedTime );
-    void GetInput( bool bGetKeyboardInput, bool bGetMouseInput, bool bGetGamepadInput, bool bResetCursorAfterMove );
+    void                        GetInput( bool bGetKeyboardInput, bool bGetMouseInput, bool bGetGamepadInput,
+                                          bool bResetCursorAfterMove );
 
     D3DXMATRIX m_mView;              // View matrix 
     D3DXMATRIX m_mProj;              // Projection matrix
@@ -217,12 +311,27 @@ public:
     void            SetRotateButtons( bool bLeft, bool bMiddle, bool bRight, bool bRotateWithoutButtonDown = false );
 
     // Functions to get state
-    D3DXMATRIX*  GetWorldMatrix()            { return &m_mCameraWorld; }
+    D3DXMATRIX* GetWorldMatrix()
+    {
+        return &m_mCameraWorld;
+    }
 
-    const D3DXVECTOR3* GetWorldRight() const { return (D3DXVECTOR3*)&m_mCameraWorld._11; } 
-    const D3DXVECTOR3* GetWorldUp() const    { return (D3DXVECTOR3*)&m_mCameraWorld._21; }
-    const D3DXVECTOR3* GetWorldAhead() const { return (D3DXVECTOR3*)&m_mCameraWorld._31; }
-    const D3DXVECTOR3* GetEyePt() const      { return (D3DXVECTOR3*)&m_mCameraWorld._41; }
+    const D3DXVECTOR3* GetWorldRight() const
+    {
+        return ( D3DXVECTOR3* )&m_mCameraWorld._11;
+    }
+    const D3DXVECTOR3* GetWorldUp() const
+    {
+        return ( D3DXVECTOR3* )&m_mCameraWorld._21;
+    }
+    const D3DXVECTOR3* GetWorldAhead() const
+    {
+        return ( D3DXVECTOR3* )&m_mCameraWorld._31;
+    }
+    const D3DXVECTOR3* GetEyePt() const
+    {
+        return ( D3DXVECTOR3* )&m_mCameraWorld._41;
+    }
 
 protected:
     D3DXMATRIX m_mCameraWorld;       // World matrix of the camera (inverse of the view matrix)
@@ -249,18 +358,52 @@ public:
     virtual void    SetDragRect( RECT& rc );
     void            Reset();
     void            SetViewParams( D3DXVECTOR3* pvEyePt, D3DXVECTOR3* pvLookatPt );
-    void SetButtonMasks( int nRotateModelButtonMask = MOUSE_LEFT_BUTTON, int nZoomButtonMask = MOUSE_WHEEL, int nRotateCameraButtonMask = MOUSE_RIGHT_BUTTON ) { m_nRotateModelButtonMask = nRotateModelButtonMask, m_nZoomButtonMask = nZoomButtonMask; m_nRotateCameraButtonMask = nRotateCameraButtonMask; }
-    void SetAttachCameraToModel( bool bEnable = false ) { m_bAttachCameraToModel = bEnable; }
-    void SetWindow( int nWidth, int nHeight, float fArcballRadius=0.9f ) { m_WorldArcBall.SetWindow( nWidth, nHeight, fArcballRadius ); m_ViewArcBall.SetWindow( nWidth, nHeight, fArcballRadius ); }
-    void SetRadius( float fDefaultRadius=5.0f, float fMinRadius=1.0f, float fMaxRadius=FLT_MAX  ) { m_fDefaultRadius = m_fRadius = fDefaultRadius; m_fMinRadius = fMinRadius; m_fMaxRadius = fMaxRadius; m_bDragSinceLastUpdate = true; }
-    void SetModelCenter( D3DXVECTOR3 vModelCenter ) { m_vModelCenter = vModelCenter; }
-    void SetLimitPitch( bool bLimitPitch ) { m_bLimitPitch = bLimitPitch; }
-    void SetViewQuat( D3DXQUATERNION q ) { m_ViewArcBall.SetQuatNow( q ); m_bDragSinceLastUpdate = true; }
-    void SetWorldQuat( D3DXQUATERNION q ) { m_WorldArcBall.SetQuatNow( q ); m_bDragSinceLastUpdate = true; }
+    void            SetButtonMasks( int nRotateModelButtonMask = MOUSE_LEFT_BUTTON, int nZoomButtonMask = MOUSE_WHEEL,
+                                    int nRotateCameraButtonMask = MOUSE_RIGHT_BUTTON )
+    {
+        m_nRotateModelButtonMask = nRotateModelButtonMask, m_nZoomButtonMask = nZoomButtonMask;
+        m_nRotateCameraButtonMask = nRotateCameraButtonMask;
+    }
+    void            SetAttachCameraToModel( bool bEnable = false )
+    {
+        m_bAttachCameraToModel = bEnable;
+    }
+    void            SetWindow( int nWidth, int nHeight, float fArcballRadius=0.9f )
+    {
+        m_WorldArcBall.SetWindow( nWidth, nHeight, fArcballRadius );
+        m_ViewArcBall.SetWindow( nWidth, nHeight, fArcballRadius );
+    }
+    void            SetRadius( float fDefaultRadius=5.0f, float fMinRadius=1.0f, float fMaxRadius=FLT_MAX )
+    {
+        m_fDefaultRadius = m_fRadius = fDefaultRadius; m_fMinRadius = fMinRadius; m_fMaxRadius = fMaxRadius;
+        m_bDragSinceLastUpdate = true;
+    }
+    void            SetModelCenter( D3DXVECTOR3 vModelCenter )
+    {
+        m_vModelCenter = vModelCenter;
+    }
+    void            SetLimitPitch( bool bLimitPitch )
+    {
+        m_bLimitPitch = bLimitPitch;
+    }
+    void            SetViewQuat( D3DXQUATERNION q )
+    {
+        m_ViewArcBall.SetQuatNow( q ); m_bDragSinceLastUpdate = true;
+    }
+    void            SetWorldQuat( D3DXQUATERNION q )
+    {
+        m_WorldArcBall.SetQuatNow( q ); m_bDragSinceLastUpdate = true;
+    }
 
     // Functions to get state
-    const D3DXMATRIX* GetWorldMatrix() const { return &m_mWorld; }
-    void SetWorldMatrix( D3DXMATRIX &mWorld ) { m_mWorld = mWorld; m_bDragSinceLastUpdate = true; }
+    const D3DXMATRIX* GetWorldMatrix() const
+    {
+        return &m_mWorld;
+    }
+    void            SetWorldMatrix( D3DXMATRIX& mWorld )
+    {
+        m_mWorld = mWorld; m_bDragSinceLastUpdate = true;
+    }
 
 protected:
     CD3DArcBall m_WorldArcBall;
@@ -297,23 +440,43 @@ public:
 
     static HRESULT WINAPI   StaticOnD3D9CreateDevice( IDirect3DDevice9* pd3dDevice );
     HRESULT                 OnD3D9ResetDevice( const D3DSURFACE_DESC* pBackBufferSurfaceDesc );
-    HRESULT OnRender9( D3DXCOLOR color, const D3DXMATRIX* pmView, const D3DXMATRIX* pmProj, const D3DXVECTOR3* pEyePt );
+    HRESULT                 OnRender9( D3DXCOLOR color, const D3DXMATRIX* pmView, const D3DXMATRIX* pmProj,
+                                       const D3DXVECTOR3* pEyePt );
     LRESULT                 HandleMessages( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam );
     static void WINAPI      StaticOnD3D9LostDevice();
     static void WINAPI      StaticOnD3D9DestroyDevice();
 
-    static HRESULT WINAPI   StaticOnD3D10CreateDevice( ID3D10Device* pd3dDevice );
-    HRESULT OnRender10( D3DXCOLOR color, const D3DXMATRIX* pmView, const D3DXMATRIX* pmProj, const D3DXVECTOR3* pEyePt );
-    static void WINAPI      StaticOnD3D10DestroyDevice();
+    static HRESULT WINAPI   StaticOnD3D11CreateDevice( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext );
+    HRESULT                 OnRender11( D3DXCOLOR color, const D3DXMATRIX* pmView, const D3DXMATRIX* pmProj,
+                                        const D3DXVECTOR3* pEyePt );
+    static void WINAPI      StaticOnD3D11DestroyDevice();
 
-    D3DXVECTOR3 GetLightDirection()         { return m_vCurrentDir; };
-    void        SetLightDirection( D3DXVECTOR3 vDir ) { m_vDefaultDir = m_vCurrentDir = vDir; };
-    void        SetButtonMask( int nRotate = MOUSE_RIGHT_BUTTON ) { m_nRotateMask = nRotate; }
+    D3DXVECTOR3             GetLightDirection()
+    {
+        return m_vCurrentDir;
+    };
+    void                    SetLightDirection( D3DXVECTOR3 vDir )
+    {
+        m_vDefaultDir = m_vCurrentDir = vDir;
+    };
+    void                    SetButtonMask( int nRotate = MOUSE_RIGHT_BUTTON )
+    {
+        m_nRotateMask = nRotate;
+    }
 
-    float GetRadius()                 { return m_fRadius; };
-    void  SetRadius( float fRadius )  { m_fRadius = fRadius; };
+    float                   GetRadius()
+    {
+        return m_fRadius;
+    };
+    void                    SetRadius( float fRadius )
+    {
+        m_fRadius = fRadius;
+    };
 
-    bool  IsBeingDragged() { return m_ArcBall.IsBeingDragged(); };
+    bool                    IsBeingDragged()
+    {
+        return m_ArcBall.IsBeingDragged();
+    };
 
 protected:
     HRESULT                 UpdateLightDir();
@@ -328,16 +491,16 @@ protected:
     static D3DXHANDLE s_hWorldViewProjection;
     static D3DXHANDLE s_hWorld;
 
-    // D3D10 objects
-    static ID3D10Device* s_pd3d10Device;
-    static ID3D10Effect* s_pD3D10Effect;
+    // D3D10 objects 
+    //static ID3D10Device* s_pd3d10Device;
+    //static ID3D10Effect* s_pD3D10Effect;
     //TODO: add some sort of d3d10 mesh object here
-    static ID3D10InputLayout* s_pVertexLayout;
-    static ID3D10EffectTechnique* s_pRenderTech;
-    static ID3D10EffectVectorVariable* g_pMaterialDiffuseColor;
-    static ID3D10EffectVectorVariable* g_pLightDir;
-    static ID3D10EffectMatrixVariable* g_pmWorld;
-    static ID3D10EffectMatrixVariable* g_pmWorldViewProjection;
+    //static ID3D10InputLayout* s_pVertexLayout;
+    //static ID3D10EffectTechnique* s_pRenderTech;
+    //static ID3D10EffectVectorVariable* g_pMaterialDiffuseColor;
+    //static ID3D10EffectVectorVariable* g_pLightDir;
+    //static ID3D10EffectMatrixVariable* g_pmWorld;
+    //static ID3D10EffectMatrixVariable* g_pmWorldViewProjection;
 
     D3DXMATRIXA16 m_mRot;
     D3DXMATRIXA16 m_mRotSnapshot;

@@ -620,7 +620,7 @@ HRESULT CSound::RestoreBuffer( LPDIRECTSOUNDBUFFER pDSB, BOOL* pbWasRestored )
             hr = pDSB->Restore();
             if( hr == DSERR_BUFFERLOST )
                 Sleep( 10 );
-        } while( ( hr = pDSB->Restore() ) == DSERR_BUFFERLOST );
+        }        while( ( hr = pDSB->Restore() ) == DSERR_BUFFERLOST );
 
         if( pbWasRestored != NULL )
             *pbWasRestored = TRUE;

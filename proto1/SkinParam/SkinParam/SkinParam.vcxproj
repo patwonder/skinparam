@@ -98,7 +98,11 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="DXUT\Core\DXUTenum.cpp">
+    <ClCompile Include="DXUT\Core\DXUTDevice11.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="DXUT\Core\DXUTDevice9.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -126,15 +130,15 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="DXUT\Optional\DXUTShapes.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
-    </ClCompile>
     <ClCompile Include="DXUT\Optional\ImeUi.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="D3DHelper.cpp" />
+    <ClCompile Include="DXUT\Optional\SDKmisc.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="Head.cpp" />
     <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="Material.cpp" />
@@ -183,7 +187,8 @@
     <ClInclude Include="DirectXTex\DirectXTex\DirectXTex.h" />
     <ClInclude Include="DirectXTex\WICTextureLoader\WICTextureLoader.h" />
     <ClInclude Include="DXUT\Core\DXUT.h" />
-    <ClInclude Include="DXUT\Core\DXUTenum.h" />
+    <ClInclude Include="DXUT\Core\DXUTDevice11.h" />
+    <ClInclude Include="DXUT\Core\DXUTDevice9.h" />
     <ClInclude Include="DXUT\Core\DXUTmisc.h" />
     <ClInclude Include="DXUT\Optional\DXUTcamera.h" />
     <ClInclude Include="DXUT\Optional\DXUTgui.h" />
@@ -191,15 +196,16 @@
     <ClInclude Include="DXUT\Optional\DXUTLockFreePipe.h" />
     <ClInclude Include="DXUT\Optional\DXUTres.h" />
     <ClInclude Include="DXUT\Optional\DXUTsettingsdlg.h" />
-    <ClInclude Include="DXUT\Optional\DXUTShapes.h" />
     <ClInclude Include="DXUT\Optional\ImeUi.h" />
     <ClInclude Include="D3DHelper.h" />
+    <ClInclude Include="DXUT\Optional\SDKmisc.h" />
     <ClInclude Include="Head.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="MainWindow.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="MeshRenderable.h" />
     <ClInclude Include="Renderable.h" />
+    <ClInclude Include="RenderableManager.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="ShaderGroup.h" />
     <ClInclude Include="stdafx.h" />
