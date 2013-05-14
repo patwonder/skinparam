@@ -272,7 +272,7 @@ PS_INPUT_IRRADIANCE DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLo
 
 // kernel width calculation
 // one unit length in world space equals 80mm
-static const float MM_PER_LENGTH = 80;
+static const float MM_PER_LENGTH = 120;
 static const float FOV_ANGLE = 45;
 // calculate depth * (length per mm in texture space)
 static const float SIZE_ALPHA = 1 / (2 * tan(FOV_ANGLE / 2) * MM_PER_LENGTH);
@@ -393,7 +393,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 
 	// calculate kernel size reduction due to tilt surface
 	//  1 - calculate local orthogonal coordinate system
-	float3 vUp = g_matView[1].xyz;
+	float3 vUp = float3(g_matView[0].y, g_matView[1].y, g_matView[2].y);
 	float3 vHorLocal = cross(V, vUp);
 	float3 vVerLocal = cross(V, vHorLocal);
 	//  2 - diffuse reduction equals to shadow length on corresponding plane

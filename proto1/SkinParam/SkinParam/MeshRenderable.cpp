@@ -121,7 +121,9 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 		const ObjMaterial& objMt = objMtPair.second;
 		if (objMt.TextureFileName.length()) {
 			ID3D11ShaderResourceView* pTexture = nullptr;
-			checkFailure(loadTexture(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.TextureFileName), &pTexture),
+			// use srgb for albedo textures
+			checkFailure(loadTextureEx(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.TextureFileName),
+				0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, true, &pTexture),
 				_T("Unable to load texture ") + TStringFromANSIString(objMt.TextureFileName));
 			m_vpTextures[objMtPair.first] = pTexture;
 		}

@@ -165,6 +165,16 @@ HRESULT D3DHelper::loadTexture(ID3D11Device* pDevice, ID3D11DeviceContext* pDevi
 	return CreateWICTextureFromFile(pDevice, pDeviceContext, strFileName.c_str(), nullptr, ppTexture);
 }
 
+HRESULT D3DHelper::loadTextureEx(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName,
+								 size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags,
+								 unsigned int miscFlags, bool forceSRGB,
+								 ID3D11ShaderResourceView** ppTexture)
+{
+	return CreateWICTextureFromFileEx(pDevice, pDeviceContext, strFileName.c_str(), maxsize, usage, bindFlags, cpuAccessFlags,
+		miscFlags, forceSRGB, nullptr, ppTexture);
+}
+
+
 HRESULT D3DHelper::loadTextureFromMemory(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, void* pData, UINT width, UINT height, DXGI_FORMAT format,
 							  UINT rowPitch, ID3D11ShaderResourceView** ppTexture, bool autogen)
 {

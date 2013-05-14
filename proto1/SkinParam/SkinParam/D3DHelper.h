@@ -27,6 +27,9 @@ namespace Skin {
 			ID3D11DomainShader** ppDomainShader);
 		// texture
 		HRESULT loadTexture(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName, ID3D11ShaderResourceView** ppTexture);
+		HRESULT loadTextureEx(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName,
+			size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags, unsigned int miscFlags, bool forceSRGB,
+			ID3D11ShaderResourceView** ppTexture);
 		HRESULT loadTextureFromMemory(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, void* pData, UINT width, UINT height, DXGI_FORMAT format, UINT rowPitch,
 			ID3D11ShaderResourceView** ppTexture, bool autogen = true);
 		HRESULT loadImageData(const Utils::TString& strFileName, void* pData, UINT stride, UINT size);
