@@ -120,7 +120,7 @@ namespace Skin {
 			XMFLOAT3 attenuation;
 			float pad4;
 			XMFLOAT3 position;
-			float pad5;
+			float sss_intensity;
 		};
 		struct LightingConstantBuffer {
 			RLight g_lights[NUM_LIGHTS];

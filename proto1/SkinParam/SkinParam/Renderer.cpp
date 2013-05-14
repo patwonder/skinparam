@@ -525,6 +525,7 @@ void Renderer::updateLighting() {
 		rl.specular = XMColor3(l->coSpecular);
 		rl.position = XMPos(l->vecPosition);
 		rl.attenuation = XMFLOAT3(l->fAtten0, l->fAtten1, l->fAtten2);
+		rl.sss_intensity = m_bSSS ? 1.0 : 0.0;
 	}
 	for (UINT i = m_vpLights.size(); i < NUM_LIGHTS; i++) {
 		RLight& l = m_cbLighting.g_lights[i];
@@ -533,6 +534,7 @@ void Renderer::updateLighting() {
 		l.specular = XMColor3(Color::Black);
 		l.position = XMPos(Vector::ZERO);
 		l.attenuation = XMFLOAT3(1.0f, 0.0f, 0.0f);
+		l.sss_intensity = m_bSSS ? 1.0 : 0.0;
 	}
 	m_pDeviceContext->UpdateSubresource(m_pLightingConstantBuffer, 0, NULL, &m_cbLighting, 0, 0);
 }

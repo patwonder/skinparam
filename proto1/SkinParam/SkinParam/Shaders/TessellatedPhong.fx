@@ -304,28 +304,26 @@ float3 trans_atten(float s) {
 		 + float3(0.078, 0.000, 0.000) * exp(ns2 / 7.4100);
 }
 
-float distance(float3 vPosWS, float3 vNormalWS, matrix matViewLight, matrix matViewProjLight,
+float distance(float3 vPosWS, float3 vNormalWS, float ldepth, matrix matViewProjLight,
 			   Texture2D shadowMap, SamplerState samShadow)
 {
 	float3 vShrinkedPosWS = vPosWS;
-	float4 vPosVSL4 = mul(float4(vShrinkedPosWS, 1.0), matViewLight);
 	float4 vPosPSL4 = mul(float4(vShrinkedPosWS, 1.0), matViewProjLight);
-	float2 vPosTeSL = 0.5 * (vPosPSL4.xy / vPosPSL4.w) + 0.5;
-	vPosTeSL.y = 1.0 - vPosTeSL.y;
+	float2 vPosTeSL = float2(0.5, -0.5) * (vPosPSL4.xy / vPosPSL4.w) + 0.5;
 	float2 sample = shadowMap.Sample(samShadow, vPosTeSL).rg;
 	// take the limit of 84.13% confidence interval (one way) as our depth estimation
 	// prevent artifacts at glancing angles of light
 	float variance = max(sample.g - sample.r * sample.r, 0.0);
-	float d1f = sample.r + sqrt(variance);
-	float d1n = sample.r - sqrt(variance);
-	float d2 = vPosVSL4.z / vPosVSL4.w;
-	if (d1f >= d2) return 1000;
-	return d2 - d1n;
+	float sd = sqrt(variance);
+	float d1f = sample.r + sd;
+	float d1n = sample.r - sd;
+	float d2 = ldepth;
+	return max(d2 - d1n, sd);
 }
 
-float3 backlit_amount(float3 vPosWS, float3 vNormalWS, float3 L, matrix matViewLight, matrix matViewProjLight,
+float3 backlit_amount(float3 vPosWS, float3 vNormalWS, float3 L, float ldepth, matrix matViewProjLight,
 					  Texture2D shadowMap, SamplerState samShadow) {
-	float s = 0.25 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, matViewLight, matViewProjLight, shadowMap, samShadow);
+	float s = 0.20 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, ldepth, matViewProjLight, shadowMap, samShadow);
 	float3 atten = trans_atten(s);
 	float NdotL = max(0.3 + dot(-vNormalWS, L), 0);
 	return NdotL * atten;
@@ -358,7 +356,9 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 		Light l = g_lights[i];
 
 		// light vector & attenuation
-		float3 L = normalize(l.position - input.vPosWS);
+		float3 L = l.position - input.vPosWS;
+		float ldepth = length(L);
+		L /= ldepth;
 		float NdotL = dot(N, L);
 		float atten = light_attenuation(input.vPosWS, l);
 		// ambient
@@ -370,13 +370,13 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 		float3 H = normalize(L + V);
 		float specularLight = saturate(CookTorrance(N, V, L, H, RMS_SLOPE));
 		// look up shadow map for light amount
-		float lightAmount = light_amount(input.vPosWS, g_shadowMaps[i], g_samShadow, g_matViewLights[i], g_matViewProjLights[i]);
+		float lightAmount = light_amount(input.vPosWS, g_shadowMaps[i], g_samShadow, ldepth, g_matViewProjLights[i]);
 		// fresnel transmittance for diffuse irradiance
 		float fresnel_trans = 1;
 
 		// calculate transmittance from back of the object
-		float3 backlitAmount = backlit_amount(input.vPosWS, input.vNormalWS, L, g_matViewLights[i], g_matViewProjLights[i],
-			g_shadowMaps[i], g_samShadow);
+		float3 backlitAmount = backlit_amount(input.vPosWS, input.vNormalWS, L, ldepth, g_matViewProjLights[i],
+			g_shadowMaps[i], g_samShadow) * (1 - lightAmount) * l.sss_intensity;
 		float3 backlit = atten * backlitAmount * l.diffuse * g_material.diffuse;
 
 		// putting them together

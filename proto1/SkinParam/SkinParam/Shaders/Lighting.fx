@@ -26,6 +26,7 @@ struct Light {
 	float3 specular;
 	float3 attenuation;
 	float3 position;
+	float sss_intensity;
 };
 
 cbuffer Transform : register(b0) {
@@ -67,12 +68,11 @@ float dampedLightAmount(float lightAmount) {
 	return max(0.0, lightAmount - SHADOW_LIGHTAMOUNT_MIN) / (1.0 - SHADOW_LIGHTAMOUNT_MIN);
 }
 
-float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow, matrix matViewLight, matrix matViewProjLight) {
+float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow, float ldepth, matrix matViewProjLight) {
 	float4 vPosPSL4 = mul(float4(worldPos, 1.0), matViewProjLight);
 
 	// Texture space point location
-	float2 vPosTeSL = 0.5 * (vPosPSL4.xy / vPosPSL4.w) + 0.5;
-	vPosTeSL.y = 1.0 - vPosTeSL.y;
+	float2 vPosTeSL = float2(0.5, -0.5) * (vPosPSL4.xy / vPosPSL4.w) + 0.5;
 
 	float lightAmount;
 	if (vPosTeSL.x < 0.0 || vPosTeSL.x > 1.0 || vPosTeSL.y < 0.0 || vPosTeSL.y > 1.0) {
@@ -80,8 +80,7 @@ float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow,
 		lightAmount = 1.0;
 	} else {
 		float2 vsmSample = shadowMap.Sample(samShadow, vPosTeSL).rg;
-		float4 vPosVSL = mul(float4(worldPos, 1.0), matViewLight);
-		float depth = vPosVSL.z / vPosVSL.w;
+		float depth = ldepth;
 		float meanDepth = vsmSample.r;
 		float meanDepthSquared = vsmSample.g;
 		if (depth <= meanDepth) {
@@ -113,7 +112,9 @@ float3 phong_shadow(Material mt, float3 ambient, Light lights[NUM_LIGHTS],
 		Light l = lights[i];
 
 		// light vector & attenuation
-		float3 L = normalize(l.position - worldPos);
+		float3 L = l.position - worldPos;
+		float ldepth = length(L);
+		L /= ldepth;
 		float NdotL = dot(N, L);
 		float atten = light_attenuation(worldPos, l);
 		// ambient
@@ -126,7 +127,7 @@ float3 phong_shadow(Material mt, float3 ambient, Light lights[NUM_LIGHTS],
 		float specularLight = saturate(CookTorrance(N, V, L, H, RMS_SLOPE));//saturate(pow(max(dot(N, H), 0), mt.shininess));
 		float3 specular = atten * l.specular * mt.specular * specularLight;
 		// look up shadow map for light amount
-		float lightAmount = light_amount(worldPos, shadowMaps[i], samShadow, matViewLights[i], matViewProjLights[i]);
+		float lightAmount = light_amount(worldPos, shadowMaps[i], samShadow, ldepth, matViewProjLights[i]);
 
 		// putting them together
 		result += color * (ambient + diffuse * lightAmount) + specular * lightAmount;

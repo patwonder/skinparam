@@ -32,7 +32,7 @@ struct DS_INPUT {
 
 struct PS_INPUT {
 	float4 vPosPS : SV_POSITION;
-	float depth : DEPTH;
+	float3 vPosVS : VIEWPOS;
 };
 
 // Vertex shader, do world transform only
@@ -58,7 +58,7 @@ PS_INPUT VS_NoTessellation(VS_INPUT input) {
 	PS_INPUT output;
 	output.vPosPS = mul(float4(vPosWS, 1.0), g_matViewProj);
 	float4 vPosVS = mul(float4(vPosWS, 1.0), g_matView);
-	output.depth = vPosVS.z / vPosVS.w;
+	output.vPosVS = vPosVS.xyz / vPosVS.w;
 	return output;
 }
 
@@ -125,13 +125,13 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 	PS_INPUT output;
 	output.vPosPS = mul(float4(input.vPosWS, 1.0), g_matViewProj);
 	float4 vPosVS = mul(float4(input.vPosWS, 1.0), g_matView);
-	output.depth = vPosVS.z / vPosVS.w;
+	output.vPosVS = vPosVS.xyz / vPosVS.w;
 	return output;
 }
 
 // Pixel shader
 float4 PS(PS_INPUT input) : SV_Target {
 	// VSM: output depth & depth squared
-	float depth = input.depth;
+	float depth = length(input.vPosVS);
 	return float4(depth, depth * depth, 0.0, 0.0);
 }
