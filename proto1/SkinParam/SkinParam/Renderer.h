@@ -283,17 +283,18 @@ namespace Skin {
 		// Toggleables
 		bool getWireframe() const;
 		void setWireframe(bool bWireframe);
-		void toggleWireframe();
 #define GETTER(name, type, t) type get##name() const { return m_##t##name; }
 #define SETTER(name, type, t) void set##name(type t##name) { m_##t##name = t##name; }
-#define TOGGLE(name) void toggle##name() { m_b##name = !m_b##name; }
+#define TOGGLE(name) void toggle##name() { set##name(!get##name()); }
 #define GETSET(name, type, t) GETTER(name, type, t) SETTER(name, type, t)
 #define GST_BOOL(name) GETSET(name, bool, b) TOGGLE(name)
+		TOGGLE(Wireframe)
 		GST_BOOL(Tessellation)
 		GST_BOOL(Bump)
 		GST_BOOL(SSS)
-		GST_BOOL(PostProcessAA)
 		GST_BOOL(VSMBlur)
+		GETTER(PostProcessAA, bool, b) TOGGLE(PostProcessAA)
+		void setPostProcessAA(bool bPostProcessAA);
 
 		float getSSSStrength() const { return m_cbSSS.g_sss_strength; }
 		void setSSSStrength(float strength) { m_cbSSS.g_sss_strength = strength; }

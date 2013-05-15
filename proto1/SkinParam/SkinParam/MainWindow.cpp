@@ -307,7 +307,7 @@ void CMainWindow::updateUI() {
 		TStringStream tss;
 		tss << std::setiosflags(std::ios::fixed) << std::setprecision(1) << m_pRenderer->getFPS();
 		m_plblFPS->SetText(tss.str().c_str());
-		int iFPS = (int)(m_pRenderer->getFPS() + 0.5);
+		int iFPS = (int)(m_pRenderer->getFPS() + 0.05);
 		D3DXCOLOR color;
 		if (iFPS >= 40)
 			color = D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f);
@@ -322,16 +322,16 @@ void CMainWindow::updateUI() {
 		m_plblScreenSize->SetText(tss.str().c_str());
 	}
 	switch (m_pRenderer->getDriverType()) {
-	case D3D10_DRIVER_TYPE_HARDWARE:
+	case D3D_DRIVER_TYPE_HARDWARE:
 		m_plblDriverType->SetText(_T("Hardware"));
 		break;
-	case D3D10_DRIVER_TYPE_SOFTWARE:
+	case D3D_DRIVER_TYPE_SOFTWARE:
 		m_plblDriverType->SetText(_T("Software"));
 		break;
-	case D3D10_DRIVER_TYPE_REFERENCE:
+	case D3D_DRIVER_TYPE_REFERENCE:
 		m_plblDriverType->SetText(_T("Reference"));
 		break;
-	case D3D10_DRIVER_TYPE_WARP:
+	case D3D_DRIVER_TYPE_WARP:
 		m_plblDriverType->SetText(_T("WARP"));
 		break;
 	default:

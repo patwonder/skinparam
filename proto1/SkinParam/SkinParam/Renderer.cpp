@@ -1058,6 +1058,8 @@ bool Renderer::getWireframe() const {
 }
 
 void Renderer::setWireframe(bool bWireframe) {
+	if (getWireframe() == bWireframe) return;
+
 	if (bWireframe) {
 		m_descRasterizerState.FillMode = D3D11_FILL_WIREFRAME;
 		m_descRasterizerState.CullMode = D3D11_CULL_BACK;
@@ -1069,10 +1071,15 @@ void Renderer::setWireframe(bool bWireframe) {
 	m_pDevice->CreateRasterizerState(&m_descRasterizerState, &pRS);
 	m_pDeviceContext->RSSetState(pRS);
 	pRS->Release();
+
+	if (bWireframe)
+		setPostProcessAA(false);
 }
 
-void Renderer::toggleWireframe() {
-	setWireframe(!getWireframe());
+void Renderer::setPostProcessAA(bool bPostProcessAA) {
+	m_bPostProcessAA = bPostProcessAA;
+	if (bPostProcessAA)
+		setWireframe(false);
 }
 
 void Renderer::dump() {
