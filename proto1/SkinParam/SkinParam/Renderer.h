@@ -205,13 +205,13 @@ namespace Skin {
 
 		// render stage control
 		enum RenderStage {
-			NotRendering,
-			ShadowMap,
-			Irradiance,
-			Gaussian,
-			Combine,
+			RS_NotRendering,
+			RS_ShadowMap,
+			RS_Irradiance,
+			RS_Gaussian,
+			RS_Combine,
 			RS_PostProcessAA,
-			UI
+			RS_UI
 		};
 		RenderStage m_rsCurrent;
 
@@ -295,6 +295,8 @@ namespace Skin {
 		GST_BOOL(VSMBlur)
 
 		void dump();
+
+		D3D_DRIVER_TYPE getDriverType() const { return m_driverType; }
 
 		// IRenderer implementation
 		ID3D11Device* getDevice() const override;

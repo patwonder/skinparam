@@ -350,7 +350,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 
 	// shading
 	// global ambient
-	float3 irradiance = g_ambient * g_material.ambient;
+	float3 irradiance = g_ambient * g_material.ambient * FRESNEL_TRANS_TOTAL;
 	float3 specular = 0.0;
 
 	float3 N = normalize(vNormalWS);

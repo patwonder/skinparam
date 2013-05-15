@@ -8,8 +8,17 @@ cbuffer GaussianShadow : register(b0) {
 	float2 rcpScreenSize;
 };
 
+// Standard Deviation = 1.0
 static const int KERNEL_WIDTH = 7;
 static const float KERNEL[] = { 0.0045, 0.0540, 0.2420, 0.3990, 0.2420, 0.0540, 0.0045 };
+
+// Standard Deviation = 0.9
+//static const int KERNEL_WIDTH = 7;
+//static const float KERNEL[] = { 0.0018, 0.0375, 0.2391, 0.4432, 0.2391, 0.0375, 0.0018 };
+
+// Standard Deviation = 0.8
+//static const int KERNEL_WIDTH = 5;
+//static const float KERNEL[] = { 0.0220, 0.2285, 0.4990, 0.2285, 0.0220 };
 static const int KERNEL_START = -(KERNEL_WIDTH - 1) / 2;
 static const int KERNEL_END = -KERNEL_START;
 

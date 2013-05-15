@@ -109,6 +109,8 @@ CMainWindow::CMainWindow()
 	m_pRenderer = new Renderer(m_hWnd, CRect(0, 0, resolution.cx, resolution.cy), &m_config, &m_camera, this);
 	GetClientRect(&m_rectClient);
 
+	initUIDialogs();
+
 	m_pTriangle = new Triangle();
 	m_pHead = new Head();
 	//m_pRenderer->addRenderable(m_pTriangle);
@@ -122,7 +124,10 @@ CMainWindow::CMainWindow()
 	m_bChangingView = false;
 	m_camera.restrictView(1.2, 8.0);
 
+	m_pRenderer->addRenderable(m_puirInfo);
 	m_pRenderer->addRenderable(m_puirGeneral);
+
+	updateUI();
 }
 
 CMainWindow::~CMainWindow() {
@@ -167,11 +172,13 @@ BOOL CMainWindow::OnIdle(LONG lCount) {
 	m_pRenderer->render();
 
 	showInfo();
+	updateUI();
 	return TRUE;
 }
 
 void CMainWindow::onCreateDevice(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, IDXGISwapChain* pSwapChain) {
-	m_pDialogResourceManager->OnD3D11CreateDevice(pDevice, pDeviceContext);
+	// don't init here -- let ui initializer do this
+	//m_pDialogResourceManager->OnD3D11CreateDevice(pDevice, pDeviceContext);
 }
 
 void CMainWindow::onResizedSwapChain(ID3D11Device* pDevice, const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc) {
@@ -186,32 +193,63 @@ void CMainWindow::onDestroyDevice() {
 	m_pDialogResourceManager->OnD3D11DestroyDevice();
 }
 
-void CMainWindow::initGeneralDialog() {
-	m_pdlgTessellation = new CDXUTDialog();
-	m_puirGeneral = new UIRenderable(m_pdlgTessellation);
+void CMainWindow::initInfoDialog() {
+	m_pdlgInfo = new CDXUTDialog();
+	m_puirInfo = new UIRenderable(m_pdlgInfo);
 
 	int tmp;
 	CDXUTStatic* lblTmp;
-	m_pdlgTessellation->Init(m_pDialogResourceManager);
-	m_pdlgTessellation->SetCallback(CMainWindow::OnGUIEvent, this);
-	m_pdlgTessellation->AddCheckBox(CID_GENERAL_CHK_TESSELLATION, _T("Tessellation"), 6, tmp = 6, 100, 20, true, 'T', false, &m_pchkTessellation);
+	m_pdlgInfo->Init(m_pDialogResourceManager);
+	m_pdlgInfo->SetCallback(CMainWindow::OnGUIEvent, this);
+	m_pdlgInfo->AddStatic(CID_INFO_LBL_DRIVER_TYPE_LABEL, _T("Driver: "), 6, tmp = 6, 60, 20, false, &lblTmp);
+	m_pdlgInfo->AddStatic(CID_INFO_LBL_DRIVER_TYPE, _T(""), 70, tmp, 80, 20, false, &m_plblDriverType);
+	m_pdlgInfo->AddStatic(CID_INFO_LBL_SCREEN_SIZE_LABEL, _T("Resolution: "), 6, tmp += 20, 90, 20, false, &lblTmp);
+	m_pdlgInfo->AddStatic(CID_INFO_LBL_SCREEN_SIZE, _T(""), 100, tmp, 80, 20, false, &m_plblScreenSize);
+	m_pdlgInfo->AddStatic(CID_INFO_LBL_FPS_LABEL, _T("FPS: "), 6, tmp += 20, 40, 20, false, &lblTmp);
+	m_pdlgInfo->AddStatic(CID_INFO_LBL_FPS, _T(""), 50, tmp, 50, 20, false, &m_plblFPS);
+
+	m_pdlgInfo->SetVisible(true);
+}
+
+void CMainWindow::initGeneralDialog() {
+	m_pdlgGeneral = new CDXUTDialog();
+	m_puirGeneral = new UIRenderable(m_pdlgGeneral);
+
+	int width = m_rectClient.Width();
+	int tmp;
+	CDXUTStatic* lblTmp;
+	m_pdlgGeneral->Init(m_pDialogResourceManager);
+	m_pdlgGeneral->SetCallback(CMainWindow::OnGUIEvent, this);
+	m_pdlgGeneral->AddStatic(CID_GENERAL_LBL_CAPTION, _T("Rendering Options"), width - 156, tmp = 6, 130, 20);
+#define AddCheckBoxForBool(dialog, cid, text, name) dialog->AddCheckBox(cid, _T(text), width - 156, tmp += 20, 120, 20, true, 0, false, &m_pchk##name)
+#define RegisterHandlerForBool(cid, name) registerEventHandler(cid, &CMainWindow::chk##name##_Handler)
+#define SetupControlForBool(dialog, cid, text, name) do { AddCheckBoxForBool(dialog, cid, text, name); RegisterHandlerForBool(cid, name); } while (false)
+
+	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_TESSELLATION,    "(T)essellation", Tessellation );
+	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_BUMP,            "(B)ump mapping", Bump         );
+	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_WIREFRAME,       "Wire(f)rame"   , Wireframe    );
+	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_VSM_BLUR,        "(V)SM Blurring", VSMBlur      );
+	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_POST_PROCESS_AA, "FX(A)A"        , PostProcessAA);
 
 	//m_dlgTessellation.EnableNonUserEvents(true);
-	m_pdlgTessellation->SetFont(0, _T("Times New Roman"), 16, 0);
-	m_pdlgTessellation->SetVisible(true);
+	m_pdlgGeneral->SetVisible(true);
+}
 
-	registerEventHandler(CID_GENERAL_CHK_TESSELLATION, &CMainWindow::chkTessellation_Handler);
+void CMainWindow::initUIDialogs() {
+	initInfoDialog();
+	initGeneralDialog();
+
+	m_pDialogResourceManager->OnD3D11CreateDevice(m_pRenderer->getDevice(), m_pRenderer->getDeviceContext());
 }
 
 void CMainWindow::initUI() {
 	m_pDialogResourceManager = new CDXUTDialogResourceManager();
 
-	m_puirGeneral = nullptr;
-	m_pdlgTessellation = nullptr;
+	m_vppuirs.push_back(&m_puirInfo);
 	m_vppuirs.push_back(&m_puirGeneral);
-	m_vppdlgs.push_back(&m_pdlgTessellation);
-	
-	initGeneralDialog();
+
+	m_vppdlgs.push_back(&m_pdlgInfo);
+	m_vppdlgs.push_back(&m_pdlgGeneral);
 }
 
 void CMainWindow::uninitUI() {
@@ -229,6 +267,53 @@ void CMainWindow::uninitUI() {
 	m_vppuirs.clear();
 
 	delete m_pDialogResourceManager;
+}
+
+void CMainWindow::updateUI() {
+	// Info dialog
+	{
+		TStringStream tss;
+		tss << std::setiosflags(std::ios::fixed) << std::setprecision(1) << m_pRenderer->getFPS();
+		m_plblFPS->SetText(tss.str().c_str());
+		int iFPS = (int)(m_pRenderer->getFPS() + 0.5);
+		D3DXCOLOR color;
+		if (iFPS >= 40)
+			color = D3DXCOLOR(0.0f, 1.0f, 0.0f, 1.0f);
+		else if (iFPS >= 20)
+			color = D3DXCOLOR(1.0f, 1.0f, 0.0f, 1.0f);
+		else color = D3DXCOLOR(1.0f, 0.0f, 0.0f, 1.0f);
+		m_plblFPS->SetTextColor(color);
+	}
+	{
+		TStringStream tss;
+		tss << m_rectClient.Width() << "x" << m_rectClient.Height();
+		m_plblScreenSize->SetText(tss.str().c_str());
+	}
+	switch (m_pRenderer->getDriverType()) {
+	case D3D10_DRIVER_TYPE_HARDWARE:
+		m_plblDriverType->SetText(_T("Hardware"));
+		break;
+	case D3D10_DRIVER_TYPE_SOFTWARE:
+		m_plblDriverType->SetText(_T("Software"));
+		break;
+	case D3D10_DRIVER_TYPE_REFERENCE:
+		m_plblDriverType->SetText(_T("Reference"));
+		break;
+	case D3D10_DRIVER_TYPE_WARP:
+		m_plblDriverType->SetText(_T("WARP"));
+		break;
+	default:
+		m_plblDriverType->SetText(_T("Unknown"));
+		break;
+	}
+
+	// General dialog
+#define UpdateUIForBool(name) m_pchk##name->SetChecked(m_pRenderer->get##name())
+	UpdateUIForBool(Tessellation);
+	UpdateUIForBool(Bump);
+	UpdateUIForBool(Wireframe);
+	UpdateUIForBool(VSMBlur);
+	UpdateUIForBool(PostProcessAA);
 }
 
 void CMainWindow::OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl) {
@@ -258,9 +343,15 @@ void CMainWindow::unregisterEventHandler(int nControlID) {
 	m_mapMessages.erase(nControlID);
 }
 
-void CMainWindow::chkTessellation_Handler(CDXUTControl* sender, UINT nEvent) {
-	m_pRenderer->toggleTessellation();
-}
+#define DefineHandlerForBool(name) \
+	void CALLBACK CMainWindow::chk##name##_Handler(CDXUTControl* sender, UINT nEvent) { \
+		m_pRenderer->set##name(m_pchk##name->GetChecked()); \
+	}
+DefineHandlerForBool(Tessellation)
+DefineHandlerForBool(Bump)
+DefineHandlerForBool(Wireframe)
+DefineHandlerForBool(VSMBlur)
+DefineHandlerForBool(PostProcessAA)
 
 BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {
 	if (m_bChangingView)
@@ -270,7 +361,7 @@ BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {
 		return TRUE;
 	}
 
-	if (m_pdlgTessellation->MsgProc(pMsg->hwnd, pMsg->message, pMsg->wParam, pMsg->lParam)) {
+	if (m_pdlgGeneral->MsgProc(pMsg->hwnd, pMsg->message, pMsg->wParam, pMsg->lParam)) {
 		return TRUE;
 	}
 

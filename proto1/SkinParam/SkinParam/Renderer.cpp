@@ -97,7 +97,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_bPostProcessAA(true),
 	  m_bVSMBlur(true),
 	  m_bDump(false),
-	  m_rsCurrent(NotRendering)
+	  m_rsCurrent(RS_NotRendering)
 {
 	memset(m_apRTShadowMaps, 0, sizeof(m_apRTShadowMaps));
 	memset(m_apSRVShadowMaps, 0, sizeof(m_apSRVShadowMaps));
@@ -963,7 +963,7 @@ void Renderer::render() {
 	bool bToggle = (m_descRasterizerState.FillMode == D3D11_FILL_WIREFRAME);
 	bool bNeedBlur = false;
 	// Render shadow maps
-	m_rsCurrent = ShadowMap;
+	m_rsCurrent = RS_ShadowMap;
     m_pDeviceContext->IASetPrimitiveTopology(
 		m_bTessellation ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_pDeviceContext->RSSetViewports(1, &m_vpShadowMap);
@@ -998,17 +998,17 @@ void Renderer::render() {
 
 	m_pDeviceContext->RSSetViewports(1, &m_vpScreen);
 
-	m_rsCurrent = Irradiance;
+	m_rsCurrent = RS_Irradiance;
 	renderIrradianceMap(m_apRTSSS[IDX_SSS_IRRADIANCE], m_apRTSSS[IDX_SSS_ALBEDO], 
 						m_apRTSSS[IDX_SSS_DIFFUSE_STENCIL], m_apRTSSS[IDX_SSS_SPECULAR],
 						&bNeedBlur);
 
 	if (bToggle) toggleWireframe(); {
 		if (bNeedBlur) {
-			m_rsCurrent = Gaussian;
+			m_rsCurrent = RS_Gaussian;
 			doGaussianBlurs();
 		}
-		m_rsCurrent = Combine;
+		m_rsCurrent = RS_Combine;
 		doCombineShading(bNeedBlur);
 
 		if (m_bPostProcessAA) {
@@ -1016,13 +1016,13 @@ void Renderer::render() {
 			doPostProcessAA();
 		}
 
-		m_rsCurrent = UI;
+		m_rsCurrent = RS_UI;
 		renderRest();
 	} if (bToggle) toggleWireframe();
 
 	m_pSwapChain->Present(m_pConfig->vsync ? 1 : 0, 0);
 
-	m_rsCurrent = NotRendering;
+	m_rsCurrent = RS_NotRendering;
 
 	computeStats();
 	m_bDump = false;
@@ -1076,6 +1076,8 @@ void Renderer::toggleWireframe() {
 
 void Renderer::dump() {
 	m_bDump = true;
+
+	SetWindowText(m_hwnd, _APP_NAME_ _T(" (Capturing Frame...)"));
 }
 
 void Renderer::dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const TString& strFileName) {
@@ -1097,10 +1099,11 @@ void Renderer::dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const TString
 }
 
 void Renderer::dumpTextureToFile(ID3D11Resource* pTexture2D, const TString& strFileName) {
-	ScratchImage img;
-	CaptureTexture(m_pDevice, m_pDeviceContext, pTexture2D, img);
 	TStringStream tss;
 	tss << (++m_nDumpCount) << _T("_") << strFileName << _T(".png");
+	SetWindowText(m_hwnd, (_APP_NAME_ _T(" (Capturing ") + tss.str() + _T("...)")).c_str());
+	ScratchImage img;
+	CaptureTexture(m_pDevice, m_pDeviceContext, pTexture2D, img);
 	SaveToWICFile(*img.GetImage(0, 0, 0), WIC_FLAGS_NONE, GUID_ContainerFormatPng, tss.str().c_str());
 }
 
@@ -1179,7 +1182,7 @@ void Renderer::usePlaceholderNormalMap() {
 
 void Renderer::setTessellationFactor(float edge, float inside, float min, float desiredSizeInPixels) {
 	// pass (half screen height / desired size in pixels) to the shader
-	float desiredSize = (float)(m_rsCurrent == ShadowMap ? SM_SIZE : m_rectView.Height()) / (2.0f * desiredSizeInPixels);
+	float desiredSize = (float)(m_rsCurrent == RS_ShadowMap ? SM_SIZE : m_rectView.Height()) / (2.0f * desiredSizeInPixels);
 	m_cbTessellation.g_vTesselationFactor = XMFLOAT4(edge, inside, min, desiredSize);
 	m_pDeviceContext->UpdateSubresource(m_pTessellationConstantBuffer, 0, NULL, &m_cbTessellation, 0, 0);
 }

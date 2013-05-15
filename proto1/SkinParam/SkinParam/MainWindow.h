@@ -52,20 +52,45 @@ namespace Skin {
 		// UI subsystem
 		void initUI();
 		void uninitUI();
-
+		void updateUI();
+		void initUIDialogs();
+		void initInfoDialog();
 		void initGeneralDialog();
 
 		// Renders UI as a renderable
 		class UIRenderable;
 
-		CDXUTDialog* m_pdlgTessellation;
+		CDXUTDialog* m_pdlgInfo;
+		CDXUTDialog* m_pdlgGeneral;
 		std::vector<CDXUTDialog**> m_vppdlgs;
 
+		UIRenderable* m_puirInfo;
 		UIRenderable* m_puirGeneral;
 		std::vector<UIRenderable**> m_vppuirs;
 
-		static const UINT CID_GENERAL_CHK_TESSELLATION = 0;
+		static const UINT CID_INFO_LBL_SCREEN_SIZE_LABEL = 0;
+		static const UINT CID_INFO_LBL_SCREEN_SIZE = 1;
+		static const UINT CID_INFO_LBL_FPS_LABEL = 2;
+		static const UINT CID_INFO_LBL_FPS = 3;
+		static const UINT CID_INFO_LBL_DRIVER_TYPE_LABEL = 4;
+		static const UINT CID_INFO_LBL_DRIVER_TYPE = 5;
+		static const UINT CID_GENERAL_LBL_CAPTION = 100;
+		static const UINT CID_GENERAL_CHK_TESSELLATION = 101;
+		static const UINT CID_GENERAL_CHK_BUMP = 102;
+		static const UINT CID_GENERAL_CHK_WIREFRAME = 103;
+		static const UINT CID_GENERAL_CHK_VSM_BLUR = 104;
+		static const UINT CID_GENERAL_CHK_POST_PROCESS_AA = 105;
+
+		// Info dialog
+		CDXUTStatic* m_plblScreenSize;
+		CDXUTStatic* m_plblFPS;
+		CDXUTStatic* m_plblDriverType;
+		// General dialog
 		CDXUTCheckBox* m_pchkTessellation;
+		CDXUTCheckBox* m_pchkBump;
+		CDXUTCheckBox* m_pchkWireframe;
+		CDXUTCheckBox* m_pchkVSMBlur;
+		CDXUTCheckBox* m_pchkPostProcessAA;
 
 		// UI Controls Message Mapping
 		CDXUTDialogResourceManager* m_pDialogResourceManager;
@@ -76,7 +101,12 @@ namespace Skin {
 		std::unordered_map<int, GUIEventHandler> m_mapMessages;
 		void registerEventHandler(int nControlID, GUIEventHandler handler);
 		void unregisterEventHandler(int nControlID);
-		void CALLBACK chkTessellation_Handler(CDXUTControl* sender, UINT nEvent);
+#define DeclareHandlerForBool(name) void CALLBACK chk##name##_Handler(CDXUTControl* sender, UINT nEvent)
+		DeclareHandlerForBool(Tessellation);
+		DeclareHandlerForBool(Bump);
+		DeclareHandlerForBool(Wireframe);
+		DeclareHandlerForBool(VSMBlur);
+		DeclareHandlerForBool(PostProcessAA);
 
 		// Message mapping
 		BOOL PreTranslateMessage(MSG* pMsg);
