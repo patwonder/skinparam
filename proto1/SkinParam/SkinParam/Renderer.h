@@ -76,7 +76,8 @@ namespace Skin {
 		};
 		struct SSSConstantBuffer {
 			float g_sss_intensity;
-			float pad[3];
+			float g_sss_strength;
+			float pad[2];
 		};
 
 		ID3D11Buffer* m_pGaussianConstantBuffer;
@@ -294,6 +295,8 @@ namespace Skin {
 		GST_BOOL(PostProcessAA)
 		GST_BOOL(VSMBlur)
 
+		float getSSSStrength() const { return m_cbSSS.g_sss_strength; }
+		void setSSSStrength(float strength) { m_cbSSS.g_sss_strength = strength; }
 		void dump();
 
 		D3D_DRIVER_TYPE getDriverType() const { return m_driverType; }

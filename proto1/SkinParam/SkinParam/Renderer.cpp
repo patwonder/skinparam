@@ -693,6 +693,7 @@ void Renderer::initSSS() {
 		_T("Failed to create combine constant buffer"));
 
 	m_cbSSS.g_sss_intensity = 0.0f;
+	m_cbSSS.g_sss_strength = 1.0f;
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbSSS, &m_pSSSConstantBuffer),
 		_T("Failed to create SSS constant buffer"));
 }
@@ -1034,7 +1035,7 @@ void Renderer::renderScene(bool* opbNeedBlur) {
 		if (renderable->inScene()) {
 			// set sss intensity
 			m_cbSSS.g_sss_intensity = (m_bSSS && renderable->supportsSSS()) ? 1.0f : 0.0f;
-			bNeedBlur |= (m_bSSS && renderable->supportsSSS());
+			bNeedBlur |= (m_bSSS && renderable->supportsSSS() && m_cbSSS.g_sss_strength >= 0.02f);
 			m_pDeviceContext->UpdateSubresource(m_pSSSConstantBuffer, 0, nullptr, &m_cbSSS, 0, 0);
 
 			renderable->render(m_pDeviceContext, this, *m_pCamera);

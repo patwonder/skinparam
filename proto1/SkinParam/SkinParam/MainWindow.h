@@ -54,18 +54,22 @@ namespace Skin {
 		void uninitUI();
 		void updateUI();
 		void initUIDialogs();
+		void initDialog(CDXUTDialog* pdlg);
 		void initInfoDialog();
 		void initGeneralDialog();
+		void initSSSDialog();
 
 		// Renders UI as a renderable
 		class UIRenderable;
 
 		CDXUTDialog* m_pdlgInfo;
 		CDXUTDialog* m_pdlgGeneral;
+		CDXUTDialog* m_pdlgSSS;
 		std::vector<CDXUTDialog**> m_vppdlgs;
 
 		UIRenderable* m_puirInfo;
 		UIRenderable* m_puirGeneral;
+		UIRenderable* m_puirSSS;
 		std::vector<UIRenderable**> m_vppuirs;
 
 		static const UINT CID_INFO_LBL_SCREEN_SIZE_LABEL = 0;
@@ -80,6 +84,11 @@ namespace Skin {
 		static const UINT CID_GENERAL_CHK_WIREFRAME = 103;
 		static const UINT CID_GENERAL_CHK_VSM_BLUR = 104;
 		static const UINT CID_GENERAL_CHK_POST_PROCESS_AA = 105;
+		static const UINT CID_SSS_LBL_CAPTION = 200;
+		static const UINT CID_SSS_CHK_ENABLE_SSS = 201;
+		static const UINT CID_SSS_LBL_SSS_STRENGTH_LABEL = 202;
+		static const UINT CID_SSS_SLD_SSS_STRENGTH = 203;
+		static const UINT CID_SSS_LBL_SSS_STRENGTH = 204;
 
 		// Info dialog
 		CDXUTStatic* m_plblScreenSize;
@@ -91,6 +100,10 @@ namespace Skin {
 		CDXUTCheckBox* m_pchkWireframe;
 		CDXUTCheckBox* m_pchkVSMBlur;
 		CDXUTCheckBox* m_pchkPostProcessAA;
+		// SSS dialog
+		CDXUTCheckBox* m_pchkEnableSSS;
+		CDXUTSlider* m_psldSSSStrength;
+		CDXUTStatic* m_plblSSSStrength;
 
 		// UI Controls Message Mapping
 		CDXUTDialogResourceManager* m_pDialogResourceManager;
@@ -107,6 +120,8 @@ namespace Skin {
 		DeclareHandlerForBool(Wireframe);
 		DeclareHandlerForBool(VSMBlur);
 		DeclareHandlerForBool(PostProcessAA);
+		void CALLBACK chkEnableSSS_Handler(CDXUTControl* sender, UINT nEvent);
+		void CALLBACK sldSSSStrength_Handler(CDXUTControl* sender, UINT nEvent);
 
 		// Message mapping
 		BOOL PreTranslateMessage(MSG* pMsg);

@@ -10,6 +10,7 @@ cbuffer Tessellation : register(b3) {
 
 cbuffer SSS : register(b4) {
 	float g_sss_intensity;
+	float g_sss_strength;
 };
 
 struct VS_INPUT {
@@ -327,7 +328,7 @@ float distance(float3 vPosWS, float3 vNormalWS, float ldepth, matrix matViewProj
 
 float3 backlit_amount(float3 vPosWS, float3 vNormalWS, float3 L, float ldepth, matrix matViewProjLight,
 					  Texture2D shadowMap, SamplerState samShadow) {
-	float s = 0.25 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, ldepth, matViewProjLight, shadowMap, samShadow);
+	float s = 0.25 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, ldepth, matViewProjLight, shadowMap, samShadow) * (1.0f / max(0.01f, g_sss_strength));
 	float3 atten = trans_atten(s);
 	float NdotL = max(0.3 + dot(-vNormalWS, L), 0);
 	return NdotL * atten;
@@ -401,8 +402,8 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 	float drx = length(vNormalWS - dot(vNormalWS, vHorLocal) * vHorLocal);
 	float dry = length(vNormalWS - dot(vNormalWS, vVerLocal) * vVerLocal);
 	//  3 - kernel size, with reduction applied
-	float kSizeX = getKernelSize(input.depth, drx) * getDDXDepthPenalty(input.depth);
-	float kSizeY = getKernelSize(input.depth, dry) * getDDYDepthPenalty(input.depth);
+	float kSizeX = getKernelSize(input.depth, drx) * getDDXDepthPenalty(input.depth) * g_sss_strength;
+	float kSizeY = getKernelSize(input.depth, dry) * getDDYDepthPenalty(input.depth) * g_sss_strength;
 
 	output.irradiance = float4(sq_tex_color * irradiance, g_sss_intensity);
 	output.albedo = float4(sq_tex_color * fresnel_trans_view, 1.0);

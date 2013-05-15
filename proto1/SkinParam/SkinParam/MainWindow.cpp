@@ -116,16 +116,19 @@ CMainWindow::CMainWindow()
 	//m_pRenderer->addRenderable(m_pTriangle);
 	m_pRenderer->addRenderable(m_pHead);
 
-	m_pLight1 = new Light(Vector(3, 7, 0), Color::White * 0.025f, Color::White * 1.6f, Color::White * 1.6f, 1.0f, 0.1f, 0.0f);
-	m_pLight2 = new Light(Vector(-3, -3, 5), Color::White * 0.025f, Color::White * 1.6f, Color::White * 1.6f, 1.0f, 0.1f, 0.0f);
+	m_pLight1 = new Light(Vector(3, 7, 0), Color::Black, Color::White * 1.6f, Color::White * 1.6f, 1.0f, 0.1f, 0.0f);
+	m_pLight2 = new Light(Vector(-3, -3, 5), Color::Black, Color::White * 1.6f, Color::White * 1.6f, 1.0f, 0.1f, 0.0f);
 	m_pRenderer->addLight(m_pLight1);
 	m_pRenderer->addLight(m_pLight2);
+
+	m_pRenderer->setGlobalAmbient(Color::White * 0.05f);
 
 	m_bChangingView = false;
 	m_camera.restrictView(1.2, 8.0);
 
 	m_pRenderer->addRenderable(m_puirInfo);
 	m_pRenderer->addRenderable(m_puirGeneral);
+	m_pRenderer->addRenderable(m_puirSSS);
 
 	updateUI();
 }
@@ -193,14 +196,19 @@ void CMainWindow::onDestroyDevice() {
 	m_pDialogResourceManager->OnD3D11DestroyDevice();
 }
 
+void CMainWindow::initDialog(CDXUTDialog* pdlg) {
+	// perform common initializations for dialogs
+	pdlg->Init(m_pDialogResourceManager);
+	pdlg->SetCallback(CMainWindow::OnGUIEvent, this);
+}
+
 void CMainWindow::initInfoDialog() {
 	m_pdlgInfo = new CDXUTDialog();
 	m_puirInfo = new UIRenderable(m_pdlgInfo);
+	initDialog(m_pdlgInfo);
 
 	int tmp;
 	CDXUTStatic* lblTmp;
-	m_pdlgInfo->Init(m_pDialogResourceManager);
-	m_pdlgInfo->SetCallback(CMainWindow::OnGUIEvent, this);
 	m_pdlgInfo->AddStatic(CID_INFO_LBL_DRIVER_TYPE_LABEL, _T("Driver: "), 6, tmp = 6, 60, 20, false, &lblTmp);
 	m_pdlgInfo->AddStatic(CID_INFO_LBL_DRIVER_TYPE, _T(""), 70, tmp, 80, 20, false, &m_plblDriverType);
 	m_pdlgInfo->AddStatic(CID_INFO_LBL_SCREEN_SIZE_LABEL, _T("Resolution: "), 6, tmp += 20, 90, 20, false, &lblTmp);
@@ -214,14 +222,14 @@ void CMainWindow::initInfoDialog() {
 void CMainWindow::initGeneralDialog() {
 	m_pdlgGeneral = new CDXUTDialog();
 	m_puirGeneral = new UIRenderable(m_pdlgGeneral);
+	initDialog(m_pdlgGeneral);
 
 	int width = m_rectClient.Width();
 	int tmp;
 	CDXUTStatic* lblTmp;
-	m_pdlgGeneral->Init(m_pDialogResourceManager);
-	m_pdlgGeneral->SetCallback(CMainWindow::OnGUIEvent, this);
+	DBG_UNREFERENCED_LOCAL_VARIABLE(lblTmp);
 	m_pdlgGeneral->AddStatic(CID_GENERAL_LBL_CAPTION, _T("Rendering Options"), width - 156, tmp = 6, 130, 20);
-#define AddCheckBoxForBool(dialog, cid, text, name) dialog->AddCheckBox(cid, _T(text), width - 156, tmp += 20, 120, 20, true, 0, false, &m_pchk##name)
+#define AddCheckBoxForBool(dialog, cid, text, name) dialog->AddCheckBox(cid, _T(text), width - 156, tmp += 20, 120, 20, m_pRenderer->get##name(), 0, false, &m_pchk##name)
 #define RegisterHandlerForBool(cid, name) registerEventHandler(cid, &CMainWindow::chk##name##_Handler)
 #define SetupControlForBool(dialog, cid, text, name) do { AddCheckBoxForBool(dialog, cid, text, name); RegisterHandlerForBool(cid, name); } while (false)
 
@@ -235,9 +243,31 @@ void CMainWindow::initGeneralDialog() {
 	m_pdlgGeneral->SetVisible(true);
 }
 
+void CMainWindow::initSSSDialog() {
+	m_pdlgSSS = new CDXUTDialog();
+	m_puirSSS = new UIRenderable(m_pdlgSSS);
+	initDialog(m_pdlgSSS);
+
+	int height = m_rectClient.Height();
+	int tmp;
+	CDXUTStatic* lblTmp;
+	DBG_UNREFERENCED_LOCAL_VARIABLE(lblTmp);
+	m_pdlgSSS->AddStatic(CID_SSS_LBL_CAPTION, _T("Subsurface Scattering"), 6, tmp = height - 86, 200, 20);
+	m_pdlgSSS->AddCheckBox(CID_SSS_CHK_ENABLE_SSS, _T("Enable (S)SS"), 6, tmp += 20, 200, 20, m_pRenderer->getSSS(), 0, false, &m_pchkEnableSSS);
+	m_pdlgSSS->AddStatic(CID_SSS_LBL_SSS_STRENGTH_LABEL, _T("SSS Strength: "), 6, tmp += 20, 200, 20);
+	m_pdlgSSS->AddSlider(CID_SSS_SLD_SSS_STRENGTH, 6, tmp += 20, 120, 20, 0, 200, (int)(100.0f * m_pRenderer->getSSSStrength() + 0.5f), false, &m_psldSSSStrength);
+	m_pdlgSSS->AddStatic(CID_SSS_LBL_SSS_STRENGTH, _T("1.00"), 140, tmp, 60, 20, false, &m_plblSSSStrength);
+	
+	m_pdlgSSS->SetVisible(true);
+
+	registerEventHandler(CID_SSS_CHK_ENABLE_SSS, &CMainWindow::chkEnableSSS_Handler);
+	registerEventHandler(CID_SSS_SLD_SSS_STRENGTH, &CMainWindow::sldSSSStrength_Handler);
+}
+
 void CMainWindow::initUIDialogs() {
 	initInfoDialog();
 	initGeneralDialog();
+	initSSSDialog();
 
 	m_pDialogResourceManager->OnD3D11CreateDevice(m_pRenderer->getDevice(), m_pRenderer->getDeviceContext());
 }
@@ -247,9 +277,11 @@ void CMainWindow::initUI() {
 
 	m_vppuirs.push_back(&m_puirInfo);
 	m_vppuirs.push_back(&m_puirGeneral);
+	m_vppuirs.push_back(&m_puirSSS);
 
 	m_vppdlgs.push_back(&m_pdlgInfo);
 	m_vppdlgs.push_back(&m_pdlgGeneral);
+	m_vppdlgs.push_back(&m_pdlgSSS);
 }
 
 void CMainWindow::uninitUI() {
@@ -314,6 +346,10 @@ void CMainWindow::updateUI() {
 	UpdateUIForBool(Wireframe);
 	UpdateUIForBool(VSMBlur);
 	UpdateUIForBool(PostProcessAA);
+
+	// SSS dialog
+	m_pchkEnableSSS->SetChecked(m_pRenderer->getSSS());
+	m_psldSSSStrength->SetEnabled(m_pchkEnableSSS->GetChecked());
 }
 
 void CMainWindow::OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl) {
@@ -353,6 +389,18 @@ DefineHandlerForBool(Wireframe)
 DefineHandlerForBool(VSMBlur)
 DefineHandlerForBool(PostProcessAA)
 
+void CALLBACK CMainWindow::chkEnableSSS_Handler(CDXUTControl* sender, UINT nEvent) {
+	m_pRenderer->setSSS(m_pchkEnableSSS->GetChecked());
+}
+
+void CALLBACK CMainWindow::sldSSSStrength_Handler(CDXUTControl* sender, UINT nEvent) {
+	double strength = m_psldSSSStrength->GetValue() / 100.0;
+	TStringStream tss;
+	tss << std::setiosflags(std::ios::fixed) << std::setprecision(2) << strength;
+	m_plblSSSStrength->SetText(tss.str().c_str());
+	m_pRenderer->setSSSStrength((float)strength);
+}
+
 BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {
 	if (m_bChangingView)
 		return FALSE;
@@ -362,6 +410,10 @@ BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {
 	}
 
 	if (m_pdlgGeneral->MsgProc(pMsg->hwnd, pMsg->message, pMsg->wParam, pMsg->lParam)) {
+		return TRUE;
+	}
+
+	if (m_pdlgSSS->MsgProc(pMsg->hwnd, pMsg->message, pMsg->wParam, pMsg->lParam)) {
 		return TRUE;
 	}
 
