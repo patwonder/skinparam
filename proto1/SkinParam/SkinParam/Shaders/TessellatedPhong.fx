@@ -95,29 +95,29 @@ PS_INPUT VS_NoTessellation(VS_INPUT input) {
 HSCF_OUTPUT HSCF(InputPatch<HS_INPUT, 3> patch, uint patchId : SV_PrimitiveID) {
     HSCF_OUTPUT output;
 
-	// Calcuate screen space positions for each vertex
-	float2 vPosPS0 = getScreenSpacePosition(patch[0].vPosWS, g_matViewProj);
-	float2 vPosPS1 = getScreenSpacePosition(patch[1].vPosWS, g_matViewProj);
-	float2 vPosPS2 = getScreenSpacePosition(patch[2].vPosWS, g_matViewProj);
-
-    // Set the tessellation factors for the three edges of the triangle.
-    output.edges[0] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS2, vPosPS1));
-    output.edges[1] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS0, vPosPS2));
-    output.edges[2] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS0, vPosPS1));
-
-    // Set the tessellation factor for tessallating inside the triangle.
-    output.inside = 0.333 * (output.edges[0] + output.edges[1] + output.edges[2]);
-
-    // View frustum culling
-    bool bViewFrustumCull = ViewFrustumCull(patch[0].vPosWS, patch[1].vPosWS, patch[2].vPosWS,
+	// View frustum culling
+	bool bViewFrustumCull = ViewFrustumCull(patch[0].vPosWS, patch[1].vPosWS, patch[2].vPosWS,
 											g_vFrustumPlaneEquation, g_material.bump_multiplier);
-    if (bViewFrustumCull) {
-        // Set all tessellation factors to 0 if frustum cull test succeeds
-        output.edges[0] = 0.0;
-        output.edges[1] = 0.0;
-        output.edges[2] = 0.0;
-        output.inside   = 0.0;
-    }
+	if (bViewFrustumCull) {
+		// Set all tessellation factors to 0 if frustum cull test succeeds
+		output.edges[0] = 0.0;
+		output.edges[1] = 0.0;
+		output.edges[2] = 0.0;
+		output.inside   = 0.0;
+	} else {
+		// Calcuate screen space positions for each vertex
+		float2 vPosPS0 = getScreenSpacePosition(patch[0].vPosWS, g_matViewProj);
+		float2 vPosPS1 = getScreenSpacePosition(patch[1].vPosWS, g_matViewProj);
+		float2 vPosPS2 = getScreenSpacePosition(patch[2].vPosWS, g_matViewProj);
+
+		// Set the tessellation factors for the three edges of the triangle.
+		output.edges[0] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS2, vPosPS1));
+		output.edges[1] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS0, vPosPS2));
+		output.edges[2] = max(g_vTessellationFactor.z, g_vTessellationFactor.w * distance(vPosPS0, vPosPS1));
+
+		// Set the tessellation factor for tessallating inside the triangle.
+		output.inside = 0.333 * (output.edges[0] + output.edges[1] + output.edges[2]);
+	}
 
     return output;
 }
