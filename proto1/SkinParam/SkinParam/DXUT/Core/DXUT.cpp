@@ -3492,7 +3492,7 @@ HRESULT DXUTCreate3DEnvironment11( ID3D11Device* pd3d11DeviceFromApp )
         
     IDXGIFactory1* pDXGIFactory = DXUTGetDXGIFactory();
     assert( pDXGIFactory != NULL );
-    hr = pDXGIFactory->MakeWindowAssociation( DXUTGetHWND(), 0  );
+	hr = pDXGIFactory->MakeWindowAssociation( DXUTGetHWND(), DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER | DXGI_MWA_NO_PRINT_SCREEN );
 
     // Only create a Direct3D device if one hasn't been supplied by the app
     if( pd3d11DeviceFromApp == NULL )

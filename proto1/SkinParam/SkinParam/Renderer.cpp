@@ -245,7 +245,10 @@ HRESULT Renderer::initDX() {
 	m_pDeviceContext->AddRef();
 
 	m_pRenderableManager->onCreateDevice(m_pDevice, m_pDeviceContext, m_pSwapChain);
-	m_pRenderableManager->onResizedSwapChain(m_pDevice, DXUTGetDXGIBackBufferSurfaceDesc());
+	
+	const DXGI_SURFACE_DESC* pDesc = DXUTGetDXGIBackBufferSurfaceDesc();
+	m_rectView = CRect(0, 0, pDesc->Width, pDesc->Height);
+	m_pRenderableManager->onResizedSwapChain(m_pDevice, pDesc);
 
     // Create a render target view
     ID3D11Texture2D* pBackBuffer = nullptr;
@@ -577,7 +580,7 @@ void Renderer::initMaterial() {
 
 void Renderer::updateProjection() {
 	XMStoreFloat4x4(&m_matProjection,
-		XMMatrixPerspectiveFovLH((float)(Math::PI / 4), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 20.0f));
+		XMMatrixPerspectiveFovLH((float)(Math::PI / 6), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 20.0f));
 	XMStoreFloat4x4(&m_matLightProjection,
 		XMMatrixPerspectiveFovLH((float)(Math::PI * 5 / 18), 1.0f, 5.0f, 20.0f));
 }

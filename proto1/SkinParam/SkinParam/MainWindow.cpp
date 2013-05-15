@@ -89,7 +89,7 @@ const double CMainWindow::SHIFT_MAGNIFIER = 3.0;
 CMainWindow::CMainWindow()
 	: m_camera(Vector(0, -5, 0), Vector(0, 0, 0), Vector(0, 0, 1))
 {
-	CSize resolution(1280, 720);
+	CSize resolution(1284, 724);
 	Create(NULL, _APP_NAME_, WS_OVERLAPPEDWINDOW & (~WS_SIZEBOX) & (~WS_MAXIMIZEBOX), 
 		CRect(0, 0, resolution.cx, resolution.cy));
 
@@ -97,8 +97,8 @@ CMainWindow::CMainWindow()
 	CRect windowRect;
 	GetWindowRect(&windowRect);
 	GetClientRect(&m_rectClient);
-	MoveWindow(windowRect.left, windowRect.top, resolution.cx + windowRect.Width() - m_rectClient.Width(), 
-		resolution.cy + windowRect.Height() - m_rectClient.Height());
+	MoveWindow(0, 0, resolution.cx + windowRect.Width() - m_rectClient.Width(), 
+		resolution.cy + windowRect.Height() - m_rectClient.Height(), FALSE);
 	GetClientRect(&m_rectClient);
 
 	DXUTInit();
@@ -107,18 +107,20 @@ CMainWindow::CMainWindow()
 	initUI();
 
 	m_pRenderer = new Renderer(m_hWnd, CRect(0, 0, resolution.cx, resolution.cy), &m_config, &m_camera, this);
+	GetClientRect(&m_rectClient);
+
 	m_pTriangle = new Triangle();
 	m_pHead = new Head();
 	//m_pRenderer->addRenderable(m_pTriangle);
 	m_pRenderer->addRenderable(m_pHead);
 
-	m_pLight1 = new Light(Vector(3, 7, 0), Color::White * 0.01f, Color::White * 1.6f, Color::White * 1.6f, 1.0f, 0.1f, 0.0f);
-	m_pLight2 = new Light(Vector(-3, -3, 5), Color::White * 0.01f, Color::White * 1.6f, Color::White * 1.6f, 1.0f, 0.1f, 0.0f);
+	m_pLight1 = new Light(Vector(3, 7, 0), Color::White * 0.025f, Color::White * 1.6f, Color::White * 1.6f, 1.0f, 0.1f, 0.0f);
+	m_pLight2 = new Light(Vector(-3, -3, 5), Color::White * 0.025f, Color::White * 1.6f, Color::White * 1.6f, 1.0f, 0.1f, 0.0f);
 	m_pRenderer->addLight(m_pLight1);
 	m_pRenderer->addLight(m_pLight2);
 
 	m_bChangingView = false;
-	m_camera.restrictView(2.0, 8.0);
+	m_camera.restrictView(1.2, 8.0);
 
 	m_pRenderer->addRenderable(m_puirGeneral);
 }

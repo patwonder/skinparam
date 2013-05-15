@@ -271,11 +271,11 @@ PS_INPUT_IRRADIANCE DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLo
 }
 
 // kernel width calculation
-// one unit length in world space equals 80mm
+// one unit length in world space equals 120mm
 static const float MM_PER_LENGTH = 120;
-static const float FOV_ANGLE = 45;
+static const float FOV_ANGLE = 30;
 // calculate depth * (length per mm in texture space)
-static const float SIZE_ALPHA = 1 / (2 * tan(FOV_ANGLE / 2) * MM_PER_LENGTH);
+static const float SIZE_ALPHA = 1 / (2 * tan((FOV_ANGLE / 180 * PI) / 2) * MM_PER_LENGTH);
 
 float getKernelSize(float depthVS, float grad) {
 	return SIZE_ALPHA / depthVS * grad;
@@ -327,7 +327,7 @@ float distance(float3 vPosWS, float3 vNormalWS, float ldepth, matrix matViewProj
 
 float3 backlit_amount(float3 vPosWS, float3 vNormalWS, float3 L, float ldepth, matrix matViewProjLight,
 					  Texture2D shadowMap, SamplerState samShadow) {
-	float s = 0.20 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, ldepth, matViewProjLight, shadowMap, samShadow);
+	float s = 0.25 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, ldepth, matViewProjLight, shadowMap, samShadow);
 	float3 atten = trans_atten(s);
 	float NdotL = max(0.3 + dot(-vNormalWS, L), 0);
 	return NdotL * atten;
