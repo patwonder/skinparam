@@ -94,7 +94,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_bTessellation(true),
 	  m_bBump(true),
 	  m_bSSS(true),
-	  m_bAA(true),
+	  m_bPostProcessAA(true),
 	  m_bVSMBlur(true),
 	  m_bDump(false),
 	  m_rsCurrent(NotRendering)
@@ -851,12 +851,12 @@ void Renderer::doCombineShading(bool bNeedBlur) {
 	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
 	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
 
-	(m_bAA ? m_psgSSSCombineAA : m_psgSSSCombine)->use(m_pDeviceContext);
+	(m_bPostProcessAA ? m_psgSSSCombineAA : m_psgSSSCombine)->use(m_pDeviceContext);
 
 	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
 
 	// bind the final render target (before AA)
-	ID3D11RenderTargetView* pRenderTargetView = (m_bAA ? m_apRTSSS[IDX_SSS_TEMPORARY] : m_pRenderTargetView);
+	ID3D11RenderTargetView* pRenderTargetView = (m_bPostProcessAA ? m_apRTSSS[IDX_SSS_TEMPORARY] : m_pRenderTargetView);
 	m_pDeviceContext->OMSetRenderTargets(1, &pRenderTargetView, nullptr);
 
 	// Set up shader resources
@@ -880,7 +880,7 @@ void Renderer::doCombineShading(bool bNeedBlur) {
 	ID3D11ShaderResourceView* apNullSRVs[numViews] = { nullptr };
 	m_pDeviceContext->PSSetShaderResources(0, numViews, apNullSRVs);
 
-	if (m_bDump && !m_bAA) {
+	if (m_bDump && !m_bPostProcessAA) {
 		dumpRenderTargetToFile(pRenderTargetView, _T("Final"));
 	}
 }
@@ -972,7 +972,7 @@ void Renderer::render() {
 		for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
 			m_pDeviceContext->OMSetRenderTargets(1, m_apRTShadowMaps + i, m_pShadowMapDepthStencilView);
 			// Clear render target view & depth stencil
-			float ClearShadow[4] = { 1.0f, 1.0f, 1.0f, 1.0f }; // RGBA
+			float ClearShadow[4] = { 30.0f, 900.0f, 0.0f, 0.0f }; // RGBA
 			m_pDeviceContext->ClearRenderTargetView(m_apRTShadowMaps[i], ClearShadow);
 			m_pDeviceContext->ClearDepthStencilView(m_pShadowMapDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
@@ -1011,8 +1011,8 @@ void Renderer::render() {
 		m_rsCurrent = Combine;
 		doCombineShading(bNeedBlur);
 
-		if (m_bAA) {
-			m_rsCurrent = PostProcessAA;
+		if (m_bPostProcessAA) {
+			m_rsCurrent = RS_PostProcessAA;
 			doPostProcessAA();
 		}
 
@@ -1052,9 +1052,12 @@ void Renderer::renderRest() {
 	}
 }
 
-void Renderer::toggleWireframe() {
-	// Use wireframe rendering
-	if (m_descRasterizerState.FillMode == D3D11_FILL_SOLID) {
+bool Renderer::getWireframe() const {
+	return m_descRasterizerState.FillMode != D3D11_FILL_SOLID;
+}
+
+void Renderer::setWireframe(bool bWireframe) {
+	if (bWireframe) {
 		m_descRasterizerState.FillMode = D3D11_FILL_WIREFRAME;
 		m_descRasterizerState.CullMode = D3D11_CULL_BACK;
 	} else {
@@ -1067,24 +1070,8 @@ void Renderer::toggleWireframe() {
 	pRS->Release();
 }
 
-void Renderer::toggleBump() {
-	m_bBump = !m_bBump;
-}
-
-void Renderer::toggleTessellation() {
-	m_bTessellation = !m_bTessellation;
-}
-
-void Renderer::toggleSSS() {
-	m_bSSS = !m_bSSS;
-}
-
-void Renderer::togglePostProcessAA() {
-	m_bAA = !m_bAA;
-}
-
-void Renderer::toggleVSMBlur() {
-	m_bVSMBlur = !m_bVSMBlur;
+void Renderer::toggleWireframe() {
+	setWireframe(!getWireframe());
 }
 
 void Renderer::dump() {

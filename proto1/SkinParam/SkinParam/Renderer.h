@@ -198,7 +198,7 @@ namespace Skin {
 		bool m_bTessellation;
 		bool m_bBump;
 		bool m_bSSS;
-		bool m_bAA;
+		bool m_bPostProcessAA;
 		bool m_bVSMBlur;
 		bool m_bDump;
 		UINT m_nDumpCount;
@@ -210,7 +210,7 @@ namespace Skin {
 			Irradiance,
 			Gaussian,
 			Combine,
-			PostProcessAA,
+			RS_PostProcessAA,
 			UI
 		};
 		RenderStage m_rsCurrent;
@@ -280,12 +280,20 @@ namespace Skin {
 		float getFPS() const { return m_fps; }
 
 		// Toggleables
+		bool getWireframe() const;
+		void setWireframe(bool bWireframe);
 		void toggleWireframe();
-		void toggleTessellation();
-		void toggleBump();
-		void toggleSSS();
-		void togglePostProcessAA();
-		void toggleVSMBlur();
+#define GETTER(name, type, t) type get##name() const { return m_##t##name; }
+#define SETTER(name, type, t) void set##name(type t##name) { m_##t##name = t##name; }
+#define TOGGLE(name) void toggle##name() { m_b##name = !m_b##name; }
+#define GETSET(name, type, t) GETTER(name, type, t) SETTER(name, type, t)
+#define GST_BOOL(name) GETSET(name, bool, b) TOGGLE(name)
+		GST_BOOL(Tessellation)
+		GST_BOOL(Bump)
+		GST_BOOL(SSS)
+		GST_BOOL(PostProcessAA)
+		GST_BOOL(VSMBlur)
+
 		void dump();
 
 		// IRenderer implementation
