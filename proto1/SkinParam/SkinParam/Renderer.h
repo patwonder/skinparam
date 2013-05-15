@@ -201,6 +201,7 @@ namespace Skin {
 		bool m_bAA;
 		bool m_bVSMBlur;
 		bool m_bDump;
+		UINT m_nDumpCount;
 
 		// render stage control
 		enum RenderStage {

@@ -957,6 +957,9 @@ void Renderer::render() {
 	updateTessellation();
 	setConstantBuffers();
 
+	if (m_bDump)
+		m_nDumpCount = 0;
+
 	bool bToggle = (m_descRasterizerState.FillMode == D3D11_FILL_WIREFRAME);
 	bool bNeedBlur = false;
 	// Render shadow maps
@@ -1109,7 +1112,9 @@ void Renderer::dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const TString
 void Renderer::dumpTextureToFile(ID3D11Resource* pTexture2D, const TString& strFileName) {
 	ScratchImage img;
 	CaptureTexture(m_pDevice, m_pDeviceContext, pTexture2D, img);
-	SaveToWICFile(*img.GetImage(0, 0, 0), WIC_FLAGS_NONE, GUID_ContainerFormatPng, (strFileName + _T(".png")).c_str());
+	TStringStream tss;
+	tss << (++m_nDumpCount) << _T("_") << strFileName << _T(".png");
+	SaveToWICFile(*img.GetImage(0, 0, 0), WIC_FLAGS_NONE, GUID_ContainerFormatPng, tss.str().c_str());
 }
 
 ID3D11Device* Renderer::getDevice() const {
