@@ -252,8 +252,9 @@ void CMainWindow::initSSSDialog() {
 	int tmp;
 	CDXUTStatic* lblTmp;
 	DBG_UNREFERENCED_LOCAL_VARIABLE(lblTmp);
-	m_pdlgSSS->AddStatic(CID_SSS_LBL_CAPTION, _T("Subsurface Scattering"), 6, tmp = height - 86, 200, 20);
+	m_pdlgSSS->AddStatic(CID_SSS_LBL_CAPTION, _T("Subsurface Scattering"), 6, tmp = height - 106, 200, 20);
 	m_pdlgSSS->AddCheckBox(CID_SSS_CHK_ENABLE_SSS, _T("Enable (S)SS"), 6, tmp += 20, 200, 20, m_pRenderer->getSSS(), 0, false, &m_pchkEnableSSS);
+	m_pdlgSSS->AddCheckBox(CID_SSS_CHK_ADAPTIVE_GAUSSIAN, _T("A(d)aptive Blurring"), 6, tmp += 20, 200, 20, m_pRenderer->getAdaptiveGaussian(), 0, false, &m_pchkAdaptiveGaussian);
 	m_pdlgSSS->AddStatic(CID_SSS_LBL_SSS_STRENGTH_LABEL, _T("SSS Strength: "), 6, tmp += 20, 200, 20);
 	m_pdlgSSS->AddSlider(CID_SSS_SLD_SSS_STRENGTH, 6, tmp += 20, 120, 20, 0, 200, (int)(100.0f * m_pRenderer->getSSSStrength() + 0.5f), false, &m_psldSSSStrength);
 	m_pdlgSSS->AddStatic(CID_SSS_LBL_SSS_STRENGTH, _T("1.00"), 140, tmp, 60, 20, false, &m_plblSSSStrength);
@@ -261,6 +262,7 @@ void CMainWindow::initSSSDialog() {
 	m_pdlgSSS->SetVisible(true);
 
 	registerEventHandler(CID_SSS_CHK_ENABLE_SSS, &CMainWindow::chkEnableSSS_Handler);
+	registerEventHandler(CID_SSS_CHK_ADAPTIVE_GAUSSIAN, &CMainWindow::chkAdaptiveGaussian_Handler);
 	registerEventHandler(CID_SSS_SLD_SSS_STRENGTH, &CMainWindow::sldSSSStrength_Handler);
 }
 
@@ -349,6 +351,8 @@ void CMainWindow::updateUI() {
 
 	// SSS dialog
 	m_pchkEnableSSS->SetChecked(m_pRenderer->getSSS());
+	m_pchkAdaptiveGaussian->SetChecked(m_pRenderer->getAdaptiveGaussian());
+	m_pchkAdaptiveGaussian->SetEnabled(m_pchkEnableSSS->GetChecked());
 	m_psldSSSStrength->SetEnabled(m_pchkEnableSSS->GetChecked());
 }
 
@@ -391,6 +395,10 @@ DefineHandlerForBool(PostProcessAA)
 
 void CALLBACK CMainWindow::chkEnableSSS_Handler(CDXUTControl* sender, UINT nEvent) {
 	m_pRenderer->setSSS(m_pchkEnableSSS->GetChecked());
+}
+
+void CALLBACK CMainWindow::chkAdaptiveGaussian_Handler(CDXUTControl* sender, UINT nEvent) {
+	m_pRenderer->setAdaptiveGaussian(m_pchkAdaptiveGaussian->GetChecked());
 }
 
 void CALLBACK CMainWindow::sldSSSStrength_Handler(CDXUTControl* sender, UINT nEvent) {
@@ -441,6 +449,9 @@ afx_msg void CMainWindow::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 		break;
 	case 'V':
 		m_pRenderer->toggleVSMBlur();
+		break;
+	case 'D':
+		m_pRenderer->toggleAdaptiveGaussian();
 		break;
 	case VK_F8:
 		m_pRenderer->dump();

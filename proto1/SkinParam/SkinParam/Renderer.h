@@ -57,6 +57,8 @@ namespace Skin {
 		ID3D11ShaderResourceView* m_apSRVSSS[NUM_SSS_VIEWS];
 		ShaderGroup* m_psgSSSIrradiance;
 		ShaderGroup* m_psgSSSIrradianceNoTessellation;
+		ShaderGroup* m_psgSSSGausianVertical;
+		ShaderGroup* m_psgSSSGausianHorizontal;
 		ShaderGroup* m_psgSSSGausianVertical7;
 		ShaderGroup* m_psgSSSGausianHorizontal7;
 		ShaderGroup* m_psgSSSGausianVertical5;
@@ -217,6 +219,7 @@ namespace Skin {
 		bool m_bSSS;
 		bool m_bPostProcessAA;
 		bool m_bVSMBlur;
+		bool m_bAdaptiveGaussian;
 		bool m_bDump;
 		UINT m_nDumpCount;
 
@@ -314,6 +317,7 @@ namespace Skin {
 		GST_BOOL(VSMBlur)
 		GETTER(PostProcessAA, bool, b) TOGGLE(PostProcessAA)
 		void setPostProcessAA(bool bPostProcessAA);
+		GST_BOOL(AdaptiveGaussian)
 
 		float getSSSStrength() const { return m_cbSSS.g_sss_strength; }
 		void setSSSStrength(float strength) { m_cbSSS.g_sss_strength = strength; }

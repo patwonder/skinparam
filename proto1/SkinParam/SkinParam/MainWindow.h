@@ -89,6 +89,7 @@ namespace Skin {
 		static const UINT CID_SSS_LBL_SSS_STRENGTH_LABEL = 202;
 		static const UINT CID_SSS_SLD_SSS_STRENGTH = 203;
 		static const UINT CID_SSS_LBL_SSS_STRENGTH = 204;
+		static const UINT CID_SSS_CHK_ADAPTIVE_GAUSSIAN = 205;
 
 		// Info dialog
 		CDXUTStatic* m_plblScreenSize;
@@ -102,6 +103,7 @@ namespace Skin {
 		CDXUTCheckBox* m_pchkPostProcessAA;
 		// SSS dialog
 		CDXUTCheckBox* m_pchkEnableSSS;
+		CDXUTCheckBox* m_pchkAdaptiveGaussian;
 		CDXUTSlider* m_psldSSSStrength;
 		CDXUTStatic* m_plblSSSStrength;
 
@@ -121,6 +123,7 @@ namespace Skin {
 		DeclareHandlerForBool(VSMBlur);
 		DeclareHandlerForBool(PostProcessAA);
 		void CALLBACK chkEnableSSS_Handler(CDXUTControl* sender, UINT nEvent);
+		void CALLBACK chkAdaptiveGaussian_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK sldSSSStrength_Handler(CDXUTControl* sender, UINT nEvent);
 
 		// Message mapping

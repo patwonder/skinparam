@@ -84,6 +84,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_psgTessellatedPhong(nullptr),
 	  m_psgTessellatedShadow(nullptr),
 	  m_psgSSSIrradiance(nullptr),
+	  m_psgSSSGausianVertical(nullptr),
+	  m_psgSSSGausianHorizontal(nullptr),
 	  m_psgSSSGausianVertical7(nullptr),
 	  m_psgSSSGausianHorizontal7(nullptr),
 	  m_psgSSSGausianVertical5(nullptr),
@@ -110,6 +112,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_bSSS(true),
 	  m_bPostProcessAA(true),
 	  m_bVSMBlur(true),
+	  m_bAdaptiveGaussian(true),
 	  m_bDump(false),
 	  m_rsCurrent(RS_NotRendering)
 {
@@ -155,6 +158,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	m_vppShaderGroups.push_back(&m_psgTessellatedPhong);
 	m_vppShaderGroups.push_back(&m_psgTessellatedShadow);
 	m_vppShaderGroups.push_back(&m_psgSSSIrradiance);
+	m_vppShaderGroups.push_back(&m_psgSSSGausianVertical);
+	m_vppShaderGroups.push_back(&m_psgSSSGausianHorizontal);
 	m_vppShaderGroups.push_back(&m_psgSSSGausianVertical7);
 	m_vppShaderGroups.push_back(&m_psgSSSGausianHorizontal7);
 	m_vppShaderGroups.push_back(&m_psgSSSGausianVertical5);
@@ -455,6 +460,8 @@ void Renderer::loadShaders() {
 	m_psgCopyLinear = new ShaderGroup(m_pDevice, _T("Copy.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Linear");
 
 	// Subsurface Scattering
+	m_psgSSSGausianVertical = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
+	m_psgSSSGausianHorizontal = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
 	m_psgSSSGausianVertical7 = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical_7");
 	m_psgSSSGausianHorizontal7 = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal_7");
 	m_psgSSSGausianVertical5 = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical_5");
@@ -853,16 +860,10 @@ float Renderer::estimateGaussianKernelSize(float standardDeviation, float minDep
 }
 
 bool Renderer::selectShaderGroupsForKernelSize(float kernelSizeInPixels, ShaderGroup** ppsgVertical, ShaderGroup** ppsgHorizontal) {
-	// Filt  SD  Bound    B7   B5   B3   BMP  BM    SDu  SDl   SDM
-	// 7-tap 1.0 x * 3    3.0  2.4  1.5  ...  2.18  1.0  0.67  0.727
-	// 5-tap 0.8 x * 2.5  2.5  2.0  1.25 1.82 1.11  0.8  0.4   0.444
-	// 3-tap 0.5 x * 2.0  2.0  1.6  1.0  .889 0.20  0.5  0.0   0.10
-	// SDM(Mean Standard Deviation) taken to be the harmonic mean of SDl and next SDu
-
 	// 7-tap to 5-tap limit
-	static const float SEVEN_TO_FIVE = 0.727f;
+	static const float SEVEN_TO_FIVE = 0.873f;
 	// 5-tap to 3-tap limit
-	static const float FIVE_TO_THREE = 0.444f;
+	static const float FIVE_TO_THREE = 0.593f;
 	// 3-tap to copy limit
 	static const float THREE_TO_ONE = 0.1f;
 
@@ -908,18 +909,25 @@ void Renderer::doGaussianBlurs(ID3D11ShaderResourceView* oapSRVGaussians[]) {
 	// null shader resources for unbinding
 	ID3D11ShaderResourceView* apNullSRVs[numViews] = { nullptr };
 
-	float minDepth = getMinDepthForScene();
+	float minDepth = m_bAdaptiveGaussian ? getMinDepthForScene() : CLIPPING_SCENE_NEAR;
 	float prevVariance = 0;
 	for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
 		float variance = SSS_GAUSSIAN_KERNEL_SIGMA[i];
 		float size = sqrt(variance - prevVariance);
 
 		setGaussianKernelSize(size);
-		float kernelSizeInPixels = estimateGaussianKernelSize(size, minDepth);
+
 		ShaderGroup* psgGaussianVertical;
 		ShaderGroup* psgGaussianHorizontal;
-		bool bCopy = selectShaderGroupsForKernelSize(kernelSizeInPixels, &psgGaussianVertical, &psgGaussianHorizontal);
-
+		bool bCopy;
+		if (!m_bAdaptiveGaussian) {
+			psgGaussianVertical = m_psgSSSGausianVertical;
+			psgGaussianHorizontal = m_psgSSSGausianHorizontal;
+			bCopy = false;
+		} else {
+			float kernelSizeInPixels = estimateGaussianKernelSize(size, minDepth);
+			bCopy = selectShaderGroupsForKernelSize(kernelSizeInPixels, &psgGaussianVertical, &psgGaussianHorizontal);
+		}
 		if (bCopy) {
 			// use previous texture directly
 			oapSRVGaussians[i] = pSRVPrevious;
