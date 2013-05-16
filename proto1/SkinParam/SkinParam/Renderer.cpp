@@ -885,7 +885,7 @@ bool Renderer::selectShaderGroupsForKernelSize(float kernelSizeInPixels, ShaderG
 	return false;
 }
 
-void Renderer::doGaussianBlurs() {
+void Renderer::doGaussianBlurs(ID3D11ShaderResourceView* oapSRVGaussians[]) {
 	bindGaussianConstantBuffer();
 	
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -913,7 +913,6 @@ void Renderer::doGaussianBlurs() {
 	for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
 		float variance = SSS_GAUSSIAN_KERNEL_SIGMA[i];
 		float size = sqrt(variance - prevVariance);
-		prevVariance = variance;
 
 		setGaussianKernelSize(size);
 		float kernelSizeInPixels = estimateGaussianKernelSize(size, minDepth);
@@ -922,14 +921,11 @@ void Renderer::doGaussianBlurs() {
 		bool bCopy = selectShaderGroupsForKernelSize(kernelSizeInPixels, &psgGaussianVertical, &psgGaussianHorizontal);
 
 		if (bCopy) {
-			// previous ->(copy)-> next
-			psgGaussianVertical->use(m_pDeviceContext);
-			m_pDeviceContext->OMSetRenderTargets(1, &m_apRTSSS[IDX_SSS_GAUSSIANS_START + i], nullptr);
-			apSRVs[0] = pSRVPrevious;
-			m_pDeviceContext->PSSetShaderResources(0, numViews, apSRVs);
-
-			m_pDeviceContext->Draw(6, 0);
+			// use previous texture directly
+			oapSRVGaussians[i] = pSRVPrevious;
 		} else {
+			prevVariance = variance;
+
 			// do separate gaussian passes
 			// previous ->(vertical blur)-> temporary
 			psgGaussianVertical->use(m_pDeviceContext);
@@ -946,12 +942,12 @@ void Renderer::doGaussianBlurs() {
 			m_pDeviceContext->PSSetShaderResources(0, numViews, apSRVs);
 
 			m_pDeviceContext->Draw(6, 0);
+
+			// must unbind shader resource
+			m_pDeviceContext->PSSetShaderResources(0, numViews, apNullSRVs);
+
+			oapSRVGaussians[i] = pSRVPrevious = m_apSRVSSS[IDX_SSS_GAUSSIANS_START + i];
 		}
-
-		// must unbind shader resource
-		m_pDeviceContext->PSSetShaderResources(0, numViews, apNullSRVs);
-
-		pSRVPrevious = m_apSRVSSS[IDX_SSS_GAUSSIANS_START + i];
 
 		if (m_bDump) {
 			TStringStream tss;
@@ -961,7 +957,7 @@ void Renderer::doGaussianBlurs() {
 	}
 }
 
-void Renderer::doCombineShading(bool bNeedBlur) {
+void Renderer::doCombineShading(bool bNeedBlur, ID3D11ShaderResourceView* apSRVGaussians[]) {
 	bindCombineConstantBuffer();
 
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -983,7 +979,7 @@ void Renderer::doCombineShading(bool bNeedBlur) {
 		m_apSRVSSS[IDX_SSS_SPECULAR],
 	};
 	if (bNeedBlur)
-		memcpy(apSSSSRVs + 2, m_apSRVSSS + IDX_SSS_GAUSSIANS_START, sizeof(*m_apSRVSSS) * NUM_SSS_GAUSSIANS);
+		memcpy(apSSSSRVs + 2, apSRVGaussians, sizeof(*apSRVGaussians) * NUM_SSS_GAUSSIANS);
 	else
 		for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
 			apSSSSRVs[2 + i] = m_apSRVSSS[IDX_SSS_IRRADIANCE];
@@ -1121,12 +1117,13 @@ void Renderer::render() {
 						&bNeedBlur);
 
 	if (bToggle) toggleWireframe(); {
+		ID3D11ShaderResourceView* apSRVGaussians[NUM_SSS_GAUSSIANS];
 		if (bNeedBlur) {
 			m_rsCurrent = RS_Gaussian;
-			doGaussianBlurs();
+			doGaussianBlurs(apSRVGaussians);
 		}
 		m_rsCurrent = RS_Combine;
-		doCombineShading(bNeedBlur);
+		doCombineShading(bNeedBlur, apSRVGaussians);
 
 		if (m_bPostProcessAA) {
 			m_rsCurrent = RS_PostProcessAA;
@@ -1157,7 +1154,7 @@ void Renderer::renderScene(bool* opbNeedBlur) {
 
 			// set sss intensity
 			m_cbSSS.g_sss_intensity = (m_bSSS && renderable->supportsSSS()) ? 1.0f : 0.0f;
-			bNeedBlur |= (m_bSSS && renderable->supportsSSS() && m_cbSSS.g_sss_strength >= 0.02f);
+			bNeedBlur |= (m_bSSS && renderable->supportsSSS() && m_cbSSS.g_sss_strength >= 0.005f);
 			m_pDeviceContext->UpdateSubresource(m_pSSSConstantBuffer, 0, nullptr, &m_cbSSS, 0, 0);
 
 			renderable->render(m_pDeviceContext, this, *m_pCamera);

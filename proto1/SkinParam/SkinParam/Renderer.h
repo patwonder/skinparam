@@ -264,8 +264,8 @@ namespace Skin {
 		float getMinDepthForScene() const;
 		float estimateGaussianKernelSize(float standardDeviation, float minDepth);
 		bool selectShaderGroupsForKernelSize(float kernelSizeInPixels, ShaderGroup** ppsgVertical, ShaderGroup** ppsgHorizontal);
-		void doGaussianBlurs();
-		void doCombineShading(bool bNeedBlur);
+		void doGaussianBlurs(ID3D11ShaderResourceView* oapSRVGaussians[]);
+		void doCombineShading(bool bNeedBlur, ID3D11ShaderResourceView* apSRVGaussians[]);
 
 		void initPostProcessAA();
 		void bindPostProcessConstantBuffer();
