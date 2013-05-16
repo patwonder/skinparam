@@ -1,7 +1,5 @@
 #pragma once
 
-#include <D3D11.h>
-
 namespace Skin {
 
 class RenderableManager /* interface */ {

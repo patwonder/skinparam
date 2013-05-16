@@ -139,6 +139,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Frustum.cpp" />
     <ClCompile Include="Head.cpp" />
     <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="Material.cpp" />
@@ -199,6 +200,7 @@
     <ClInclude Include="DXUT\Optional\ImeUi.h" />
     <ClInclude Include="D3DHelper.h" />
     <ClInclude Include="DXUT\Optional\SDKmisc.h" />
+    <ClInclude Include="Frustum.h" />
     <ClInclude Include="Head.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="MainWindow.h" />
@@ -292,6 +294,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\GaussianShadow.fx">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\Copy.fx">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

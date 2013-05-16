@@ -16,8 +16,14 @@ namespace Skin {
 
 	class MeshRenderable : public Renderable {
 	private:
+		Utils::FVector m_vCenter;
+		float m_fBoundingSphereRadius;
+
+		static float getBumpMultiplierScale(const XMMATRIX& matWorld);
+
 		void removeDuplicateVertices();
 		void computeNormals();
+		void computeBoundingSphere();
 		void computeTangentSpace();
 		void computeNormalMaps(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext);
 
@@ -56,5 +62,7 @@ namespace Skin {
 		void init(ID3D11Device* pDevice, IRenderer* pRenderer) override;
 		void render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) override;
 		void cleanup(IRenderer* pRenderer) override;
+
+		void getBoundingSphere(Utils::FVector& oVecCenter, float& oRadius) const override;
 	};
 } // namespace Skin

@@ -8,6 +8,7 @@
 #include "TString.h"
 #include "D3DHelper.h"
 #include "Material.h"
+#include "FVector.h"
 
 namespace Skin {
 	class IRenderer /* interface */ {
@@ -38,6 +39,10 @@ namespace Skin {
 		/** optional to implement */
 		virtual bool supportsSSS() const { return false; }
 		virtual bool inScene() const { return true; }
+		virtual void getBoundingSphere(Utils::FVector& oVecCenter, float& oRadius) const {
+			oVecCenter = Utils::FVector::ZERO;
+			oRadius = 0.0f;
+		}
 	};
 
 } // namespace Skin

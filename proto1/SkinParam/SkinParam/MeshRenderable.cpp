@@ -26,6 +26,7 @@ MeshRenderable::MeshRenderable(const TString& strObjFilePath)
 
 	m_pModel = loader.ReturnObj();
 	computeNormals();
+	computeBoundingSphere();
 	computeTangentSpace();
 	/*
 	std::map<UINT, UINT> mapVertexToTexCoord;
@@ -241,6 +242,24 @@ void MeshRenderable::computeNormals() {
 	}
 }
 
+void MeshRenderable::computeBoundingSphere() {
+	m_vCenter = FVector::ZERO;
+	for (UINT i = 1; i < m_pModel->Vertices.size(); i++) {
+		const ObjVertex& v = m_pModel->Vertices[i];
+		m_vCenter += v;
+	}
+	if (m_pModel->Vertices.size() > 1)
+		m_vCenter /= (float)(m_pModel->Vertices.size() - 1);
+
+	m_fBoundingSphereRadius = 0.0f;
+	for (UINT i = 1; i < m_pModel->Vertices.size(); i++) {
+		const ObjVertex& v = m_pModel->Vertices[i];
+		float l = (v - m_vCenter).length();
+		if (l > m_fBoundingSphereRadius)
+			m_fBoundingSphereRadius = l;
+	}
+}
+
 void MeshRenderable::computeTangentSpace() {
 	// quit if there's already some tangents/binormals in the model
 	// note tangents/binormals (and vertices, texcoords) begin at index 1
@@ -376,6 +395,10 @@ void MeshRenderable::computeNormalMap(const BTT* pBumpTextureData, UINT width, U
 	}
 }
 
+float MeshRenderable::getBumpMultiplierScale(const XMMATRIX& matWorld) {
+	return XMVectorGetX(XMVector4Length(XMVector4Transform(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), matWorld)));
+}
+
 void MeshRenderable::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) {
 	// Set vertex buffer
     UINT stride = sizeof(Vertex);
@@ -386,7 +409,7 @@ void MeshRenderable::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRen
 	XMMATRIX matWorld = getWorldMatrix();
 	pRenderer->setWorldMatrix(matWorld);
 	// Estimate the scaled bump multiplier
-	float fBumpMultiplierScale = XMVectorGetX(XMVector4Length(XMVector4Transform(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), matWorld)));
+	float fBumpMultiplierScale = getBumpMultiplierScale(matWorld);
 	//TRACE(_T("[MeshRenderable] fBumpMultiplierScale = %.3f\n"), fBumpMultiplierScale);
 	UINT nTriDrawn = 0;
 	for (const ObjPart& part : m_pModel->Parts) {
@@ -453,4 +476,12 @@ void MeshRenderable::cleanup(IRenderer* pRenderer) {
 		pNormalMapPair.second->Release();
 	}
 	m_vpNormalMaps.clear();
+}
+
+void MeshRenderable::getBoundingSphere(FVector& oVecCenter, float& oRadius) const {
+	// estimate translation and scaling using world matrix
+	XMMATRIX matWorld = getWorldMatrix();
+	oRadius = m_fBoundingSphereRadius * getBumpMultiplierScale(matWorld);
+	XMVECTOR vecTrans = XMVector4Transform(XMVectorSet(m_vCenter.x, m_vCenter.y, m_vCenter.z, 1.0f), matWorld);
+	oVecCenter = FVector(XMVectorGetX(vecTrans), XMVectorGetY(vecTrans), XMVectorGetZ(vecTrans));
 }

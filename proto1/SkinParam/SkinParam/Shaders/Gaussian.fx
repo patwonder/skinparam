@@ -10,6 +10,8 @@ Texture2D g_diffuseStencilTexture : register(t1);
 cbuffer Gaussian : register(b0) {
 	float g_blurWidth; // blur width
 	float g_invAspectRatio; // inverse of aspect ratio (height / width)
+	float g_screenWidth;
+	float g_screenHeight;
 }
 
 static const uint KERNEL_SIZE = 7;

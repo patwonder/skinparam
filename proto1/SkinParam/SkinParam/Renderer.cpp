@@ -34,6 +34,14 @@ namespace Skin {
 	}
 }
 
+const float Renderer::CLIPPING_LIGHT_NEAR = 5.0f;
+const float Renderer::CLIPPING_LIGHT_FAR = 20.0f;
+const float Renderer::FOV_LIGHT = 50.0f;
+const float Renderer::CLIPPING_SCENE_NEAR = 0.1f;
+const float Renderer::CLIPPING_SCENE_FAR = 20.0f;
+const float Renderer::FOV_SCENE = 30.0f;
+const float Renderer::MM_PER_LENGTH = 120.0f;
+
 const float Renderer::SSS_GAUSSIAN_KERNEL_SIGMA[NUM_SSS_GAUSSIANS] = {
 	0.0064f, 0.0484f, 0.187f, 0.567f, 1.99f, 7.41f
 };
@@ -83,6 +91,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_psgPostProcessAA(nullptr),
 	  m_psgGaussianShadowVertical(nullptr),
 	  m_psgGaussianShadowHorizontal(nullptr),
+	  m_psgCopy(nullptr),
+	  m_psgCopyLinear(nullptr),
 	  m_hwnd(hwnd),
 	  m_rectView(rectView),
 	  m_pConfig(pConfig),
@@ -148,6 +158,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	m_vppShaderGroups.push_back(&m_psgPostProcessAA);
 	m_vppShaderGroups.push_back(&m_psgGaussianShadowVertical);
 	m_vppShaderGroups.push_back(&m_psgGaussianShadowHorizontal);
+	m_vppShaderGroups.push_back(&m_psgCopy);
+	m_vppShaderGroups.push_back(&m_psgCopyLinear);
 
 	checkFailure(initDX(), _T("Failed to initialize DirectX 11"));
 
@@ -401,6 +413,7 @@ void Renderer::removeAllLights() {
 }
 
 void Renderer::loadShaders() {
+	// World-space shaders
 	D3D11_INPUT_ELEMENT_DESC phong_layout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -427,7 +440,13 @@ void Renderer::loadShaders() {
 	m_psgSSSIrradianceNoTessellation = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
 		"VS_Irradiance_NoTessellation", nullptr, nullptr, "PS_Irradiance");
 
+	// Screen-space shaders
 	D3D11_INPUT_ELEMENT_DESC empty_layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 } };
+	// Copy shader
+	m_psgCopy = new ShaderGroup(m_pDevice, _T("Copy.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
+	m_psgCopyLinear = new ShaderGroup(m_pDevice, _T("Copy.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Linear");
+
+	// Subsurface Scattering
 	m_psgSSSGausianVertical = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
 	m_psgSSSGausianHorizontal = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
 	m_psgSSSCombine = new ShaderGroup(m_pDevice, _T("Combine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
@@ -465,7 +484,7 @@ void Renderer::initTransform() {
 		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f),
 		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)
 	};
-	memcpy(m_cbTransform.g_vFrustrumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTransform.g_vFrustrumPlaneEquation));
+	memcpy(m_cbTransform.g_vFrustumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTransform.g_vFrustumPlaneEquation));
 
 	XMStoreFloat4x4(&m_cbTransform.g_matViewProjCamera, XMMatrixIdentity());
 	for (UINT i = 0; i < NUM_LIGHTS; i++) {
@@ -505,9 +524,10 @@ void Renderer::updateTransform(const Camera& camera, const XMMATRIX& matProjecti
 
 	m_cbTransform.g_posEye = XMPos(camera.getVecEye());
 
-	XMFLOAT4 vFrustrumPlanes[6];
-	extractPlanesFromFrustum(vFrustrumPlanes, matViewProj, true);
-	memcpy(m_cbTransform.g_vFrustrumPlaneEquation, vFrustrumPlanes, sizeof(m_cbTransform.g_vFrustrumPlaneEquation));
+	// update frustum
+	XMFLOAT4 vFrustumPlanes[6];
+	m_frustum.CalculateFrustum(matViewProj, vFrustumPlanes);
+	memcpy(m_cbTransform.g_vFrustumPlaneEquation, vFrustumPlanes, sizeof(m_cbTransform.g_vFrustumPlaneEquation));
 
 	m_cbTransform.g_fAspectRatio = fAspectRatio;
 
@@ -580,9 +600,9 @@ void Renderer::initMaterial() {
 
 void Renderer::updateProjection() {
 	XMStoreFloat4x4(&m_matProjection,
-		XMMatrixPerspectiveFovLH((float)(Math::PI / 6), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 20.0f));
+		XMMatrixPerspectiveFovLH((float)(Math::PI * FOV_SCENE / 180.0), (float)m_rectView.Width() / m_rectView.Height(), CLIPPING_SCENE_NEAR, CLIPPING_SCENE_FAR));
 	XMStoreFloat4x4(&m_matLightProjection,
-		XMMatrixPerspectiveFovLH((float)(Math::PI * 5 / 18), 1.0f, 5.0f, 20.0f));
+		XMMatrixPerspectiveFovLH((float)(Math::PI * FOV_LIGHT / 180.0), 1.0f, CLIPPING_LIGHT_NEAR, CLIPPING_LIGHT_FAR));
 }
 
 void Renderer::initTessellation() {
@@ -682,6 +702,8 @@ void Renderer::initSSS() {
 
 	// initialize related constant buffers
 	m_cbGaussian.g_blurWidth = 0.0f;
+	m_cbGaussian.g_screenWidth = (float)m_rectView.Width();
+	m_cbGaussian.g_screenHeight = (float)m_rectView.Height();
 	m_cbGaussian.g_invAspectRatio = (float)m_rectView.Height() / m_rectView.Width();
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbGaussian, &m_pGaussianConstantBuffer),
 		_T("Failed to create gaussian constant buffer"));
@@ -784,6 +806,73 @@ void Renderer::setGaussianKernelSize(float size) {
 	m_pDeviceContext->UpdateSubresource(m_pGaussianConstantBuffer, 0, nullptr, &m_cbGaussian, 0, 0);
 }
 
+// Compute the min depth of objects from camera
+float Renderer::getMinDepthForScene() const {
+	float depth = FLT_MAX;
+	float MM_THRESHOLD = 0.1f;
+	for (Renderable* r : m_vpRenderables) {
+		if (!r->inScene() || !r->supportsSSS()) continue;
+		FVector vCenter; float radius;
+		r->getBoundingSphere(vCenter, radius);
+		// ignore things that are less than 0.1mm in size
+		if (radius < MM_THRESHOLD / MM_PER_LENGTH)
+			continue;
+		// ignore things out of the viewing frustum
+		if (!m_frustum.SphereIntersectsFrustum(XMVectorSet(vCenter.x, vCenter.y, vCenter.z, 1.0f), radius))
+			continue;
+
+		float shadowLength = (float)((Vector(vCenter.x, vCenter.y, vCenter.z) - m_pCamera->getVecEye())
+			* (m_pCamera->getVecLookAt() - m_pCamera->getVecEye()).normalize());
+		float d = max(CLIPPING_SCENE_NEAR, shadowLength - radius);
+		if (d < depth)
+			depth = d;
+	}
+	return depth;
+}
+
+// estimates maximum gaussian kernel size in pixels
+float Renderer::estimateGaussianKernelSize(float standardDeviation, float minDepth) {
+	// take the distance to the camera as the depth estimation
+	if (minDepth > CLIPPING_SCENE_FAR) return 0.0f;
+
+	static const float SIZE_ALPHA = (float)(1.0 / (2.0 * tan((FOV_SCENE / 180.0 * Math::PI) / 2.0) * MM_PER_LENGTH));
+	float kernelSizeInPixels = standardDeviation * SIZE_ALPHA / minDepth * (float)m_rectView.Height() * m_cbSSS.g_sss_strength;
+	return kernelSizeInPixels;
+}
+
+bool Renderer::selectShaderGroupsForKernelSize(float kernelSizeInPixels, ShaderGroup** ppsgVertical, ShaderGroup** ppsgHorizontal) {
+	// Filt  SD  Bound    B7   B5   B3   BMP  BM    SDu  SDl   SDM
+	// 7-tap 1.0 x * 3    3.0  2.4  1.5  ...  2.18  1.0  0.67  0.727
+	// 5-tap 0.8 x * 2.5  2.5  2.0  1.25 1.82 1.11  0.8  0.4   0.444
+	// 3-tap 0.5 x * 2.0  2.0  1.6  1.0  .889 0.20  0.5  0.0   0.10
+	// SDM(Mean Standard Deviation) taken to be the harmonic mean of SDl and next SDu
+
+	// 7-tap to 5-tap limit
+	static const float SEVEN_TO_FIVE = 0.727f;
+	// 5-tap to 3-tap limit
+	static const float FIVE_TO_THREE = 0.444f;
+	// 3-tap to copy limit
+	static const float THREE_TO_ONE = 0.1f;
+
+	if (kernelSizeInPixels > SEVEN_TO_FIVE) {
+		// standard 7 tap filter
+		*ppsgVertical = m_psgSSSGausianVertical;
+		*ppsgHorizontal = m_psgSSSGausianHorizontal;
+	} else if (kernelSizeInPixels > FIVE_TO_THREE) {
+		*ppsgVertical = m_psgSSSGausianVertical;
+		*ppsgHorizontal = m_psgSSSGausianHorizontal;
+	} else if (kernelSizeInPixels > THREE_TO_ONE) {
+		*ppsgVertical = m_psgSSSGausianVertical;
+		*ppsgHorizontal = m_psgSSSGausianHorizontal;
+	} else {
+		// just copy pixels
+		*ppsgVertical = m_psgCopy;
+		*ppsgHorizontal = m_psgCopy;
+		return true;
+	}
+	return false;
+}
+
 void Renderer::doGaussianBlurs() {
 	bindGaussianConstantBuffer();
 	
@@ -807,6 +896,7 @@ void Renderer::doGaussianBlurs() {
 	// null shader resources for unbinding
 	ID3D11ShaderResourceView* apNullSRVs[numViews] = { nullptr };
 
+	float minDepth = getMinDepthForScene();
 	float prevVariance = 0;
 	for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
 		float variance = SSS_GAUSSIAN_KERNEL_SIGMA[i];
@@ -814,23 +904,37 @@ void Renderer::doGaussianBlurs() {
 		prevVariance = variance;
 
 		setGaussianKernelSize(size);
+		float kernelSizeInPixels = estimateGaussianKernelSize(size, minDepth);
+		ShaderGroup* psgGaussianVertical;
+		ShaderGroup* psgGaussianHorizontal;
+		bool bCopy = selectShaderGroupsForKernelSize(kernelSizeInPixels, &psgGaussianVertical, &psgGaussianHorizontal);
 
-		// do separate gaussian passes
-		// previous ->(vertical blur)-> temporary
-		m_psgSSSGausianVertical->use(m_pDeviceContext);
-		m_pDeviceContext->OMSetRenderTargets(1, &pRTTemporary, nullptr);
-		apSRVs[0] = pSRVPrevious;
-		m_pDeviceContext->PSSetShaderResources(0, numViews, apSRVs);
+		if (bCopy) {
+			// previous ->(copy)-> next
+			psgGaussianVertical->use(m_pDeviceContext);
+			m_pDeviceContext->OMSetRenderTargets(1, &m_apRTSSS[IDX_SSS_GAUSSIANS_START + i], nullptr);
+			apSRVs[0] = pSRVPrevious;
+			m_pDeviceContext->PSSetShaderResources(0, numViews, apSRVs);
 
-		m_pDeviceContext->Draw(6, 0);
+			m_pDeviceContext->Draw(6, 0);
+		} else {
+			// do separate gaussian passes
+			// previous ->(vertical blur)-> temporary
+			psgGaussianVertical->use(m_pDeviceContext);
+			m_pDeviceContext->OMSetRenderTargets(1, &pRTTemporary, nullptr);
+			apSRVs[0] = pSRVPrevious;
+			m_pDeviceContext->PSSetShaderResources(0, numViews, apSRVs);
 
-		// temporary ->(horizontal blur)-> next
-		m_psgSSSGausianHorizontal->use(m_pDeviceContext);
-		m_pDeviceContext->OMSetRenderTargets(1, &m_apRTSSS[IDX_SSS_GAUSSIANS_START + i], nullptr);
-		apSRVs[0] = pSRVTemporary;
-		m_pDeviceContext->PSSetShaderResources(0, numViews, apSRVs);
+			m_pDeviceContext->Draw(6, 0);
 
-		m_pDeviceContext->Draw(6, 0);
+			// temporary ->(horizontal blur)-> next
+			psgGaussianHorizontal->use(m_pDeviceContext);
+			m_pDeviceContext->OMSetRenderTargets(1, &m_apRTSSS[IDX_SSS_GAUSSIANS_START + i], nullptr);
+			apSRVs[0] = pSRVTemporary;
+			m_pDeviceContext->PSSetShaderResources(0, numViews, apSRVs);
+
+			m_pDeviceContext->Draw(6, 0);
+		}
 
 		// must unbind shader resource
 		m_pDeviceContext->PSSetShaderResources(0, numViews, apNullSRVs);
@@ -1033,6 +1137,12 @@ void Renderer::renderScene(bool* opbNeedBlur) {
 	bool bNeedBlur = false;
 	for (Renderable* renderable : m_vpRenderables) {
 		if (renderable->inScene()) {
+			// do frustum culling
+			FVector vCenter; float radius;
+			renderable->getBoundingSphere(vCenter, radius);
+			if (!m_frustum.SphereIntersectsFrustum(XMVectorSet(vCenter.x, vCenter.y, vCenter.z, 1.0f), radius))
+				continue;
+
 			// set sss intensity
 			m_cbSSS.g_sss_intensity = (m_bSSS && renderable->supportsSSS()) ? 1.0f : 0.0f;
 			bNeedBlur |= (m_bSSS && renderable->supportsSSS() && m_cbSSS.g_sss_strength >= 0.02f);

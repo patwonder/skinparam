@@ -9,6 +9,7 @@
 #include "Renderable.h"
 #include "RenderableManager.h"
 #include "Color.h"
+#include "Frustum.h"
 
 namespace Skin {
 	class Config;
@@ -66,7 +67,8 @@ namespace Skin {
 		struct GaussianConstantBuffer {
 			float g_blurWidth; // blur width
 			float g_invAspectRatio; // inverse of aspect ratio (height / width)
-			float pad[2];
+			float g_screenWidth;
+			float g_screenHeight;
 		};
 		struct CombineConstantBuffer {
 			struct {
@@ -117,7 +119,7 @@ namespace Skin {
 			XMFLOAT4X4 g_matViewProjCamera;
 			XMFLOAT3 g_posEye;
 			float g_fAspectRatio;
-			XMFLOAT4 g_vFrustrumPlaneEquation[4];
+			XMFLOAT4 g_vFrustumPlaneEquation[4];
 		};
 		struct RLight {
 			XMFLOAT3 ambient;
@@ -158,8 +160,16 @@ namespace Skin {
 		ID3D11Buffer* m_pTessellationConstantBuffer;
 		TessellationConstantBuffer m_cbTessellation;
 
+		static const float CLIPPING_LIGHT_NEAR;
+		static const float CLIPPING_LIGHT_FAR;
+		static const float CLIPPING_SCENE_NEAR;
+		static const float CLIPPING_SCENE_FAR;
+		static const float FOV_SCENE;
+		static const float FOV_LIGHT;
+		static const float MM_PER_LENGTH;
 		XMFLOAT4X4 m_matProjection; // use XMFLOAT4X4 instead of XMMATRIX to resolve alignment issues
 		XMFLOAT4X4 m_matLightProjection; // light projection matrix
+		Frustum m_frustum;
 
 		// Shadow mapping
 		static const UINT SM_SIZE = 1024;
@@ -189,6 +199,8 @@ namespace Skin {
 		ShaderGroup* m_psgShadow;
 		ShaderGroup* m_psgTessellatedPhong;
 		ShaderGroup* m_psgTessellatedShadow;
+		ShaderGroup* m_psgCopy;
+		ShaderGroup* m_psgCopyLinear;
 
 		// Statistics
 		unsigned int m_nFrameCount;
@@ -245,6 +257,9 @@ namespace Skin {
 		void unbindInputBuffers();
 		void bindGaussianConstantBuffer();
 		void bindCombineConstantBuffer();
+		float getMinDepthForScene() const;
+		float estimateGaussianKernelSize(float standardDeviation, float minDepth);
+		bool selectShaderGroupsForKernelSize(float kernelSizeInPixels, ShaderGroup** ppsgVertical, ShaderGroup** ppsgHorizontal);
 		void doGaussianBlurs();
 		void doCombineShading(bool bNeedBlur);
 

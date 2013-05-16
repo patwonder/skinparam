@@ -94,6 +94,7 @@
       <Filter>DXUT</Filter>
     </ClInclude>
     <ClInclude Include="RenderableManager.h" />
+    <ClInclude Include="Frustum.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -164,6 +165,7 @@
     <ClCompile Include="DXUT\Optional\SDKmisc.cpp">
       <Filter>DXUT</Filter>
     </ClCompile>
+    <ClCompile Include="Frustum.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Triangle.fx">
@@ -208,6 +210,13 @@
     <None Include="Shaders\PostProcessAA.fx">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Shaders\GaussianShadow.fx" />
+    <None Include="Shaders\GaussianShadow.fx">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\Copy.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
