@@ -213,10 +213,8 @@
     <None Include="Shaders\GaussianShadow.fx">
       <Filter>Shaders</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\Copy.fx">
+    <None Include="Shaders\Copy.fx">
       <Filter>Shaders</Filter>
-    </FxCompile>
+    </None>
   </ItemGroup>
 </Project>
