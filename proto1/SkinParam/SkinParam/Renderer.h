@@ -57,8 +57,12 @@ namespace Skin {
 		ID3D11ShaderResourceView* m_apSRVSSS[NUM_SSS_VIEWS];
 		ShaderGroup* m_psgSSSIrradiance;
 		ShaderGroup* m_psgSSSIrradianceNoTessellation;
-		ShaderGroup* m_psgSSSGausianVertical;
-		ShaderGroup* m_psgSSSGausianHorizontal;
+		ShaderGroup* m_psgSSSGausianVertical7;
+		ShaderGroup* m_psgSSSGausianHorizontal7;
+		ShaderGroup* m_psgSSSGausianVertical5;
+		ShaderGroup* m_psgSSSGausianHorizontal5;
+		ShaderGroup* m_psgSSSGausianVertical3;
+		ShaderGroup* m_psgSSSGausianHorizontal3;
 		ShaderGroup* m_psgSSSCombine;
 		ShaderGroup* m_psgSSSCombineAA;
 		static const float SSS_GAUSSIAN_KERNEL_SIGMA[NUM_SSS_GAUSSIANS];

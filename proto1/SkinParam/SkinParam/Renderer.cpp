@@ -84,8 +84,12 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_psgTessellatedPhong(nullptr),
 	  m_psgTessellatedShadow(nullptr),
 	  m_psgSSSIrradiance(nullptr),
-	  m_psgSSSGausianVertical(nullptr),
-	  m_psgSSSGausianHorizontal(nullptr),
+	  m_psgSSSGausianVertical7(nullptr),
+	  m_psgSSSGausianHorizontal7(nullptr),
+	  m_psgSSSGausianVertical5(nullptr),
+	  m_psgSSSGausianHorizontal5(nullptr),
+	  m_psgSSSGausianVertical3(nullptr),
+	  m_psgSSSGausianHorizontal3(nullptr),
 	  m_psgSSSCombine(nullptr),
 	  m_psgSSSCombineAA(nullptr),
 	  m_psgPostProcessAA(nullptr),
@@ -151,8 +155,12 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	m_vppShaderGroups.push_back(&m_psgTessellatedPhong);
 	m_vppShaderGroups.push_back(&m_psgTessellatedShadow);
 	m_vppShaderGroups.push_back(&m_psgSSSIrradiance);
-	m_vppShaderGroups.push_back(&m_psgSSSGausianVertical);
-	m_vppShaderGroups.push_back(&m_psgSSSGausianHorizontal);
+	m_vppShaderGroups.push_back(&m_psgSSSGausianVertical7);
+	m_vppShaderGroups.push_back(&m_psgSSSGausianHorizontal7);
+	m_vppShaderGroups.push_back(&m_psgSSSGausianVertical5);
+	m_vppShaderGroups.push_back(&m_psgSSSGausianHorizontal5);
+	m_vppShaderGroups.push_back(&m_psgSSSGausianVertical3);
+	m_vppShaderGroups.push_back(&m_psgSSSGausianHorizontal3);
 	m_vppShaderGroups.push_back(&m_psgSSSCombine);
 	m_vppShaderGroups.push_back(&m_psgSSSCombineAA);
 	m_vppShaderGroups.push_back(&m_psgPostProcessAA);
@@ -447,8 +455,12 @@ void Renderer::loadShaders() {
 	m_psgCopyLinear = new ShaderGroup(m_pDevice, _T("Copy.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Linear");
 
 	// Subsurface Scattering
-	m_psgSSSGausianVertical = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
-	m_psgSSSGausianHorizontal = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
+	m_psgSSSGausianVertical7 = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical_7");
+	m_psgSSSGausianHorizontal7 = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal_7");
+	m_psgSSSGausianVertical5 = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical_5");
+	m_psgSSSGausianHorizontal5 = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal_5");
+	m_psgSSSGausianVertical3 = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical_3");
+	m_psgSSSGausianHorizontal3 = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal_3");
 	m_psgSSSCombine = new ShaderGroup(m_pDevice, _T("Combine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
 	m_psgSSSCombineAA = new ShaderGroup(m_pDevice, _T("Combine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_AA");
 
@@ -856,14 +868,14 @@ bool Renderer::selectShaderGroupsForKernelSize(float kernelSizeInPixels, ShaderG
 
 	if (kernelSizeInPixels > SEVEN_TO_FIVE) {
 		// standard 7 tap filter
-		*ppsgVertical = m_psgSSSGausianVertical;
-		*ppsgHorizontal = m_psgSSSGausianHorizontal;
+		*ppsgVertical = m_psgSSSGausianVertical7;
+		*ppsgHorizontal = m_psgSSSGausianHorizontal7;
 	} else if (kernelSizeInPixels > FIVE_TO_THREE) {
-		*ppsgVertical = m_psgSSSGausianVertical;
-		*ppsgHorizontal = m_psgSSSGausianHorizontal;
+		*ppsgVertical = m_psgSSSGausianVertical5;
+		*ppsgHorizontal = m_psgSSSGausianHorizontal5;
 	} else if (kernelSizeInPixels > THREE_TO_ONE) {
-		*ppsgVertical = m_psgSSSGausianVertical;
-		*ppsgHorizontal = m_psgSSSGausianHorizontal;
+		*ppsgVertical = m_psgSSSGausianVertical3;
+		*ppsgHorizontal = m_psgSSSGausianHorizontal3;
 	} else {
 		// just copy pixels
 		*ppsgVertical = m_psgCopy;
