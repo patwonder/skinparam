@@ -16,17 +16,17 @@ cbuffer Gaussian : register(b0) {
 
 static const float KERNEL_SIZE_7_THRESHOLD = 0.873;
 static const uint KERNEL_SIZE_7 = 7;
-static const float KERNEL_7[] = { 0.3990, 0.0045, 0.0540, 0.2420, 0.2420, 0.0540, 0.0045 };
+static const float KERNEL_7[] = { 0.3830, 0.0062, 0.0606, 0.2417, 0.2417, 0.0606, 0.0062 };
 static const float KERNEL_DX_7[] = {  0.0, -3.0, -2.0, -1.0, 1.0, 2.0, 3.0 };
 
 static const float KERNEL_SIZE_5_THRESHOLD = 0.593;
 static const uint KERNEL_SIZE_5 = 5;
-static const float KERNEL_5[] = { 0.4990, 0.0220, 0.2285, 0.2285, 0.0220 };
+static const float KERNEL_5[] = { 0.4680, 0.0304, 0.2356, 0.2356, 0.0304 };
 static const float KERNEL_DX_5[] = {  0.0, -2.5, -1.25, 1.25, 2.5 };
 
 static const float KERNEL_SIZE_3_THRESHOLD = 0.1;
 static const uint KERNEL_SIZE_3 = 3;
-static const float KERNEL_3[] = { 0.7870, 0.1065, 0.1065 };
+static const float KERNEL_3[] = { 0.6826, 0.1587, 0.1587 };
 static const float KERNEL_DX_3[] = {  0.0, -2.0, 2.0 };
 
 float4 PS_Vertical_Core_7(float4 color, float kernelWidth, float2 texCoord) {

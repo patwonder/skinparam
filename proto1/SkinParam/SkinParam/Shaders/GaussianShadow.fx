@@ -10,15 +10,19 @@ cbuffer GaussianShadow : register(b0) {
 
 // Standard Deviation = 1.0
 static const int KERNEL_WIDTH = 7;
-static const float KERNEL[] = { 0.0045, 0.0540, 0.2420, 0.3990, 0.2420, 0.0540, 0.0045 };
+static const float KERNEL[] = { 0.0062, 0.0606, 0.2417, 0.3830, 0.2417, 0.0606, 0.0062 };
 
 // Standard Deviation = 0.9
 //static const int KERNEL_WIDTH = 7;
-//static const float KERNEL[] = { 0.0018, 0.0375, 0.2391, 0.4432, 0.2391, 0.0375, 0.0018 };
+//static const float KERNEL[] = { 0.0027, 0.0451, 0.2415, 0.4214, 0.2415, 0.0451, 0.0027 };
+
+// Standard Deviation ~ 0.9 (slightly smaller)
+//static const int KERNEL_WIDTH = 5;
+//static const float KERNEL[] = { 0.0478, 0.2415, 0.4214, 0.2415, 0.0478 };
 
 // Standard Deviation = 0.8
 //static const int KERNEL_WIDTH = 5;
-//static const float KERNEL[] = { 0.0220, 0.2285, 0.4990, 0.2285, 0.0220 };
+//static const float KERNEL[] = {  0.0304, 0.2356, 0.4680, 0.2356, 0.0304 };
 static const int KERNEL_START = -(KERNEL_WIDTH - 1) / 2;
 static const int KERNEL_END = -KERNEL_START;
 
