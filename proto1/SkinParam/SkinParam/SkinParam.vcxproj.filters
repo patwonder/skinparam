@@ -216,5 +216,8 @@
     <None Include="Shaders\Copy.fx">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\AttenuationTexture.fx">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

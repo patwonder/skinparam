@@ -53,8 +53,12 @@ namespace Skin {
 		static const UINT IDX_SSS_TEMPORARY = IDX_SSS_GAUSSIANS_START + NUM_SSS_GAUSSIANS;
 		// irradiance, albedo, specular, diffuse stencil, gaussians and a temporary view
 		static const UINT NUM_SSS_VIEWS = IDX_SSS_TEMPORARY + 1;
+		static const UINT SSS_ATTENUATION_TEXTURE_SIZE = 256;
 		ID3D11RenderTargetView* m_apRTSSS[NUM_SSS_VIEWS];
 		ID3D11ShaderResourceView* m_apSRVSSS[NUM_SSS_VIEWS];
+		ID3D11RenderTargetView* m_pRTAttenuationTexture;
+		ID3D11ShaderResourceView* m_pSRVAttenuationTexture;
+		D3D11_VIEWPORT m_vpAttenuationTexture;
 		ShaderGroup* m_psgSSSIrradiance;
 		ShaderGroup* m_psgSSSIrradianceNoTessellation;
 		ShaderGroup* m_psgSSSGausianVertical;
@@ -67,6 +71,7 @@ namespace Skin {
 		ShaderGroup* m_psgSSSGausianHorizontal3;
 		ShaderGroup* m_psgSSSCombine;
 		ShaderGroup* m_psgSSSCombineAA;
+		ShaderGroup* m_psgSSSAttenuationTexture;
 		static const float SSS_GAUSSIAN_KERNEL_SIGMA[NUM_SSS_GAUSSIANS];
 		static const float SSS_GAUSSIAN_WEIGHTS[NUM_SSS_GAUSSIANS][3];
 
@@ -112,7 +117,8 @@ namespace Skin {
 		static const UINT SLOT_TEXTURE = 0;
 		static const UINT SLOT_BUMPMAP = 1;
 		static const UINT SLOT_NORMALMAP = 2;
-		static const UINT SLOT_SHADOWMAP = 3;
+		static const UINT SLOT_ATTENUATION = 3;
+		static const UINT SLOT_SHADOWMAP = 4;
 
 		static const UINT NUM_LIGHTS = 2;
 		// 3D Transformation
@@ -256,6 +262,9 @@ namespace Skin {
 		void initShadowMaps();
 		void bindShadowMaps();
 		void unbindShadowMaps();
+		void doPreRenderings();
+		void bindAttenuationTexture();
+		void unbindAttenuationTexture();
 
 		void initSSS();
 		void renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11RenderTargetView* pRTAlbedo,

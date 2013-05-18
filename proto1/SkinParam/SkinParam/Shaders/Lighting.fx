@@ -14,11 +14,13 @@ static const float RMS_SLOPE = 0.27;
 Texture2D g_texture : register(t0);
 Texture2D g_bump : register(t1);
 Texture2D g_normalMap : register(t2);
-Texture2D g_shadowMaps[NUM_LIGHTS] : register(t3);
+Texture2D g_attenuation : register(t3);
+Texture2D g_shadowMaps[NUM_LIGHTS] : register(t4);
 SamplerState g_samTexture : register(s0);
 SamplerState g_samBump : register(s1);
 SamplerState g_samNormal : register(s2);
-SamplerState g_samShadow : register(s3);
+SamplerState g_samAttenuation : register(s3);
+SamplerState g_samShadow : register(s4);
 
 struct Light {
 	float3 ambient;

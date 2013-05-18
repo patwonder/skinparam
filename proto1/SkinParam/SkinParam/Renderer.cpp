@@ -70,6 +70,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_pLinearSamplerState(nullptr),
 	  m_pShadowMapDepthStencilView(nullptr),
 	  m_pShadowMapSamplerState(nullptr),
+	  m_pRTAttenuationTexture(nullptr),
+	  m_pSRVAttenuationTexture(nullptr),
 	  m_pTransformConstantBuffer(nullptr),
 	  m_pLightingConstantBuffer(nullptr),
 	  m_pMaterialConstantBuffer(nullptr),
@@ -94,6 +96,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_psgSSSGausianHorizontal3(nullptr),
 	  m_psgSSSCombine(nullptr),
 	  m_psgSSSCombineAA(nullptr),
+	  m_psgSSSAttenuationTexture(nullptr),
 	  m_psgPostProcessAA(nullptr),
 	  m_psgGaussianShadowVertical(nullptr),
 	  m_psgGaussianShadowHorizontal(nullptr),
@@ -135,6 +138,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	m_vppCOMObjs.push_back((IUnknown**)&m_pLinearSamplerState);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pShadowMapDepthStencilView);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pShadowMapSamplerState);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pRTAttenuationTexture);
+	m_vppCOMObjs.push_back((IUnknown**)&m_pSRVAttenuationTexture);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pTransformConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pLightingConstantBuffer);
 	m_vppCOMObjs.push_back((IUnknown**)&m_pMaterialConstantBuffer);
@@ -168,6 +173,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	m_vppShaderGroups.push_back(&m_psgSSSGausianHorizontal3);
 	m_vppShaderGroups.push_back(&m_psgSSSCombine);
 	m_vppShaderGroups.push_back(&m_psgSSSCombineAA);
+	m_vppShaderGroups.push_back(&m_psgSSSAttenuationTexture);
 	m_vppShaderGroups.push_back(&m_psgPostProcessAA);
 	m_vppShaderGroups.push_back(&m_psgGaussianShadowVertical);
 	m_vppShaderGroups.push_back(&m_psgGaussianShadowHorizontal);
@@ -188,6 +194,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 
 	initSSS();
 	initPostProcessAA();
+
+	doPreRenderings();
 }
 
 Renderer::~Renderer() {
@@ -470,6 +478,7 @@ void Renderer::loadShaders() {
 	m_psgSSSGausianHorizontal3 = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal_3");
 	m_psgSSSCombine = new ShaderGroup(m_pDevice, _T("Combine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
 	m_psgSSSCombineAA = new ShaderGroup(m_pDevice, _T("Combine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_AA");
+	m_psgSSSAttenuationTexture = new ShaderGroup(m_pDevice, _T("AttenuationTexture.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
 
 	// Post-process Anti-aliasing
 	m_psgPostProcessAA = new ShaderGroup(m_pDevice, _T("PostProcessAA.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
@@ -715,6 +724,17 @@ void Renderer::initSSS() {
 	m_cbSSS.g_sss_strength = 1.0f;
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbSSS, &m_pSSSConstantBuffer),
 		_T("Failed to create SSS constant buffer"));
+
+	// initalize attenuation texture & viewport
+	checkFailure(createIntermediateRenderTarget(m_pDevice, SSS_ATTENUATION_TEXTURE_SIZE, SSS_ATTENUATION_TEXTURE_SIZE, DXGI_FORMAT_R16_UNORM,
+		nullptr, &m_pSRVAttenuationTexture, &m_pRTAttenuationTexture),
+		_T("Failed to create intermediate render target for attenuation texture"));
+
+	D3D11_VIEWPORT& vp = m_vpAttenuationTexture;
+	vp.Width = vp.Height = (float)SSS_ATTENUATION_TEXTURE_SIZE;
+	vp.TopLeftX = vp.TopLeftY = 0.0f;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
 }
 
 void Renderer::initPostProcessAA() {
@@ -771,7 +791,9 @@ void Renderer::renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11
 
 	updateTransform();
 	bindShadowMaps();
+	bindAttenuationTexture();
 	renderScene(opbNeedBlur);
+	unbindAttenuationTexture();
 	unbindShadowMaps();
 
 	if (m_bDump) {
@@ -1059,7 +1081,7 @@ void Renderer::render() {
 	if (m_bDump)
 		m_nDumpCount = 0;
 
-	bool bToggle = (m_descRasterizerState.FillMode == D3D11_FILL_WIREFRAME);
+	bool bToggle = getWireframe();
 	bool bNeedBlur = false;
 	// Render shadow maps
 	m_rsCurrent = RS_ShadowMap;
@@ -1156,6 +1178,29 @@ void Renderer::renderRest() {
 			renderable->render(m_pDeviceContext, this, *m_pCamera);
 		}
 	}
+}
+
+void Renderer::doPreRenderings() {
+    m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	unbindInputBuffers();
+
+	// Pre-render attenuation texture
+	m_pDeviceContext->RSSetViewports(1, &m_vpAttenuationTexture);
+	m_psgSSSAttenuationTexture->use(m_pDeviceContext);
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pRTAttenuationTexture, nullptr);
+	m_pDeviceContext->Draw(6, 0);
+	m_nDumpCount = 0;
+	dumpRenderTargetToFile(m_pRTAttenuationTexture, _T("Attenuation"));
+}
+
+void Renderer::bindAttenuationTexture() {
+	m_pDeviceContext->PSSetShaderResources(SLOT_ATTENUATION, 1, &m_pSRVAttenuationTexture);
+	m_pDeviceContext->PSSetSamplers(SLOT_ATTENUATION, 1, &m_pLinearSamplerState);
+}
+
+void Renderer::unbindAttenuationTexture() {
+	ID3D11ShaderResourceView* pNullSRV = nullptr;
+	m_pDeviceContext->PSSetShaderResources(SLOT_ATTENUATION, 1, &pNullSRV);
 }
 
 bool Renderer::getWireframe() const {

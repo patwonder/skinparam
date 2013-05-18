@@ -23,6 +23,7 @@ static const float KERNEL[] = { 0.0062, 0.0606, 0.2417, 0.3830, 0.2417, 0.0606, 
 // Standard Deviation = 0.8
 //static const int KERNEL_WIDTH = 5;
 //static const float KERNEL[] = {  0.0304, 0.2356, 0.4680, 0.2356, 0.0304 };
+
 static const int KERNEL_START = -(KERNEL_WIDTH - 1) / 2;
 static const int KERNEL_END = -KERNEL_START;
 

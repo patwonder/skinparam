@@ -425,6 +425,10 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 	float3 vNormalWS = calcNormalFromNormalMap(g_samNormal, g_normalMap, input.texCoord, input.vNormalWS, input.vTangentWS, input.vBinormalWS);
 #endif
 
+	// specular light scaling factor
+	float rho_s = 0.27;
+	// surface roughness
+	float m = RMS_SLOPE;
 	// shading
 	// global ambient
 	float3 irradiance = g_ambient * g_material.ambient * FRESNEL_TRANS_TOTAL;
@@ -440,20 +444,20 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 		float3 L = l.position - input.vPosWS;
 		float ldepth = length(L);
 		L /= ldepth;
-		float NdotL = dot(N, L);
+		float NdotL = max(dot(N, L), 0);
 		float atten = light_attenuation(input.vPosWS, l);
 		// ambient
 		float3 ambient = l.ambient * g_material.ambient;
 		// diffuse
-		float diffuseLight = max(NdotL, 0);
+		float diffuseLight = NdotL;
 		float3 diffuse = atten * l.diffuse * g_material.diffuse * diffuseLight;
 		// specular
 		float3 H = normalize(L + V);
-		float specularLight = /*saturate*/(CookTorrance(N, V, L, H, RMS_SLOPE));
+		float specularLight = rho_s * CookTorrance(N, V, L, H, m);
 		// look up shadow map for light amount
 		float lightAmount = light_amount(input.vPosWS, g_shadowMaps[i], g_samShadow, ldepth, g_matViewProjLights[i]);
 		// fresnel transmittance for diffuse irradiance
-		float fresnel_trans = 1;
+		float fresnel_trans = saturate(1 - rho_s * g_attenuation.SampleLevel(g_samAttenuation, float2(NdotL, m), 0).r);
 
 		// calculate transmittance from back of the object
 		float3 backlitAmount = backlit_amount(input.vPosWS, input.vNormalWS, L, ldepth, g_matViewProjLights[i],
@@ -466,7 +470,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 	}
 
 	// calculate fresnel outgoing factor
-	float fresnel_trans_view = 1;
+	float fresnel_trans_view = saturate(1 - rho_s * g_attenuation.SampleLevel(g_samAttenuation, float2(dot(N, V), m), 0).r);
 
 	// calculate kernel size reduction due to tilt surface
 	//  1 - calculate local orthogonal coordinate system
