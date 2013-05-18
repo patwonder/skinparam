@@ -117,7 +117,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_bVSMBlur(true),
 	  m_bAdaptiveGaussian(true),
 	  m_bDump(false),
-	  m_rsCurrent(RS_NotRendering)
+	  m_rsCurrent(RS_NotRendering),
+	  m_bPRAttenuationTexture(false)
 {
 	memset(m_apRTShadowMaps, 0, sizeof(m_apRTShadowMaps));
 	memset(m_apSRVShadowMaps, 0, sizeof(m_apSRVShadowMaps));
@@ -478,7 +479,6 @@ void Renderer::loadShaders() {
 	m_psgSSSGausianHorizontal3 = new ShaderGroup(m_pDevice, _T("Gaussian.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal_3");
 	m_psgSSSCombine = new ShaderGroup(m_pDevice, _T("Combine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
 	m_psgSSSCombineAA = new ShaderGroup(m_pDevice, _T("Combine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_AA");
-	m_psgSSSAttenuationTexture = new ShaderGroup(m_pDevice, _T("AttenuationTexture.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
 
 	// Post-process Anti-aliasing
 	m_psgPostProcessAA = new ShaderGroup(m_pDevice, _T("PostProcessAA.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
@@ -496,6 +496,7 @@ void Renderer::unloadShaders() {
 	}
 
 	m_vppShaderGroups.clear();
+	D3DHelper::clearShaderCache();
 }
 
 void Renderer::initTransform() {
@@ -726,15 +727,26 @@ void Renderer::initSSS() {
 		_T("Failed to create SSS constant buffer"));
 
 	// initalize attenuation texture & viewport
-	checkFailure(createIntermediateRenderTarget(m_pDevice, SSS_ATTENUATION_TEXTURE_SIZE, SSS_ATTENUATION_TEXTURE_SIZE, DXGI_FORMAT_R16_UNORM,
-		nullptr, &m_pSRVAttenuationTexture, &m_pRTAttenuationTexture),
-		_T("Failed to create intermediate render target for attenuation texture"));
+	// first try to load it from file
+	HRESULT hr = loadTexture(m_pDevice, m_pDeviceContext, _T("atten.png"), &m_pSRVAttenuationTexture);
+	if (FAILED(hr)) {
+		// not exists, try to compute it on the fly
+		MessageBox(m_hwnd, _T("Attenuation texture not found. Will compute it on the fly.\nThis might take a few seconds."),
+			_T("Warning"), MB_OK | MB_ICONWARNING);
+		D3D11_INPUT_ELEMENT_DESC empty_layout;
+		m_psgSSSAttenuationTexture = new ShaderGroup(m_pDevice, _T("AttenuationTexture.fx"), &empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
+		checkFailure(createIntermediateRenderTarget(m_pDevice, SSS_ATTENUATION_TEXTURE_SIZE, SSS_ATTENUATION_TEXTURE_SIZE, DXGI_FORMAT_R16_UNORM,
+			nullptr, &m_pSRVAttenuationTexture, &m_pRTAttenuationTexture),
+			_T("Failed to create intermediate render target for attenuation texture"));
 
-	D3D11_VIEWPORT& vp = m_vpAttenuationTexture;
-	vp.Width = vp.Height = (float)SSS_ATTENUATION_TEXTURE_SIZE;
-	vp.TopLeftX = vp.TopLeftY = 0.0f;
-	vp.MinDepth = 0.0f;
-	vp.MaxDepth = 1.0f;
+		m_bPRAttenuationTexture = true;
+
+		D3D11_VIEWPORT& vp = m_vpAttenuationTexture;
+		vp.Width = vp.Height = (float)SSS_ATTENUATION_TEXTURE_SIZE;
+		vp.TopLeftX = vp.TopLeftY = 0.0f;
+		vp.MinDepth = 0.0f;
+		vp.MaxDepth = 1.0f;
+	}
 }
 
 void Renderer::initPostProcessAA() {
@@ -1184,13 +1196,17 @@ void Renderer::doPreRenderings() {
     m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	unbindInputBuffers();
 
-	// Pre-render attenuation texture
-	m_pDeviceContext->RSSetViewports(1, &m_vpAttenuationTexture);
-	m_psgSSSAttenuationTexture->use(m_pDeviceContext);
-	m_pDeviceContext->OMSetRenderTargets(1, &m_pRTAttenuationTexture, nullptr);
-	m_pDeviceContext->Draw(6, 0);
-	m_nDumpCount = 0;
-	dumpRenderTargetToFile(m_pRTAttenuationTexture, _T("Attenuation"));
+	if (m_bPRAttenuationTexture) {
+		// Pre-render attenuation texture
+		m_pDeviceContext->RSSetViewports(1, &m_vpAttenuationTexture);
+		m_psgSSSAttenuationTexture->use(m_pDeviceContext);
+		m_pDeviceContext->OMSetRenderTargets(1, &m_pRTAttenuationTexture, nullptr);
+		m_pDeviceContext->Draw(6, 0);
+		m_nDumpCount = 0;
+		TString fileName = _T("atten.png");
+		dumpRenderTargetToFile(m_pRTAttenuationTexture, fileName, true);
+		MessageBox(m_hwnd, (_T("Attenuation texture written to ") + fileName).c_str(), _T("Pre-rendering"), MB_OK);
+	}
 }
 
 void Renderer::bindAttenuationTexture() {
@@ -1238,27 +1254,30 @@ void Renderer::dump() {
 	SetWindowText(m_hwnd, _APP_NAME_ _T(" (Capturing Frame...)"));
 }
 
-void Renderer::dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const TString& strFileName) {
+void Renderer::dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const TString& strFileName, bool overrideAutoNaming) {
 	ID3D11Resource* pTexture2D = nullptr;
 	pSRV->GetResource(&pTexture2D);
 
-	dumpTextureToFile(pTexture2D, strFileName);
+	dumpTextureToFile(pTexture2D, strFileName, overrideAutoNaming);
 
 	pTexture2D->Release();
 }
 
-void Renderer::dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const TString& strFileName) {
+void Renderer::dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const TString& strFileName, bool overrideAutoNaming) {
 	ID3D11Resource* pTexture2D = nullptr;
 	pRT->GetResource(&pTexture2D);
 
-	dumpTextureToFile(pTexture2D, strFileName);
+	dumpTextureToFile(pTexture2D, strFileName, overrideAutoNaming);
 
 	pTexture2D->Release();
 }
 
-void Renderer::dumpTextureToFile(ID3D11Resource* pTexture2D, const TString& strFileName) {
+void Renderer::dumpTextureToFile(ID3D11Resource* pTexture2D, const TString& strFileName, bool overrideAutoNaming) {
 	TStringStream tss;
-	tss << (++m_nDumpCount) << _T("_") << strFileName << _T(".png");
+	if (overrideAutoNaming)
+		tss << strFileName;
+	else
+		tss << (++m_nDumpCount) << _T("_") << strFileName << _T(".png");
 	SetWindowText(m_hwnd, (_APP_NAME_ _T(" (Capturing ") + tss.str() + _T("...)")).c_str());
 	ScratchImage img;
 	CaptureTexture(m_pDevice, m_pDeviceContext, pTexture2D, img);

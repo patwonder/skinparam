@@ -25,6 +25,10 @@ namespace Skin {
 		HRESULT loadDomainShader(ID3D11Device* pDevice,
 			const Utils::TString& strFileName, const char* szEntryPoint,
 			ID3D11DomainShader** ppDomainShader);
+		HRESULT loadGeometryShader(ID3D11Device* pDevice,
+			const Utils::TString& strFileName, const char* szEntryPoint,
+			ID3D11GeometryShader** ppGeometryShader);
+		void clearShaderCache();
 		// texture
 		HRESULT loadTexture(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName, ID3D11ShaderResourceView** ppTexture);
 		HRESULT loadTextureEx(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName,

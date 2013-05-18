@@ -241,6 +241,9 @@ namespace Skin {
 		};
 		RenderStage m_rsCurrent;
 
+		// pre-rendering
+		bool m_bPRAttenuationTexture;
+
 		HRESULT initDX();
 		void initMisc();
 
@@ -285,9 +288,9 @@ namespace Skin {
 
 		void blurShadowMaps();
 
-		void dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName);
-		void dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName);
-		void dumpTextureToFile(ID3D11Resource* pTexture2D, const Utils::TString& strFileName);
+		void dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName, bool overrideAutoNaming = false);
+		void dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName, bool overrideAutoNaming = false);
+		void dumpTextureToFile(ID3D11Resource* pTexture2D, const Utils::TString& strFileName, bool overrideAutoNaming = false);
 
 		void setConstantBuffers();
 		void computeStats();

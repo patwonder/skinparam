@@ -9,6 +9,9 @@
 #include "WICSingleton.h"
 #include <cmath>
 #include <cstring>
+#include <xhash>
+#include <string>
+#include <unordered_map>
 
 using namespace Skin;
 using namespace Utils;
@@ -21,6 +24,72 @@ void D3DHelper::checkFailure(HRESULT hr, const TString& prompt) {
 		::MessageBox(NULL, ss.str().c_str(), _T("Fatal Error"), MB_OK | MB_ICONERROR);
 		::exit(EXIT_FAILURE);
 	}
+}
+
+namespace Skin {
+	using namespace std;
+	// Implements shader caching
+	struct ShaderCacheKey {
+		TString fileName;
+		string profile;
+		string entryPoint;
+
+		static hash<TString> tstring_hash;
+		static hash<string> string_hash;
+
+		ShaderCacheKey(TString fileName, string profile, string entryPoint) {
+			this->fileName = fileName;
+			this->profile = profile;
+			this->entryPoint = entryPoint;
+		}
+		friend static bool operator==(const ShaderCacheKey& one, const ShaderCacheKey& two) {
+			return one.fileName == two.fileName && one.profile == two.profile && one.entryPoint == two.entryPoint;
+		}
+		size_t hash() const {
+			return tstring_hash(fileName) ^ string_hash(profile) ^ string_hash(entryPoint);
+		}
+	};
+	hash<TString> ShaderCacheKey::tstring_hash;
+	hash<string> ShaderCacheKey::string_hash;
+
+	class ShaderCacheKeyHasher : public unary_function<const ShaderCacheKey&, size_t> {
+	public:
+		size_t operator()(const ShaderCacheKey& key) {
+			return key.hash();
+		}
+	};
+	class ShaderCacheKeyEqualTo : public binary_function<const ShaderCacheKey&, const ShaderCacheKey&, bool> {
+	public:
+		size_t operator()(const ShaderCacheKey& one, const ShaderCacheKey& two) {
+			return one == two;
+		}
+	};
+
+	struct VertexShaderCacheValue {
+		CComPtr<ID3D11VertexShader> pVertexShader;
+		CComPtr<ID3DBlob> pBlob;
+		VertexShaderCacheValue() {}
+		VertexShaderCacheValue(ID3D11VertexShader* pShader, ID3DBlob* pBlob)
+			: pVertexShader(pShader), pBlob(pBlob) { }
+	};
+	typedef CComPtr<ID3D11HullShader> HullShaderCacheValue;
+	typedef CComPtr<ID3D11DomainShader> DomainShaderCacheValue;
+	typedef CComPtr<ID3D11GeometryShader> GeometryShaderCacheValue;
+	typedef CComPtr<ID3D11PixelShader> PixelShaderCacheValue;
+
+	static unordered_map<ShaderCacheKey, VertexShaderCacheValue, ShaderCacheKeyHasher, ShaderCacheKeyEqualTo> g_vscache;
+	static unordered_map<ShaderCacheKey, HullShaderCacheValue, ShaderCacheKeyHasher, ShaderCacheKeyEqualTo> g_hscache;
+	static unordered_map<ShaderCacheKey, DomainShaderCacheValue, ShaderCacheKeyHasher, ShaderCacheKeyEqualTo> g_dscache;
+	static unordered_map<ShaderCacheKey, GeometryShaderCacheValue, ShaderCacheKeyHasher, ShaderCacheKeyEqualTo> g_gscache;
+	static unordered_map<ShaderCacheKey, PixelShaderCacheValue, ShaderCacheKeyHasher, ShaderCacheKeyEqualTo> g_pscache;
+} // namespace Skin
+
+void D3DHelper::clearShaderCache() {
+	g_vscache.clear();
+	g_hscache.clear();
+	g_dscache.clear();
+	g_gscache.clear();
+	g_pscache.clear();
 }
 
 HRESULT D3DHelper::compileShader(const TString& strFileName, const char* szEntryPoint, const char* szShaderModel,
@@ -47,8 +116,10 @@ HRESULT D3DHelper::compileShader(const TString& strFileName, const char* szEntry
 	hr = D3DX11CompileFromFile(strFileName.c_str(), NULL, NULL, szEntryPoint, szShaderModel, 
 		dwShaderFlags, 0, NULL, ppBlobOut, &pErrorBlob, NULL);
 	if (FAILED(hr)) {
-		if( pErrorBlob != NULL )
+		if( pErrorBlob != NULL ) {
+			TRACE("[D3DHelper::compileShader] %s\t", (char*)pErrorBlob->GetBufferPointer());
 			MessageBoxA(NULL, (char*)pErrorBlob->GetBufferPointer(), "Error Compiling Shader", MB_OK | MB_ICONERROR);
+		}
 		if( pErrorBlob ) pErrorBlob->Release();
 		return hr;
 	}
@@ -62,25 +133,40 @@ HRESULT D3DHelper::loadVertexShaderAndLayout(ID3D11Device* pDevice,
 											 D3D11_INPUT_ELEMENT_DESC aLayoutDesc[], UINT numLayoutDesc,
 											 ID3D11VertexShader** ppVertexShader, ID3D11InputLayout** ppInputLayout)
 {
-	// Compile the vertex shader
-	ID3DBlob* pVSBlob = NULL;
-	HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, "vs_5_0", &pVSBlob);
-	if (FAILED(hr))
-		return hr;
+	HRESULT hr;
 
-	// Create the vertex shader
-	hr = pDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), NULL, ppVertexShader);
-	if (FAILED(hr)) {	
-		pVSBlob->Release();
-		return hr;
+	CComPtr<ID3DBlob> pVSBlob = nullptr;
+
+	const char* PROFILE = "vs_5_0";
+	ShaderCacheKey key(strFileName, PROFILE, szEntryPoint);
+	auto iter = g_vscache.find(key);
+	if (iter != g_vscache.end()) {
+		*ppVertexShader = iter->second.pVertexShader;
+		(*ppVertexShader)->AddRef();
+		pVSBlob = iter->second.pBlob;
+	} else {
+		// Compile the vertex shader
+		hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, PROFILE, &pVSBlob);
+		if (FAILED(hr))
+			return hr;
+
+		// Create the vertex shader
+		hr = pDevice->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), NULL, ppVertexShader);
+		if (FAILED(hr)) {	
+			return hr;
+		}
+
+		g_vscache[key] = VertexShaderCacheValue(*ppVertexShader, pVSBlob);
 	}
 
 	// Create the input layout
 	hr = pDevice->CreateInputLayout(aLayoutDesc, numLayoutDesc, pVSBlob->GetBufferPointer(),
 		pVSBlob->GetBufferSize(), ppInputLayout);
-	pVSBlob->Release();
-	if (FAILED(hr))
+	if (FAILED(hr)) {
+		(*ppVertexShader)->Release();
+		*ppVertexShader = nullptr;
 		return hr;
+	}
 
 	return S_OK;
 }
@@ -89,17 +175,26 @@ HRESULT D3DHelper::loadPixelShader(ID3D11Device* pDevice,
 								   const TString& strFileName, const char* szEntryPoint,
 								   ID3D11PixelShader** ppPixelShader)
 {
-	// Compile the pixel shader
-	ID3DBlob* pPSBlob = NULL;
-	HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, "ps_5_0", &pPSBlob);
-	if (FAILED(hr))
-		return hr;
+	const char* PROFILE = "ps_5_0";
+	ShaderCacheKey key(strFileName, PROFILE, szEntryPoint);
+	auto iter = g_pscache.find(key);
+	if (iter != g_pscache.end()) {
+		*ppPixelShader = iter->second;
+		(*ppPixelShader)->AddRef();
+	} else {
+		// Compile the pixel shader
+		CComPtr<ID3DBlob> pPSBlob = NULL;
+		HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, PROFILE, &pPSBlob);
+		if (FAILED(hr))
+			return hr;
 
-	// Create the pixel shader
-	hr = pDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, ppPixelShader);
-	pPSBlob->Release();
-	if (FAILED(hr))
-		return hr;
+		// Create the pixel shader
+		hr = pDevice->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), NULL, ppPixelShader);
+		if (FAILED(hr))
+			return hr;
+
+		g_pscache[key] = *ppPixelShader;
+	}
 
 	return S_OK;
 }
@@ -108,17 +203,26 @@ HRESULT D3DHelper::loadHullShader(ID3D11Device* pDevice,
 								  const Utils::TString& strFileName, const char* szEntryPoint,
 								  ID3D11HullShader** ppHullShader)
 {
-	// Compile the hull shader
-	ID3DBlob* pHSBlob = NULL;
-	HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, "hs_5_0", &pHSBlob);
-	if (FAILED(hr))
-		return hr;
+	const char* PROFILE = "hs_5_0";
+	ShaderCacheKey key(strFileName, PROFILE, szEntryPoint);
+	auto iter = g_hscache.find(key);
+	if (iter != g_hscache.end()) {
+		*ppHullShader = iter->second;
+		(*ppHullShader)->AddRef();
+	} else {
+		// Compile the hull shader
+		CComPtr<ID3DBlob> pHSBlob = NULL;
+		HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, PROFILE, &pHSBlob);
+		if (FAILED(hr))
+			return hr;
 
-	// Create the hull shader
-	hr = pDevice->CreateHullShader(pHSBlob->GetBufferPointer(), pHSBlob->GetBufferSize(), NULL, ppHullShader);
-	pHSBlob->Release();
-	if (FAILED(hr))
-		return hr;
+		// Create the hull shader
+		hr = pDevice->CreateHullShader(pHSBlob->GetBufferPointer(), pHSBlob->GetBufferSize(), NULL, ppHullShader);
+		if (FAILED(hr))
+			return hr;
+
+		g_hscache[key] = *ppHullShader;
+	}
 
 	return S_OK;
 }
@@ -127,18 +231,53 @@ HRESULT D3DHelper::loadDomainShader(ID3D11Device* pDevice,
 									const Utils::TString& strFileName, const char* szEntryPoint,
 									ID3D11DomainShader** ppDomainShader)
 {
-	// Compile the hull shader
-	ID3DBlob* pDSBlob = NULL;
-	HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, "ds_5_0", &pDSBlob);
-	if (FAILED(hr))
-		return hr;
+	const char* PROFILE = "ds_5_0";
+	ShaderCacheKey key(strFileName, PROFILE, szEntryPoint);
+	auto iter = g_dscache.find(key);
+	if (iter != g_dscache.end()) {
+		*ppDomainShader = iter->second;
+		(*ppDomainShader)->AddRef();
+	} else {
+		// Compile the hull shader
+		CComPtr<ID3DBlob> pDSBlob = NULL;
+		HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, PROFILE, &pDSBlob);
+		if (FAILED(hr))
+			return hr;
 
-	// Create the hull shader
-	hr = pDevice->CreateDomainShader(pDSBlob->GetBufferPointer(), pDSBlob->GetBufferSize(), NULL, ppDomainShader);
-	pDSBlob->Release();
-	if (FAILED(hr))
-		return hr;
+		// Create the hull shader
+		hr = pDevice->CreateDomainShader(pDSBlob->GetBufferPointer(), pDSBlob->GetBufferSize(), NULL, ppDomainShader);
+		if (FAILED(hr))
+			return hr;
 
+		g_dscache[key] = *ppDomainShader;
+	}
+	return S_OK;
+}
+
+HRESULT D3DHelper::loadGeometryShader(ID3D11Device* pDevice,
+									const Utils::TString& strFileName, const char* szEntryPoint,
+									ID3D11GeometryShader** ppGeometryShader)
+{
+	const char* PROFILE = "gs_5_0";
+	ShaderCacheKey key(strFileName, PROFILE, szEntryPoint);
+	auto iter = g_gscache.find(key);
+	if (iter != g_gscache.end()) {
+		*ppGeometryShader = iter->second;
+		(*ppGeometryShader)->AddRef();
+	} else {
+		// Compile the hull shader
+		CComPtr<ID3DBlob> pGSBlob = NULL;
+		HRESULT hr = compileShader(_T("Shaders/") + strFileName, szEntryPoint, PROFILE, &pGSBlob);
+		if (FAILED(hr))
+			return hr;
+
+		// Create the hull shader
+		hr = pDevice->CreateGeometryShader(pGSBlob->GetBufferPointer(), pGSBlob->GetBufferSize(), NULL, ppGeometryShader);
+		if (FAILED(hr))
+			return hr;
+
+		g_gscache[key] = *ppGeometryShader;
+	}
 	return S_OK;
 }
 
