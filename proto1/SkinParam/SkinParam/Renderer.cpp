@@ -1105,7 +1105,7 @@ void Renderer::render() {
 		for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
 			m_pDeviceContext->OMSetRenderTargets(1, m_apRTShadowMaps + i, m_pShadowMapDepthStencilView);
 			// Clear render target view & depth stencil
-			float ClearShadow[4] = { 30.0f, 900.0f, 0.0f, 0.0f }; // RGBA
+			float ClearShadow[4] = { 30.0f, 900.0f, 30.0f, 0.0f }; // RGBA
 			m_pDeviceContext->ClearRenderTargetView(m_apRTShadowMaps[i], ClearShadow);
 			m_pDeviceContext->ClearDepthStencilView(m_pShadowMapDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 

@@ -11,7 +11,7 @@ float4 PS(PS_INPUT input) : SV_Target {
 	float m = tex.y;
 	float sum = 0.0;
 	// More terms can be used for more accuracy
-	int numterms = 100;
+	int numterms = 200;
 	float3 N = float3( 0.0, 0.0, 1.0 );
 	float3 V = float3(0.0, sqrt( 1.0 - costheta*costheta ), costheta);
 	for( int i = 0; i < numterms; i++ ) {
@@ -24,7 +24,7 @@ float4 PS(PS_INPUT input) : SV_Target {
 			float sint = sin( thetap );
 			float cost = cos( thetap );
 			float3 L = float3( sinp * sint, cosp * sint, cost );
-			localsum += CookTorrance( N, V, L, normalize(V + L), m ) * sint;
+			localsum += 0.5 * CookTorrance( N, V, L, normalize(V + L), m ) * sint;
 		}
 		sum += localsum * (pi / 2.0) / float( numterms );
 	}

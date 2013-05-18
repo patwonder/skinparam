@@ -457,7 +457,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 		// look up shadow map for light amount
 		float lightAmount = light_amount(input.vPosWS, g_shadowMaps[i], g_samShadow, ldepth, g_matViewProjLights[i]);
 		// fresnel transmittance for diffuse irradiance
-		float fresnel_trans = saturate(1 - rho_s * g_attenuation.SampleLevel(g_samAttenuation, float2(NdotL, m), 0).r);
+		float fresnel_trans = saturate(1 - rho_s * 2 * g_attenuation.SampleLevel(g_samAttenuation, float2(NdotL, m), 0).r);
 
 		// calculate transmittance from back of the object
 		float3 backlitAmount = backlit_amount(input.vPosWS, input.vNormalWS, L, ldepth, g_matViewProjLights[i],

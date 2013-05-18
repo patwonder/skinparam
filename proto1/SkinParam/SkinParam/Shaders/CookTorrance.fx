@@ -5,7 +5,7 @@ static const float INDEX = 1.4;
 static const float FRESNEL_R0 = (1 - INDEX) * (1 - INDEX) / ((1 + INDEX) * (1 + INDEX));
 
 float fresnel_term(float cosA) {
-	return FRESNEL_R0 + (1 - FRESNEL_R0) * pow(1.0 - cosA, 5.0);
+	return lerp(1, FRESNEL_R0 + (1 - FRESNEL_R0) * pow(1.0 - cosA, 5.0), 1);
 }
 
 float geometry_term(float NdotL, float NdotH, float NdotV, float VdotH) {
@@ -37,5 +37,9 @@ float CookTorrance(float3 N, float3 V, float3 L, float3 H, float rms_slope) {
 	// as suggested in http://http.developer.nvidia.com/GPUGems3/gpugems3_ch14.html
 	float F = saturate(fresnel_term(VdotH));
 
+	// Cook-Torrance
 	return D * G * F / (PI * NdotV);
+
+	// Kelemen/Szirmay-Kalos Specular
+	//return max(D * F * NdotL / dot(L + V, L + V), 0);
 }

@@ -125,7 +125,7 @@ float3 phong_shadow(Material mt, float3 ambient, Light lights[NUM_LIGHTS],
 		float3 diffuse = atten * l.diffuse * mt.diffuse * diffuseLight;
 		// specular
 		float3 H = normalize(L + V);
-		float specularLight = saturate(CookTorrance(N, V, L, H, RMS_SLOPE));//saturate(pow(max(dot(N, H), 0), mt.shininess));
+		float specularLight = CookTorrance(N, V, L, H, RMS_SLOPE);//saturate(pow(max(dot(N, H), 0), mt.shininess));
 		float3 specular = atten * l.specular * mt.specular * specularLight;
 		// look up shadow map for light amount
 		float lightAmount = light_amount(worldPos, shadowMaps[i], samShadow, ldepth, matViewProjLights[i]);

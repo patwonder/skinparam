@@ -133,5 +133,5 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 float4 PS(PS_INPUT input) : SV_Target {
 	// VSM: output depth & depth squared
 	float depth = length(input.vPosVS);
-	return float4(depth, depth * depth, 0.0, 0.0);
+	return float4(depth, depth * depth, depth, 0.0);
 }
