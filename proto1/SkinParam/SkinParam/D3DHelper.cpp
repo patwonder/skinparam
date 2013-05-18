@@ -366,6 +366,55 @@ HRESULT D3DHelper::createTextureResourceView(ID3D11Device* pDevice, UINT width, 
 	return S_OK;
 }
 
+HRESULT D3DHelper::createIntermediateRenderTarget(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
+	ID3D11Texture2D** ppTexture2D, ID3D11ShaderResourceView** ppShaderResourceView, ID3D11RenderTargetView** ppRenderTargetView)
+{
+	return createIntermediateRenderTargetEx(pDevice, width, height, format, true, 1, 0, ppTexture2D, ppShaderResourceView, ppRenderTargetView);
+}
+
+HRESULT D3DHelper::createIntermediateRenderTargetEx(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
+	bool multisampled, UINT multisampleCount, UINT multisampleQuality,
+	ID3D11Texture2D** ppTexture2D, ID3D11ShaderResourceView** ppShaderResourceView, ID3D11RenderTargetView** ppRenderTargetView)
+{
+	if (!ppTexture2D && !ppShaderResourceView && !ppRenderTargetView)
+		return E_INVALIDARG;
+
+	ID3D11Texture2D* pTexture2D = nullptr;
+	HRESULT hr = createTexture2DEx(pDevice, width, height, format, multisampled, multisampleCount, multisampleQuality,
+		&pTexture2D, (D3D11_BIND_FLAG)(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
+	if (FAILED(hr))
+		return hr;
+
+	ID3D11ShaderResourceView* pShaderResourceView = nullptr;
+	if (ppShaderResourceView) {
+		hr = createShaderResourceViewEx(pDevice, pTexture2D, format, multisampled && multisampleCount > 1, &pShaderResourceView);
+		if (FAILED(hr)) {
+			pTexture2D->Release();
+			return hr;
+		}
+	}
+
+	ID3D11RenderTargetView* pRenderTargetView = nullptr;
+	if (ppRenderTargetView) {
+		hr = createRenderTargetViewEx(pDevice, pTexture2D, format, multisampled && multisampleCount > 1, &pRenderTargetView);
+		if (FAILED(hr)) {
+			pTexture2D->Release();
+			pShaderResourceView->Release();
+			return hr;
+		}
+	}
+
+	if (ppTexture2D) {
+		*ppTexture2D = pTexture2D;
+	} else {
+		pTexture2D->Release();
+	}
+	if (ppShaderResourceView) *ppShaderResourceView = pShaderResourceView;
+	if (ppRenderTargetView) *ppRenderTargetView = pRenderTargetView;
+
+	return S_OK;
+}
+
 //--------------------------------------------------------------------------------------
 // Extract all 6 plane equations from frustum denoted by supplied matrix
 //--------------------------------------------------------------------------------------

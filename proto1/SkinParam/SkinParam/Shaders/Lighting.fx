@@ -9,7 +9,7 @@ static const uint NUM_LIGHTS = 2;
 static const uint SM_SIZE = 1024;
 static const float SHADOW_VARIANCE_MIN = 4e-4;
 static const float SHADOW_LIGHTAMOUNT_MIN = 0.5;
-static const float RMS_SLOPE = 0.25;
+static const float RMS_SLOPE = 0.27;
 
 Texture2D g_texture : register(t0);
 Texture2D g_bump : register(t1);

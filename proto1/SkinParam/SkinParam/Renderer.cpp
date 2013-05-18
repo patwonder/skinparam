@@ -636,21 +636,9 @@ void Renderer::updateTessellation() {
 
 void Renderer::initShadowMaps() {
 	for (UINT i = 0; i < NUM_SHADOW_VIEWS; i++) {
-		ID3D11Texture2D* pTexture2D = nullptr;
-		// VSM: 2 channels & turn mip-mapping on
-		DXGI_FORMAT format = DXGI_FORMAT_R32G32_FLOAT;
-		// Create the temporary WITHOUT mip-mapping on
-		checkFailure(createTexture2DEx(m_pDevice, SM_SIZE, SM_SIZE, format, i == IDX_SHADOW_TEMPORARY ? true : true, 1, 0,
-			&pTexture2D, (D3D11_BIND_FLAG)(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)),
-			_T("Failed to create shadow map texture"));
-
-		checkFailure(createShaderResourceView(m_pDevice, pTexture2D, format, m_apSRVShadowMaps + i),
-			_T("Failed to create SRV for shadow map"));
-
-		checkFailure(createRenderTargetView(m_pDevice, pTexture2D, format, m_apRTShadowMaps + i),
-			_T("Failed to create RTV for shadow map"));
-
-		pTexture2D->Release();
+		checkFailure(createIntermediateRenderTargetEx(m_pDevice, SM_SIZE, SM_SIZE, DXGI_FORMAT_R32G32_FLOAT,
+			i == IDX_SHADOW_TEMPORARY ? true : true, 1, 0, nullptr, m_apSRVShadowMaps + i, m_apRTShadowMaps + i),
+			_T("Failed to create intermediate render target for shadow map"));
 	}
 
 	// Create depth stencil view for shadow maps
@@ -703,19 +691,9 @@ void Renderer::unbindShadowMaps() {
 
 void Renderer::initSSS() {
 	for (UINT i = 0; i < NUM_SSS_VIEWS; i++) {
-		ID3D11Texture2D* pTexture2D = nullptr;
-		DXGI_FORMAT format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-		checkFailure(createTexture2D(m_pDevice, m_rectView.Width(), m_rectView.Height(), format,
-			&pTexture2D, (D3D11_BIND_FLAG)(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET)),
-			_T("Failed to create SSS texture"));
-
-		checkFailure(createShaderResourceView(m_pDevice, pTexture2D, format, m_apSRVSSS + i),
-			_T("Failed to create SRV for SSS"));
-
-		checkFailure(createRenderTargetView(m_pDevice, pTexture2D, format, m_apRTSSS + i),
-			_T("Failed to create RTV for SSS"));
-
-		pTexture2D->Release();
+		checkFailure(createIntermediateRenderTarget(m_pDevice, m_rectView.Width(), m_rectView.Height(), DXGI_FORMAT_R32G32B32A32_FLOAT,
+			nullptr, m_apSRVSSS + i, m_apRTSSS + i),
+			_T("Failed to create intermediate render target for SSS"));
 	}
 	// no need to create depth stencil view, just re-use the screen one
 

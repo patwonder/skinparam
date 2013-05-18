@@ -20,7 +20,7 @@ float distribution_term(float NdotH, float rms_slope) {
 	float exponent = tan(acos(NdotH)) / rms_slope;
 	exponent *= -exponent;
 	float cosb2 = NdotH * NdotH;
-	float denominator = 4 * rms_slope * rms_slope * cosb2 * cosb2;
+	float denominator = rms_slope * rms_slope * cosb2 * cosb2;
 	return exp(exponent) / denominator;
 }
 
@@ -37,5 +37,5 @@ float CookTorrance(float3 N, float3 V, float3 L, float3 H, float rms_slope) {
 	// as suggested in http://http.developer.nvidia.com/GPUGems3/gpugems3_ch14.html
 	float F = saturate(fresnel_term(VdotH));
 
-	return 2 * D * G * F / NdotV;
+	return D * G * F / (PI * NdotV);
 }

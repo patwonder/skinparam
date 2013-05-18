@@ -449,7 +449,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 		float3 diffuse = atten * l.diffuse * g_material.diffuse * diffuseLight;
 		// specular
 		float3 H = normalize(L + V);
-		float specularLight = saturate(CookTorrance(N, V, L, H, RMS_SLOPE));
+		float specularLight = /*saturate*/(CookTorrance(N, V, L, H, RMS_SLOPE));
 		// look up shadow map for light amount
 		float lightAmount = light_amount(input.vPosWS, g_shadowMaps[i], g_samShadow, ldepth, g_matViewProjLights[i]);
 		// fresnel transmittance for diffuse irradiance
