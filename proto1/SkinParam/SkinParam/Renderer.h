@@ -203,6 +203,31 @@ namespace Skin {
 		ID3D11Buffer* m_pGaussianShadowConstantBuffer;
 		GaussianShadowConstantBuffer m_cbGaussainShadow;
 
+		// Bloom filter
+		ShaderGroup* m_psgBloomVertical;
+		ShaderGroup* m_psgBloomHorizontal;
+		ShaderGroup* m_psgBloomCombine;
+		ShaderGroup* m_psgBloomCombineAA;
+		struct BloomConstantBuffer {
+			XMFLOAT2 rcpScreenSize;
+			UINT sampleLevel;
+			float pad;
+		};
+		CComPtr<ID3D11Buffer> m_pBloomConstantBuffer;
+		BloomConstantBuffer m_cbBloom;
+		CComPtr<ID3D11BlendState> m_pBSAdditiveBlending;
+		CComPtr<ID3D11BlendState> m_pBSNoBlending;
+		static const UINT BLOOM_PASSES = 6;
+		CComPtr<ID3D11ShaderResourceView> m_pSRVBloomSource;
+		CComPtr<ID3D11RenderTargetView> m_pRTBloomSource;
+		CComPtr<ID3D11ShaderResourceView> m_pSRVBloomTemporary;
+		CComPtr<ID3D11RenderTargetView> m_pRTBloomTemporary;
+		CComPtr<ID3D11ShaderResourceView> m_apSRVBloom[BLOOM_PASSES];
+		CComPtr<ID3D11ShaderResourceView> m_apSRVBloomTemp[BLOOM_PASSES];
+		CComPtr<ID3D11RenderTargetView> m_apRTBloom[BLOOM_PASSES];
+		CComPtr<ID3D11RenderTargetView> m_apRTBloomTemp[BLOOM_PASSES];
+		D3D11_VIEWPORT m_avpBloom[BLOOM_PASSES];
+
 		// Rendering
 		Camera* m_pCamera;
 		std::vector<Renderable*> m_vpRenderables;
@@ -226,6 +251,7 @@ namespace Skin {
 		bool m_bPostProcessAA;
 		bool m_bVSMBlur;
 		bool m_bAdaptiveGaussian;
+		bool m_bBloom;
 		bool m_bDump;
 		UINT m_nDumpCount;
 
@@ -236,10 +262,10 @@ namespace Skin {
 			RS_Irradiance,
 			RS_Gaussian,
 			RS_Combine,
+			RS_Bloom,
 			RS_PostProcessAA,
 			RS_UI
-		};
-		RenderStage m_rsCurrent;
+		} m_rsCurrent;
 
 		// pre-rendering
 		bool m_bPRAttenuationTexture;
@@ -268,6 +294,8 @@ namespace Skin {
 		void doPreRenderings();
 		void bindAttenuationTexture();
 		void unbindAttenuationTexture();
+		void initBloom();
+		void doBloom();
 
 		void initSSS();
 		void renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11RenderTargetView* pRTAlbedo,
@@ -330,6 +358,7 @@ namespace Skin {
 		GETTER(PostProcessAA, bool, b) TOGGLE(PostProcessAA)
 		void setPostProcessAA(bool bPostProcessAA);
 		GST_BOOL(AdaptiveGaussian)
+		GST_BOOL(Bloom)
 
 		float getSSSStrength() const { return m_cbSSS.g_sss_strength; }
 		void setSSSStrength(float strength) { m_cbSSS.g_sss_strength = strength; }

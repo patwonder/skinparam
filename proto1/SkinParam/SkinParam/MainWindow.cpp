@@ -116,7 +116,7 @@ CMainWindow::CMainWindow()
 	//m_pRenderer->addRenderable(m_pTriangle);
 	m_pRenderer->addRenderable(m_pHead);
 
-	m_pLight1 = new Light(Vector(3, 7, 0), Color::Black, Color::White * 1.6, Color::White * 6.4f, 1.0f, 0.1f, 0.0f);
+	m_pLight1 = new Light(Vector(3, 7, 0), Color::Black, Color::White * 1.6f, Color::White * 6.4f, 1.0f, 0.1f, 0.0f);
 	m_pLight2 = new Light(Vector(-6, -4, 2), Color::Black, Color::White * 1.6f, Color::White * 6.4f, 1.0f, 0.1f, 0.0f);
 	m_pRenderer->addLight(m_pLight1);
 	m_pRenderer->addLight(m_pLight2);
@@ -238,6 +238,7 @@ void CMainWindow::initGeneralDialog() {
 	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_WIREFRAME,       "Wire(f)rame"   , Wireframe    );
 	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_VSM_BLUR,        "(V)SM Blurring", VSMBlur      );
 	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_POST_PROCESS_AA, "FX(A)A"        , PostProcessAA);
+	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_BLOOM,           "Bloom"         , Bloom        );
 
 	//m_dlgTessellation.EnableNonUserEvents(true);
 	m_pdlgGeneral->SetVisible(true);
@@ -348,6 +349,7 @@ void CMainWindow::updateUI() {
 	UpdateUIForBool(Wireframe);
 	UpdateUIForBool(VSMBlur);
 	UpdateUIForBool(PostProcessAA);
+	UpdateUIForBool(Bloom);
 
 	// SSS dialog
 	m_pchkEnableSSS->SetChecked(m_pRenderer->getSSS());
@@ -392,6 +394,7 @@ DefineHandlerForBool(Bump)
 DefineHandlerForBool(Wireframe)
 DefineHandlerForBool(VSMBlur)
 DefineHandlerForBool(PostProcessAA)
+DefineHandlerForBool(Bloom)
 
 void CALLBACK CMainWindow::chkEnableSSS_Handler(CDXUTControl* sender, UINT nEvent) {
 	m_pRenderer->setSSS(m_pchkEnableSSS->GetChecked());

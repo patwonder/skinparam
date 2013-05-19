@@ -219,5 +219,11 @@
     <None Include="Shaders\AttenuationTexture.fx">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\Bloom.fx">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\BloomCombine.fx">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -84,6 +84,7 @@ namespace Skin {
 		static const UINT CID_GENERAL_CHK_WIREFRAME = 103;
 		static const UINT CID_GENERAL_CHK_VSM_BLUR = 104;
 		static const UINT CID_GENERAL_CHK_POST_PROCESS_AA = 105;
+		static const UINT CID_GENERAL_CHK_BLOOM = 106;
 		static const UINT CID_SSS_LBL_CAPTION = 200;
 		static const UINT CID_SSS_CHK_ENABLE_SSS = 201;
 		static const UINT CID_SSS_LBL_SSS_STRENGTH_LABEL = 202;
@@ -101,6 +102,7 @@ namespace Skin {
 		CDXUTCheckBox* m_pchkWireframe;
 		CDXUTCheckBox* m_pchkVSMBlur;
 		CDXUTCheckBox* m_pchkPostProcessAA;
+		CDXUTCheckBox* m_pchkBloom;
 		// SSS dialog
 		CDXUTCheckBox* m_pchkEnableSSS;
 		CDXUTCheckBox* m_pchkAdaptiveGaussian;
@@ -122,6 +124,7 @@ namespace Skin {
 		DeclareHandlerForBool(Wireframe);
 		DeclareHandlerForBool(VSMBlur);
 		DeclareHandlerForBool(PostProcessAA);
+		DeclareHandlerForBool(Bloom);
 		void CALLBACK chkEnableSSS_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK chkAdaptiveGaussian_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK sldSSSStrength_Handler(CDXUTControl* sender, UINT nEvent);

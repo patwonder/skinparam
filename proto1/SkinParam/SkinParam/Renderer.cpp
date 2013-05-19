@@ -102,6 +102,10 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_psgGaussianShadowHorizontal(nullptr),
 	  m_psgCopy(nullptr),
 	  m_psgCopyLinear(nullptr),
+	  m_psgBloomVertical(nullptr),
+	  m_psgBloomHorizontal(nullptr),
+	  m_psgBloomCombine(nullptr),
+	  m_psgBloomCombineAA(nullptr),
 	  m_hwnd(hwnd),
 	  m_rectView(rectView),
 	  m_pConfig(pConfig),
@@ -116,6 +120,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_bPostProcessAA(true),
 	  m_bVSMBlur(true),
 	  m_bAdaptiveGaussian(true),
+	  m_bBloom(true),
 	  m_bDump(false),
 	  m_rsCurrent(RS_NotRendering),
 	  m_bPRAttenuationTexture(false)
@@ -180,6 +185,10 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	m_vppShaderGroups.push_back(&m_psgGaussianShadowHorizontal);
 	m_vppShaderGroups.push_back(&m_psgCopy);
 	m_vppShaderGroups.push_back(&m_psgCopyLinear);
+	m_vppShaderGroups.push_back(&m_psgBloomVertical);
+	m_vppShaderGroups.push_back(&m_psgBloomHorizontal);
+	m_vppShaderGroups.push_back(&m_psgBloomCombine);
+	m_vppShaderGroups.push_back(&m_psgBloomCombineAA);
 
 	checkFailure(initDX(), _T("Failed to initialize DirectX 11"));
 
@@ -194,6 +203,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	initShadowMaps();
 
 	initSSS();
+	initBloom();
 	initPostProcessAA();
 
 	doPreRenderings();
@@ -486,6 +496,12 @@ void Renderer::loadShaders() {
 	// Shadow map blurring
 	m_psgGaussianShadowVertical = new ShaderGroup(m_pDevice, _T("GaussianShadow.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
 	m_psgGaussianShadowHorizontal = new ShaderGroup(m_pDevice, _T("GaussianShadow.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
+
+	// Bloom filter
+	m_psgBloomVertical = new ShaderGroup(m_pDevice, _T("Bloom.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
+	m_psgBloomHorizontal = new ShaderGroup(m_pDevice, _T("Bloom.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
+	m_psgBloomCombine = new ShaderGroup(m_pDevice, _T("BloomCombine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
+	m_psgBloomCombineAA = new ShaderGroup(m_pDevice, _T("BloomCombine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_AA");
 }
 
 void Renderer::unloadShaders() {
@@ -749,6 +765,62 @@ void Renderer::initSSS() {
 	}
 }
 
+void Renderer::initBloom() {
+	m_cbBloom.rcpScreenSize = XMFLOAT2(1.0f / m_rectView.Width(), 1.0f / m_rectView.Height());
+	m_cbBloom.sampleLevel = 0;
+	checkFailure(createConstantBuffer(m_pDevice, &m_cbBloom, &m_pBloomConstantBuffer),
+		_T("Failed to create bloom constant buffer"));
+
+	checkFailure(createIntermediateRenderTargetEx(m_pDevice, m_rectView.Width(), m_rectView.Height(), DXGI_FORMAT_R32G32B32A32_FLOAT, false, 1, 0,
+		nullptr, &m_pSRVBloomSource, &m_pRTBloomSource),
+		_T("Failed to create bloom source texture"));
+
+	for (UINT i = 0; i < BLOOM_PASSES; i++) {
+		UINT width = m_rectView.Width() >> i;
+		UINT height = m_rectView.Height() >> i;
+		checkFailure(createIntermediateRenderTarget(m_pDevice, width, height, DXGI_FORMAT_R32G32B32A32_FLOAT,
+			nullptr, &m_apSRVBloom[i], &m_apRTBloom[i]),
+			_T("Failed to create bloom target texture"));
+		checkFailure(createIntermediateRenderTarget(m_pDevice, width, height, DXGI_FORMAT_R32G32B32A32_FLOAT,
+			nullptr, &m_apSRVBloomTemp[i], &m_apRTBloomTemp[i]),
+			_T("Failed to create bloom temporary texture"));
+
+		D3D11_VIEWPORT& vp = m_avpBloom[i];
+		vp.TopLeftX = vp.TopLeftY = 0.0f;
+		vp.MinDepth = 0.0f;
+		vp.MaxDepth = 1.0f;
+		vp.Width = (float)width;
+		vp.Height = (float)height;
+	}
+
+	D3D11_BLEND_DESC desc;
+	desc.AlphaToCoverageEnable = FALSE;
+	desc.IndependentBlendEnable = FALSE;
+	desc.RenderTarget[0].BlendEnable = FALSE;
+	desc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	desc.RenderTarget[0].DestBlend = D3D11_BLEND_ZERO;
+	desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	checkFailure(m_pDevice->CreateBlendState(&desc, &m_pBSNoBlending),
+		_T("Failed to create blending state NoBlending"));
+
+	desc.RenderTarget[0].BlendEnable = TRUE;
+	desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	desc.RenderTarget[0].DestBlend = D3D11_BLEND_DEST_ALPHA;
+	desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+	desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	checkFailure(m_pDevice->CreateBlendState(&desc, &m_pBSAdditiveBlending),
+		_T("Failed to create blending state NoBlending"));
+}
+
 void Renderer::initPostProcessAA() {
 	m_cbPostProcess.rcpFrame = XMFLOAT2(1.0f / m_rectView.Width(), 1.0f / m_rectView.Height());
 	m_cbPostProcess.rcpFrameOpt = XMFLOAT4(2.0f / m_rectView.Width(), 2.0f / m_rectView.Height(), 0.5f / m_rectView.Width(), 0.5f / m_rectView.Height());
@@ -984,12 +1056,12 @@ void Renderer::doCombineShading(bool bNeedBlur, ID3D11ShaderResourceView* apSRVG
 	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
 	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
 
-	(m_bPostProcessAA ? m_psgSSSCombineAA : m_psgSSSCombine)->use(m_pDeviceContext);
+	((m_bPostProcessAA && !m_bBloom) ? m_psgSSSCombineAA : m_psgSSSCombine)->use(m_pDeviceContext);
 
 	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
 
-	// bind the final render target (before AA)
-	ID3D11RenderTargetView* pRenderTargetView = (m_bPostProcessAA ? m_apRTSSS[IDX_SSS_TEMPORARY] : m_pRenderTargetView);
+	// bind the final render target (before AA & bloom)
+	ID3D11RenderTargetView* pRenderTargetView = (m_bBloom ? m_pRTBloomSource : (m_bPostProcessAA ? m_apRTSSS[IDX_SSS_TEMPORARY] : m_pRenderTargetView));
 	m_pDeviceContext->OMSetRenderTargets(1, &pRenderTargetView, nullptr);
 
 	// Set up shader resources
@@ -1013,7 +1085,7 @@ void Renderer::doCombineShading(bool bNeedBlur, ID3D11ShaderResourceView* apSRVG
 	ID3D11ShaderResourceView* apNullSRVs[numViews] = { nullptr };
 	m_pDeviceContext->PSSetShaderResources(0, numViews, apNullSRVs);
 
-	if (m_bDump && !m_bPostProcessAA) {
+	if (m_bDump && !m_bPostProcessAA && !m_bBloom) {
 		dumpRenderTargetToFile(pRenderTargetView, _T("Final"));
 	}
 }
@@ -1085,6 +1157,70 @@ void Renderer::blurShadowMaps() {
 	}
 }
 
+void Renderer::doBloom() {
+	// Generate mip-maps for shader use
+	m_pDeviceContext->GenerateMips(m_pSRVBloomSource);
+
+	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pBloomConstantBuffer);
+
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
+	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
+	
+	// for unbinding shader resource views
+	ID3D11ShaderResourceView* apNullSRVs[BLOOM_PASSES + 1] = { nullptr };
+
+	// m_pSRVBloomSource -> m_apRTBloom[0~BLOOM_PASSES-1]
+	for (UINT i = 0; i < BLOOM_PASSES; i++) {
+		// set the viewport
+		m_pDeviceContext->RSSetViewports(1, &m_avpBloom[i]);
+
+		// setup the constant buffer
+		m_cbBloom.rcpScreenSize = XMFLOAT2(1.0f / (m_rectView.Width() >> i), 1.0f / (m_rectView.Height() >> i));
+		m_cbBloom.sampleLevel = i;
+		m_pDeviceContext->UpdateSubresource(m_pBloomConstantBuffer, 0, nullptr, &m_cbBloom, 0, 0);
+
+		// m_pSRVBloomSource[mip level i] ->(vertical blur)-> m_apRTBloomTemp[i]
+		m_psgBloomVertical->use(m_pDeviceContext);
+		m_pDeviceContext->OMSetRenderTargets(1, &m_apRTBloomTemp[i], nullptr);
+		m_pDeviceContext->PSSetShaderResources(0, 1, &m_pSRVBloomSource);
+
+		m_pDeviceContext->Draw(6, 0);
+
+		// m_apSRVBloomTemp[i] ->(horizontal blur)-> m_apRTBloom[i]
+		m_psgBloomHorizontal->use(m_pDeviceContext);
+		m_pDeviceContext->OMSetRenderTargets(1, &m_apRTBloom[i], nullptr);
+		m_pDeviceContext->PSSetShaderResources(0, 1, &m_apSRVBloomTemp[i]);
+
+		m_pDeviceContext->Draw(6, 0);
+
+		m_pDeviceContext->PSSetShaderResources(0, 1, apNullSRVs);
+
+		if (m_bDump) {
+			TStringStream tss;
+			tss << _T("Bloom_") << i + 1;
+			dumpRenderTargetToFile(m_apRTBloom[i], tss.str());
+		}
+	}
+
+	m_pDeviceContext->RSSetViewports(1, &m_vpScreen);
+
+	// m_pSRVBloomSource + m_apSRVBloom[0~BLOOM_PASSES-1] ->(combine)-> (final / post process)
+	(m_bPostProcessAA ? m_psgBloomCombineAA : m_psgBloomCombine)->use(m_pDeviceContext);
+	m_pDeviceContext->OMSetRenderTargets(1, m_bPostProcessAA ? &m_apRTSSS[IDX_SSS_TEMPORARY] : &m_pRenderTargetView, nullptr);
+	ID3D11ShaderResourceView* apSRVs[BLOOM_PASSES + 1] = { m_pSRVBloomSource };
+	for (UINT i = 0; i < BLOOM_PASSES; i++)
+		apSRVs[i + 1] = m_apSRVBloom[i];
+
+	m_pDeviceContext->PSSetShaderResources(0, BLOOM_PASSES + 1, apSRVs);
+	m_pDeviceContext->Draw(6, 0);
+
+	m_pDeviceContext->PSSetShaderResources(0, BLOOM_PASSES + 1, apNullSRVs);
+
+	if (m_bDump && !m_bPostProcessAA)
+		dumpRenderTargetToFile(m_pRenderTargetView, _T("Final"));
+}
+
 void Renderer::render() {
 	updateLighting();
 	updateTessellation();
@@ -1135,7 +1271,6 @@ void Renderer::render() {
 	renderIrradianceMap(m_apRTSSS[IDX_SSS_IRRADIANCE], m_apRTSSS[IDX_SSS_ALBEDO], 
 						m_apRTSSS[IDX_SSS_DIFFUSE_STENCIL], m_apRTSSS[IDX_SSS_SPECULAR],
 						&bNeedBlur);
-
 	if (bToggle) toggleWireframe(); {
 		ID3D11ShaderResourceView* apSRVGaussians[NUM_SSS_GAUSSIANS];
 		if (bNeedBlur) {
@@ -1145,6 +1280,10 @@ void Renderer::render() {
 		m_rsCurrent = RS_Combine;
 		doCombineShading(bNeedBlur, apSRVGaussians);
 
+		if (m_bBloom) {
+			m_rsCurrent = RS_Bloom;
+			doBloom();
+		}
 		if (m_bPostProcessAA) {
 			m_rsCurrent = RS_PostProcessAA;
 			doPostProcessAA();
