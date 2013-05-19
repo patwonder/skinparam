@@ -10,6 +10,8 @@
 #include "Head.h"
 #include "Light.h"
 
+#include <dxgidebug.h>
+
 using namespace Skin;
 using namespace Utils;
 

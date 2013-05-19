@@ -28,18 +28,18 @@ namespace Skin {
 		D3D_DRIVER_TYPE m_driverType;
 		D3D_FEATURE_LEVEL m_featureLevel;
 
-		ID3D11Device* m_pDevice;
-		ID3D11DeviceContext* m_pDeviceContext;
-		IDXGISwapChain* m_pSwapChain;
-		ID3D11RenderTargetView* m_pRenderTargetView;
-		ID3D11Texture2D* m_pDepthStencil;
-		ID3D11DepthStencilView* m_pDepthStencilView;
-		ID3D11SamplerState* m_pPlaceholderSamplerState;
-		ID3D11ShaderResourceView* m_pPlaceholderTexture;
-		ID3D11SamplerState* m_pBumpSamplerState;
-		ID3D11ShaderResourceView* m_pBumpTexture;
-		ID3D11ShaderResourceView* m_pNormalTexture;
-		ID3D11SamplerState* m_pLinearSamplerState;
+		CComPtr<ID3D11Device> m_pDevice;
+		CComPtr<ID3D11DeviceContext> m_pDeviceContext;
+		CComPtr<IDXGISwapChain> m_pSwapChain;
+		CComPtr<ID3D11RenderTargetView> m_pRenderTargetView;
+		CComPtr<ID3D11Texture2D> m_pDepthStencil;
+		CComPtr<ID3D11DepthStencilView> m_pDepthStencilView;
+		CComPtr<ID3D11SamplerState> m_pPlaceholderSamplerState;
+		CComPtr<ID3D11ShaderResourceView> m_pPlaceholderTexture;
+		CComPtr<ID3D11SamplerState> m_pBumpSamplerState;
+		CComPtr<ID3D11ShaderResourceView> m_pBumpTexture;
+		CComPtr<ID3D11ShaderResourceView> m_pNormalTexture;
+		CComPtr<ID3D11SamplerState> m_pLinearSamplerState;
 		D3D11_RASTERIZER_DESC m_descRasterizerState;
 		D3D11_VIEWPORT m_vpScreen;
 
@@ -54,10 +54,10 @@ namespace Skin {
 		// irradiance, albedo, specular, diffuse stencil, gaussians and a temporary view
 		static const UINT NUM_SSS_VIEWS = IDX_SSS_TEMPORARY + 1;
 		static const UINT SSS_ATTENUATION_TEXTURE_SIZE = 256;
-		ID3D11RenderTargetView* m_apRTSSS[NUM_SSS_VIEWS];
-		ID3D11ShaderResourceView* m_apSRVSSS[NUM_SSS_VIEWS];
-		ID3D11RenderTargetView* m_pRTAttenuationTexture;
-		ID3D11ShaderResourceView* m_pSRVAttenuationTexture;
+		CComPtr<ID3D11RenderTargetView> m_apRTSSS[NUM_SSS_VIEWS];
+		CComPtr<ID3D11ShaderResourceView> m_apSRVSSS[NUM_SSS_VIEWS];
+		CComPtr<ID3D11RenderTargetView> m_pRTAttenuationTexture;
+		CComPtr<ID3D11ShaderResourceView> m_pSRVAttenuationTexture;
 		D3D11_VIEWPORT m_vpAttenuationTexture;
 		ShaderGroup* m_psgSSSIrradiance;
 		ShaderGroup* m_psgSSSIrradianceNoTessellation;
@@ -93,11 +93,11 @@ namespace Skin {
 			float pad[2];
 		};
 
-		ID3D11Buffer* m_pGaussianConstantBuffer;
+		CComPtr<ID3D11Buffer> m_pGaussianConstantBuffer;
 		GaussianConstantBuffer m_cbGaussian;
-		ID3D11Buffer* m_pCombineConstantBuffer;
+		CComPtr<ID3D11Buffer> m_pCombineConstantBuffer;
 		CombineConstantBuffer m_cbCombine;
-		ID3D11Buffer* m_pSSSConstantBuffer;
+		CComPtr<ID3D11Buffer> m_pSSSConstantBuffer;
 		SSSConstantBuffer m_cbSSS;
 
 		// Post-process Anti-aliasing
@@ -108,10 +108,9 @@ namespace Skin {
 			float pad[2];
 			XMFLOAT4 rcpFrameOpt;
 		};
-		ID3D11Buffer* m_pPostProcessConstantBuffer;
+		CComPtr<ID3D11Buffer> m_pPostProcessConstantBuffer;
 		PostProcessConstantBuffer m_cbPostProcess;
 
-		std::vector<IUnknown**> m_vppCOMObjs;
 		std::vector<ShaderGroup**> m_vppShaderGroups;
 
 		static const UINT SLOT_TEXTURE = 0;
@@ -163,13 +162,13 @@ namespace Skin {
 		struct TessellationConstantBuffer {
 			XMFLOAT4 g_vTesselationFactor;
 		};
-		ID3D11Buffer* m_pTransformConstantBuffer;
+		CComPtr<ID3D11Buffer> m_pTransformConstantBuffer;
 		TransformConstantBuffer m_cbTransform;
-		ID3D11Buffer* m_pLightingConstantBuffer;
+		CComPtr<ID3D11Buffer> m_pLightingConstantBuffer;
 		LightingConstantBuffer m_cbLighting;
-		ID3D11Buffer* m_pMaterialConstantBuffer;
+		CComPtr<ID3D11Buffer> m_pMaterialConstantBuffer;
 		MaterialConstantBuffer m_cbMaterial;
-		ID3D11Buffer* m_pTessellationConstantBuffer;
+		CComPtr<ID3D11Buffer> m_pTessellationConstantBuffer;
 		TessellationConstantBuffer m_cbTessellation;
 
 		static const float CLIPPING_LIGHT_NEAR;
@@ -188,10 +187,10 @@ namespace Skin {
 		static const UINT IDX_SHADOW_TEMPORARY = NUM_LIGHTS;
 		static const UINT NUM_SHADOW_VIEWS = IDX_SHADOW_TEMPORARY + 1;
 		D3D11_VIEWPORT m_vpShadowMap;
-		ID3D11RenderTargetView* m_apRTShadowMaps[NUM_SHADOW_VIEWS];
-		ID3D11ShaderResourceView* m_apSRVShadowMaps[NUM_SHADOW_VIEWS];
-		ID3D11DepthStencilView* m_pShadowMapDepthStencilView;
-		ID3D11SamplerState* m_pShadowMapSamplerState;
+		CComPtr<ID3D11RenderTargetView> m_apRTShadowMaps[NUM_SHADOW_VIEWS];
+		CComPtr<ID3D11ShaderResourceView> m_apSRVShadowMaps[NUM_SHADOW_VIEWS];
+		CComPtr<ID3D11DepthStencilView> m_pShadowMapDepthStencilView;
+		CComPtr<ID3D11SamplerState> m_pShadowMapSamplerState;
 		ShaderGroup* m_psgGaussianShadowVertical;
 		ShaderGroup* m_psgGaussianShadowHorizontal;
 
@@ -200,7 +199,7 @@ namespace Skin {
 			XMFLOAT2 rcpScreenSize;
 			float pad[2];
 		};
-		ID3D11Buffer* m_pGaussianShadowConstantBuffer;
+		CComPtr<ID3D11Buffer> m_pGaussianShadowConstantBuffer;
 		GaussianShadowConstantBuffer m_cbGaussainShadow;
 
 		// Bloom filter

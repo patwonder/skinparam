@@ -47,12 +47,12 @@ namespace Skin {
 
 		Utils::ObjModel* m_pModel;
 
-		ID3D11Buffer* m_pVertexBuffer;
-		ID3D11Buffer* m_pIndexBuffer;
-		ID3D11SamplerState* m_pSamplerState;
-		std::map<std::string, ID3D11ShaderResourceView*> m_vpTextures;
-		std::map<std::string, ID3D11ShaderResourceView*> m_vpBumpMaps;
-		std::map<std::string, ID3D11ShaderResourceView*> m_vpNormalMaps;
+		CComPtr<ID3D11Buffer> m_pVertexBuffer;
+		CComPtr<ID3D11Buffer> m_pIndexBuffer;
+		CComPtr<ID3D11SamplerState> m_pSamplerState;
+		std::map<std::string, CComPtr<ID3D11ShaderResourceView> > m_vpTextures;
+		std::map<std::string, CComPtr<ID3D11ShaderResourceView> > m_vpBumpMaps;
+		std::map<std::string, CComPtr<ID3D11ShaderResourceView> > m_vpNormalMaps;
 
 		MeshRenderable(const Utils::TString& strObjFilePath);
 		~MeshRenderable() override;

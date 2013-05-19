@@ -56,32 +56,7 @@ const float Renderer::SSS_GAUSSIAN_WEIGHTS[NUM_SSS_GAUSSIANS][3] = {
 };
 
 Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, RenderableManager* pRenderableManager)
-	: m_pDevice(nullptr),
-	  m_pDeviceContext(nullptr),
-	  m_pSwapChain(nullptr),
-	  m_pRenderTargetView(nullptr),
-	  m_pDepthStencil(nullptr),
-	  m_pDepthStencilView(nullptr),
-	  m_pPlaceholderSamplerState(nullptr),
-	  m_pPlaceholderTexture(nullptr),
-	  m_pBumpSamplerState(nullptr),
-	  m_pBumpTexture(nullptr),
-	  m_pNormalTexture(nullptr),
-	  m_pLinearSamplerState(nullptr),
-	  m_pShadowMapDepthStencilView(nullptr),
-	  m_pShadowMapSamplerState(nullptr),
-	  m_pRTAttenuationTexture(nullptr),
-	  m_pSRVAttenuationTexture(nullptr),
-	  m_pTransformConstantBuffer(nullptr),
-	  m_pLightingConstantBuffer(nullptr),
-	  m_pMaterialConstantBuffer(nullptr),
-	  m_pTessellationConstantBuffer(nullptr),
-	  m_pGaussianConstantBuffer(nullptr),
-	  m_pCombineConstantBuffer(nullptr),
-	  m_pPostProcessConstantBuffer(nullptr),
-	  m_pGaussianShadowConstantBuffer(nullptr),
-	  m_pSSSConstantBuffer(nullptr),
-	  m_psgSSSIrradianceNoTessellation(nullptr),
+	: m_psgSSSIrradianceNoTessellation(nullptr),
 	  m_psgShadow(nullptr),
 	  m_psgTessellatedPhong(nullptr),
 	  m_psgTessellatedShadow(nullptr),
@@ -126,45 +101,6 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_rsCurrent(RS_NotRendering),
 	  m_bPRAttenuationTexture(false)
 {
-	memset(m_apRTShadowMaps, 0, sizeof(m_apRTShadowMaps));
-	memset(m_apSRVShadowMaps, 0, sizeof(m_apSRVShadowMaps));
-	memset(m_apRTSSS, 0, sizeof(m_apRTSSS));
-	memset(m_apSRVSSS, 0, sizeof(m_apSRVSSS));
-
-	m_vppCOMObjs.push_back((IUnknown**)&m_pDevice);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pDeviceContext);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pSwapChain);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pRenderTargetView);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pDepthStencil);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pDepthStencilView);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pPlaceholderSamplerState);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pPlaceholderTexture);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pBumpSamplerState);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pBumpTexture);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pNormalTexture);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pLinearSamplerState);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pShadowMapDepthStencilView);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pShadowMapSamplerState);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pRTAttenuationTexture);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pSRVAttenuationTexture);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pTransformConstantBuffer);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pLightingConstantBuffer);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pMaterialConstantBuffer);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pTessellationConstantBuffer);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pGaussianConstantBuffer);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pCombineConstantBuffer);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pPostProcessConstantBuffer);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pGaussianShadowConstantBuffer);
-	m_vppCOMObjs.push_back((IUnknown**)&m_pSSSConstantBuffer);
-	for (UINT i = 0; i < NUM_SHADOW_VIEWS; i++) {
-		m_vppCOMObjs.push_back((IUnknown**)m_apRTShadowMaps + i);
-		m_vppCOMObjs.push_back((IUnknown**)m_apSRVShadowMaps + i);
-	}
-	for (UINT i = 0; i < NUM_SSS_VIEWS; i++) {
-		m_vppCOMObjs.push_back((IUnknown**)m_apRTSSS + i);
-		m_vppCOMObjs.push_back((IUnknown**)m_apSRVSSS + i);
-	}
-
 	m_vppShaderGroups.push_back(&m_psgSSSIrradianceNoTessellation);
 	m_vppShaderGroups.push_back(&m_psgShadow);
 	m_vppShaderGroups.push_back(&m_psgTessellatedPhong);
@@ -220,14 +156,6 @@ Renderer::~Renderer() {
 
 	if (m_pDeviceContext)
 		m_pDeviceContext->ClearState();
-
-	for (IUnknown** ppCOMObj: m_vppCOMObjs) {
-		if (*ppCOMObj)
-			(*ppCOMObj)->Release();
-		*ppCOMObj = nullptr;
-	}
-
-	m_vppCOMObjs.clear();
 }
 
 HRESULT Renderer::initDX() {
@@ -286,9 +214,6 @@ HRESULT Renderer::initDX() {
 	m_pDevice = DXUTGetD3D11Device();
 	m_featureLevel = DXUTGetD3D11DeviceFeatureLevel();
 	m_pDeviceContext = DXUTGetD3D11DeviceContext();
-	m_pSwapChain->AddRef();
-	m_pDevice->AddRef();
-	m_pDeviceContext->AddRef();
 
 	m_pRenderableManager->onCreateDevice(m_pDevice, m_pDeviceContext, m_pSwapChain);
 	
@@ -297,13 +222,12 @@ HRESULT Renderer::initDX() {
 	m_pRenderableManager->onResizedSwapChain(m_pDevice, pDesc);
 
     // Create a render target view
-    ID3D11Texture2D* pBackBuffer = nullptr;
+    CComPtr<ID3D11Texture2D> pBackBuffer;
 	hr = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
 	if (FAILED(hr))
 		return hr;
 
 	hr = m_pDevice->CreateRenderTargetView(pBackBuffer, nullptr, &m_pRenderTargetView);
-	pBackBuffer->Release();
 	if (FAILED(hr))
 		return hr;
 
@@ -335,7 +259,7 @@ HRESULT Renderer::initDX() {
     if (FAILED(hr))
         return hr;
 
-	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthStencilView);
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView.p, m_pDepthStencilView);
 
 	// Setup the viewport
     D3D11_VIEWPORT& vp = m_vpScreen;
@@ -368,10 +292,9 @@ void Renderer::initMisc() {
 
 	{
 		float initData[] = { 1.0f };
-		ID3D11Resource* pResource = nullptr;
+		CComPtr<ID3D11Resource> pResource;
 		m_pPlaceholderTexture->GetResource(&pResource);
 		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 4, 0);
-		pResource->Release();
 	}
 
 	// Creates the placeholder bump texture for non-bumpmapped objects
@@ -384,10 +307,9 @@ void Renderer::initMisc() {
 
 	{
 		float initData[] = { 0.5f };
-		ID3D11Resource* pResource = nullptr;
+		CComPtr<ID3D11Resource> pResource;
 		m_pBumpTexture->GetResource(&pResource);
 		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 4, 0);
-		pResource->Release();
 	}
 
 	// Creates the placeholder normal texture for non-normalmapped objects
@@ -395,10 +317,9 @@ void Renderer::initMisc() {
 		_T("Failed to create placeholder normal map"));
 	{
 		float initData[] = { 0.0f, 0.0f };
-		ID3D11Resource* pResource = nullptr;
+		CComPtr<ID3D11Resource> pResource;
 		m_pNormalTexture->GetResource(&pResource);
 		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 8, 0);
-		pResource->Release();
 	}
 
 	// Creates a linear sampler state for shadow maps
@@ -666,12 +587,12 @@ void Renderer::updateTessellation() {
 void Renderer::initShadowMaps() {
 	for (UINT i = 0; i < NUM_SHADOW_VIEWS; i++) {
 		checkFailure(createIntermediateRenderTargetEx(m_pDevice, SM_SIZE, SM_SIZE, DXGI_FORMAT_R32G32_FLOAT,
-			i == IDX_SHADOW_TEMPORARY ? true : true, 1, 0, nullptr, m_apSRVShadowMaps + i, m_apRTShadowMaps + i),
+			i == IDX_SHADOW_TEMPORARY ? true : true, 1, 0, nullptr, &m_apSRVShadowMaps[i], &m_apRTShadowMaps[i]),
 			_T("Failed to create intermediate render target for shadow map"));
 	}
 
 	// Create depth stencil view for shadow maps
-	ID3D11Texture2D* pTexture2D = nullptr;
+	CComPtr<ID3D11Texture2D> pTexture2D;
 	checkFailure(createTexture2D(m_pDevice, SM_SIZE, SM_SIZE, DXGI_FORMAT_D24_UNORM_S8_UINT,
 		&pTexture2D, D3D11_BIND_DEPTH_STENCIL),
 		_T("Failed to create depth stencil texture for shadow maps"));
@@ -683,8 +604,6 @@ void Renderer::initShadowMaps() {
     descDSV.Texture2D.MipSlice = 0;
 	checkFailure(m_pDevice->CreateDepthStencilView(pTexture2D, &descDSV, &m_pShadowMapDepthStencilView),
 		_T("Failed to create depth stencil view for shadow maps"));
-
-	pTexture2D->Release();
 
 	// Create shadow map sampler state	
 	checkFailure(createSamplerComparisonState(m_pDevice, D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
@@ -709,8 +628,8 @@ void Renderer::initShadowMaps() {
 
 void Renderer::bindShadowMaps() {
 	// use trilinear sampler for shadow maps
-	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAP, 1, &m_pLinearSamplerState);
-	m_pDeviceContext->PSSetShaderResources(SLOT_SHADOWMAP, NUM_LIGHTS, m_apSRVShadowMaps);
+	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAP, 1, &m_pLinearSamplerState.p);
+	m_pDeviceContext->PSSetShaderResources(SLOT_SHADOWMAP, NUM_LIGHTS, &m_apSRVShadowMaps[0].p);
 }
 
 void Renderer::unbindShadowMaps() {
@@ -721,7 +640,7 @@ void Renderer::unbindShadowMaps() {
 void Renderer::initSSS() {
 	for (UINT i = 0; i < NUM_SSS_VIEWS; i++) {
 		checkFailure(createIntermediateRenderTarget(m_pDevice, m_rectView.Width(), m_rectView.Height(), DXGI_FORMAT_R32G32B32A32_FLOAT,
-			nullptr, m_apSRVSSS + i, m_apRTSSS + i),
+			nullptr, &m_apSRVSSS[i], &m_apRTSSS[i]),
 			_T("Failed to create intermediate render target for SSS"));
 	}
 	// no need to create depth stencil view, just re-use the screen one
@@ -904,11 +823,11 @@ void Renderer::unbindInputBuffers() {
 }
 
 void Renderer::bindGaussianConstantBuffer() {
-	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pGaussianConstantBuffer);
+	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pGaussianConstantBuffer.p);
 }
 
 void Renderer::bindCombineConstantBuffer() {
-	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pCombineConstantBuffer);
+	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pCombineConstantBuffer.p);
 }
 
 void Renderer::setGaussianKernelSize(float size) {
@@ -981,8 +900,8 @@ void Renderer::doGaussianBlurs(ID3D11ShaderResourceView* oapSRVGaussians[]) {
 	bindGaussianConstantBuffer();
 	
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
-	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState.p);
+	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState.p);
 
 	ID3D11RenderTargetView* pRTTemporary = m_apRTSSS[IDX_SSS_TEMPORARY];
 	ID3D11ShaderResourceView* pSRVTemporary = m_apSRVSSS[IDX_SSS_TEMPORARY];
@@ -1036,7 +955,7 @@ void Renderer::doGaussianBlurs(ID3D11ShaderResourceView* oapSRVGaussians[]) {
 
 			// temporary ->(horizontal blur)-> next
 			psgGaussianHorizontal->use(m_pDeviceContext);
-			m_pDeviceContext->OMSetRenderTargets(1, &m_apRTSSS[IDX_SSS_GAUSSIANS_START + i], nullptr);
+			m_pDeviceContext->OMSetRenderTargets(1, &m_apRTSSS[IDX_SSS_GAUSSIANS_START + i].p, nullptr);
 			apSRVs[0] = pSRVTemporary;
 			m_pDeviceContext->PSSetShaderResources(0, numViews, apSRVs);
 
@@ -1060,8 +979,8 @@ void Renderer::doCombineShading(bool bNeedBlur, ID3D11ShaderResourceView* apSRVG
 	bindCombineConstantBuffer();
 
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
-	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState.p);
+	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState.p);
 
 	((m_bPostProcessAA && !m_bBloom) ? m_psgSSSCombineAA : m_psgSSSCombine)->use(m_pDeviceContext);
 
@@ -1098,25 +1017,25 @@ void Renderer::doCombineShading(bool bNeedBlur, ID3D11ShaderResourceView* apSRVG
 }
 
 void Renderer::bindPostProcessConstantBuffer() {
-	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pPostProcessConstantBuffer);
+	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pPostProcessConstantBuffer.p);
 }
 
 void Renderer::doPostProcessAA() {
 	bindPostProcessConstantBuffer();
 
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
-	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState.p);
+	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState.p);
 
 	m_psgPostProcessAA->use(m_pDeviceContext);
 
 	float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
 
 	// bind the (hopefully) final render target
-	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView, nullptr);
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView.p, nullptr);
 
 	// Set up shader resources, the frame is now in the SSS temporary render target
-	m_pDeviceContext->PSSetShaderResources(0, 1, &m_apSRVSSS[IDX_SSS_TEMPORARY]);
+	m_pDeviceContext->PSSetShaderResources(0, 1, &m_apSRVSSS[IDX_SSS_TEMPORARY].p);
 
 	// do it~
 	m_pDeviceContext->Draw(6, 0);
@@ -1131,11 +1050,11 @@ void Renderer::doPostProcessAA() {
 }
 
 void Renderer::blurShadowMaps() {
-	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pGaussianShadowConstantBuffer);
+	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pGaussianShadowConstantBuffer.p);
 
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
-	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState.p);
+	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState.p);
 
 	ID3D11RenderTargetView* pRTTemporary = m_apRTShadowMaps[IDX_SHADOW_TEMPORARY];
 	ID3D11ShaderResourceView* pSRVTemporary = m_apSRVShadowMaps[IDX_SHADOW_TEMPORARY];
@@ -1144,7 +1063,7 @@ void Renderer::blurShadowMaps() {
 		// shadow map ->(vertical blur)-> temporary
 		m_psgGaussianShadowVertical->use(m_pDeviceContext);
 		m_pDeviceContext->OMSetRenderTargets(1, &pRTTemporary, nullptr);
-		m_pDeviceContext->PSSetShaderResources(0, 1, m_apSRVShadowMaps + i);
+		m_pDeviceContext->PSSetShaderResources(0, 1, &m_apSRVShadowMaps[i].p);
 
 		m_pDeviceContext->Draw(6, 0);
 
@@ -1154,7 +1073,7 @@ void Renderer::blurShadowMaps() {
 
 		// temporary ->(horizontal blur)-> shadow map
 		m_psgGaussianShadowHorizontal->use(m_pDeviceContext);
-		m_pDeviceContext->OMSetRenderTargets(1, m_apRTShadowMaps + i, nullptr);
+		m_pDeviceContext->OMSetRenderTargets(1, &m_apRTShadowMaps[i].p, nullptr);
 		m_pDeviceContext->PSSetShaderResources(0, 1, &pSRVTemporary);
 
 		m_pDeviceContext->Draw(6, 0);
@@ -1168,8 +1087,8 @@ void Renderer::doBloom() {
 	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pBloomConstantBuffer.p);
 
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
-	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState.p);
+	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState.p);
 	
 	// Detect bloom area
 	m_cbBloom.rcpScreenSize = XMFLOAT2(1.0f / m_rectView.Width(), 1.0f / m_rectView.Height());
@@ -1227,7 +1146,7 @@ void Renderer::doBloom() {
 
 	// m_pSRVBloomSource + m_apSRVBloom[1~BLOOM_PASSES-1] ->(combine)-> (final / post process)
 	(m_bPostProcessAA ? m_psgBloomCombineAA : m_psgBloomCombine)->use(m_pDeviceContext);
-	m_pDeviceContext->OMSetRenderTargets(1, m_bPostProcessAA ? &m_apRTSSS[IDX_SSS_TEMPORARY] : &m_pRenderTargetView, nullptr);
+	m_pDeviceContext->OMSetRenderTargets(1, m_bPostProcessAA ? &m_apRTSSS[IDX_SSS_TEMPORARY].p : &m_pRenderTargetView.p, nullptr);
 	ID3D11ShaderResourceView* apSRVs[BLOOM_PASSES + 1] = { m_pSRVBloomSource };
 	for (UINT i = 0; i < BLOOM_PASSES; i++)
 		apSRVs[i + 1] = m_apSRVBloom[i];
@@ -1259,7 +1178,7 @@ void Renderer::render() {
 	(m_bTessellation ? m_psgTessellatedShadow : m_psgShadow)->use(m_pDeviceContext);
 	if (bToggle) toggleWireframe(); { // Renders solid
 		for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
-			m_pDeviceContext->OMSetRenderTargets(1, m_apRTShadowMaps + i, m_pShadowMapDepthStencilView);
+			m_pDeviceContext->OMSetRenderTargets(1, &m_apRTShadowMaps[i].p, m_pShadowMapDepthStencilView);
 			// Clear render target view & depth stencil
 			float ClearShadow[4] = { 30.0f, 900.0f, 0.0f, 0.0f }; // RGBA
 			m_pDeviceContext->ClearRenderTargetView(m_apRTShadowMaps[i], ClearShadow);
@@ -1359,7 +1278,7 @@ void Renderer::doPreRenderings() {
 		// Pre-render attenuation texture
 		m_pDeviceContext->RSSetViewports(1, &m_vpAttenuationTexture);
 		m_psgSSSAttenuationTexture->use(m_pDeviceContext);
-		m_pDeviceContext->OMSetRenderTargets(1, &m_pRTAttenuationTexture, nullptr);
+		m_pDeviceContext->OMSetRenderTargets(1, &m_pRTAttenuationTexture.p, nullptr);
 		m_pDeviceContext->Draw(6, 0);
 		m_nDumpCount = 0;
 		TString fileName = _T("atten.png");
@@ -1369,8 +1288,8 @@ void Renderer::doPreRenderings() {
 }
 
 void Renderer::bindAttenuationTexture() {
-	m_pDeviceContext->PSSetShaderResources(SLOT_ATTENUATION, 1, &m_pSRVAttenuationTexture);
-	m_pDeviceContext->PSSetSamplers(SLOT_ATTENUATION, 1, &m_pLinearSamplerState);
+	m_pDeviceContext->PSSetShaderResources(SLOT_ATTENUATION, 1, &m_pSRVAttenuationTexture.p);
+	m_pDeviceContext->PSSetSamplers(SLOT_ATTENUATION, 1, &m_pLinearSamplerState.p);
 }
 
 void Renderer::unbindAttenuationTexture() {
@@ -1392,10 +1311,9 @@ void Renderer::setWireframe(bool bWireframe) {
 		m_descRasterizerState.FillMode = D3D11_FILL_SOLID;
 		m_descRasterizerState.CullMode = D3D11_CULL_BACK;
 	}
-	ID3D11RasterizerState* pRS = nullptr;
+	CComPtr<ID3D11RasterizerState> pRS;
 	m_pDevice->CreateRasterizerState(&m_descRasterizerState, &pRS);
 	m_pDeviceContext->RSSetState(pRS);
-	pRS->Release();
 
 	if (bWireframe)
 		setPostProcessAA(false);
@@ -1414,21 +1332,17 @@ void Renderer::dump() {
 }
 
 void Renderer::dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const TString& strFileName, bool overrideAutoNaming) {
-	ID3D11Resource* pTexture2D = nullptr;
+	CComPtr<ID3D11Resource> pTexture2D;
 	pSRV->GetResource(&pTexture2D);
 
 	dumpTextureToFile(pTexture2D, strFileName, overrideAutoNaming);
-
-	pTexture2D->Release();
 }
 
 void Renderer::dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const TString& strFileName, bool overrideAutoNaming) {
-	ID3D11Resource* pTexture2D = nullptr;
+	CComPtr<ID3D11Resource> pTexture2D;
 	pRT->GetResource(&pTexture2D);
 
 	dumpTextureToFile(pTexture2D, strFileName, overrideAutoNaming);
-
-	pTexture2D->Release();
 }
 
 void Renderer::dumpTextureToFile(ID3D11Resource* pTexture2D, const TString& strFileName, bool overrideAutoNaming) {
@@ -1472,8 +1386,8 @@ void Renderer::useTexture(ID3D11SamplerState* pTextureSamplerState, ID3D11Shader
 }
 
 void Renderer::usePlaceholderTexture() {
-	m_pDeviceContext->PSSetSamplers(SLOT_TEXTURE, 1, &m_pPlaceholderSamplerState);
-	m_pDeviceContext->PSSetShaderResources(SLOT_TEXTURE, 1, &m_pPlaceholderTexture);
+	m_pDeviceContext->PSSetSamplers(SLOT_TEXTURE, 1, &m_pPlaceholderSamplerState.p);
+	m_pDeviceContext->PSSetShaderResources(SLOT_TEXTURE, 1, &m_pPlaceholderTexture.p);
 }
 
 void Renderer::useBumpMap(ID3D11SamplerState* pBumpMapSamplerState, ID3D11ShaderResourceView* pBumpMap) {
@@ -1492,14 +1406,14 @@ void Renderer::useBumpMap(ID3D11SamplerState* pBumpMapSamplerState, ID3D11Shader
 }
 
 void Renderer::usePlaceholderBumpMap() {
-	m_pDeviceContext->VSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState);
-	m_pDeviceContext->VSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture);
-	m_pDeviceContext->HSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState);
-	m_pDeviceContext->HSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture);
-	m_pDeviceContext->DSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState);
-	m_pDeviceContext->DSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture);
-	m_pDeviceContext->PSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState);
-	m_pDeviceContext->PSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture);
+	m_pDeviceContext->VSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState.p);
+	m_pDeviceContext->VSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture.p);
+	m_pDeviceContext->HSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState.p);
+	m_pDeviceContext->HSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture.p);
+	m_pDeviceContext->DSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState.p);
+	m_pDeviceContext->DSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture.p);
+	m_pDeviceContext->PSSetSamplers(SLOT_BUMPMAP, 1, &m_pBumpSamplerState.p);
+	m_pDeviceContext->PSSetShaderResources(SLOT_BUMPMAP, 1, &m_pBumpTexture.p);
 }
 
 void Renderer::useNormalMap(ID3D11SamplerState* pNormalMapSamplerState, ID3D11ShaderResourceView* pNormalMap) {
@@ -1512,8 +1426,8 @@ void Renderer::useNormalMap(ID3D11SamplerState* pNormalMapSamplerState, ID3D11Sh
 }
 
 void Renderer::usePlaceholderNormalMap() {
-	m_pDeviceContext->PSSetSamplers(SLOT_NORMALMAP, 1, &m_pBumpSamplerState); // use bump map's point sampler
-	m_pDeviceContext->PSSetShaderResources(SLOT_NORMALMAP, 1, &m_pNormalTexture);
+	m_pDeviceContext->PSSetSamplers(SLOT_NORMALMAP, 1, &m_pBumpSamplerState.p); // use bump map's point sampler
+	m_pDeviceContext->PSSetShaderResources(SLOT_NORMALMAP, 1, &m_pNormalTexture.p);
 }
 
 void Renderer::setTessellationFactor(float edge, float inside, float min, float desiredSizeInPixels) {

@@ -16,9 +16,7 @@ using namespace D3DHelper;
 
 const float MeshRenderable::NormalDistance = 0.04f;
 
-MeshRenderable::MeshRenderable(const TString& strObjFilePath)
-	: m_pVertexBuffer(nullptr), m_pIndexBuffer(nullptr), m_pSamplerState(nullptr)
-{
+MeshRenderable::MeshRenderable(const TString& strObjFilePath) {
 	m_pModel = nullptr;
 
 	std::string path = ANSIStringFromTString(strObjFilePath);
@@ -121,7 +119,7 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 	for (const auto& objMtPair : m_pModel->Materials) {
 		const ObjMaterial& objMt = objMtPair.second;
 		if (objMt.TextureFileName.length()) {
-			ID3D11ShaderResourceView* pTexture = nullptr;
+			CComPtr<ID3D11ShaderResourceView> pTexture = nullptr;
 			// use srgb for albedo textures
 			checkFailure(loadTextureEx(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.TextureFileName),
 				0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, true, &pTexture),
@@ -129,7 +127,7 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 			m_vpTextures[objMtPair.first] = pTexture;
 		}
 		if (objMt.BumpMapFileName.length()) {
-			ID3D11ShaderResourceView* pBumpMap = nullptr;
+			CComPtr<ID3D11ShaderResourceView> pBumpMap = nullptr;
 			checkFailure(loadTexture(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.BumpMapFileName), &pBumpMap),
 				_T("Unable to load bump map ") + TStringFromANSIString(objMt.BumpMapFileName));
 			m_vpBumpMaps[objMtPair.first] = pBumpMap;
@@ -340,11 +338,10 @@ void MeshRenderable::computeTangentSpace() {
 void MeshRenderable::computeNormalMaps(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext) {
 	for (auto& texPair : m_vpBumpMaps) {
 		ID3D11ShaderResourceView* pTSRV = texPair.second;
-		ID3D11Texture2D* pBumpMap = nullptr;
+		CComPtr<ID3D11Texture2D> pBumpMap;
 		pTSRV->GetResource((ID3D11Resource**)&pBumpMap);
 		D3D11_TEXTURE2D_DESC desc;
 		pBumpMap->GetDesc(&desc);
-		pBumpMap->Release();
 		if (desc.Format != BumpTexFormat)
 			checkFailure(E_UNEXPECTED, _T("Unsupported bump map type"));
 
@@ -359,7 +356,7 @@ void MeshRenderable::computeNormalMaps(ID3D11Device* pDevice, ID3D11DeviceContex
 		computeNormalMap(pBumpTextureData, desc.Width, desc.Height, pNormalMapData);
 		delete [] pBumpTextureData;
 
-		ID3D11ShaderResourceView* pNormalMapView = nullptr;
+		CComPtr<ID3D11ShaderResourceView> pNormalMapView;
 		checkFailure(loadTextureFromMemory(pDevice, pDeviceContext, pNormalMapData, desc.Width, desc.Height, NormTexFormat,
 			desc.Width * sizeof(NTT), &pNormalMapView),
 			_T("Failed to create normal map for material ") + TStringFromANSIString(texPair.first));
@@ -403,7 +400,7 @@ void MeshRenderable::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRen
 	// Set vertex buffer
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
-    pDeviceContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
+    pDeviceContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer.p, &stride, &offset);
 	
 	// The draw calls
 	XMMATRIX matWorld = getWorldMatrix();
@@ -454,28 +451,7 @@ void MeshRenderable::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRen
 }
 
 void MeshRenderable::cleanup(IRenderer* pRenderer) {
-	IUnknown** ppUnknowns[] = {
-		(IUnknown**)&m_pVertexBuffer,
-		(IUnknown**)&m_pIndexBuffer,
-		(IUnknown**)&m_pSamplerState
-	};
 
-	releaseCOMObjs(ppUnknowns);
-
-	for (auto& pTexturePair : m_vpTextures) {
-		pTexturePair.second->Release();
-	}
-	m_vpTextures.clear();
-
-	for (auto& pBumpMapPair : m_vpBumpMaps) {
-		pBumpMapPair.second->Release();
-	}
-	m_vpBumpMaps.clear();
-
-	for (auto& pNormalMapPair : m_vpNormalMaps) {
-		pNormalMapPair.second->Release();
-	}
-	m_vpNormalMaps.clear();
 }
 
 void MeshRenderable::getBoundingSphere(FVector& oVecCenter, float& oRadius) const {

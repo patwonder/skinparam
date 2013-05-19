@@ -112,7 +112,7 @@ HRESULT D3DHelper::compileShader(const TString& strFileName, const char* szEntry
 		dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
-	ID3DBlob* pErrorBlob = nullptr;
+	CComPtr<ID3DBlob> pErrorBlob;
 	hr = D3DX11CompileFromFile(strFileName.c_str(), NULL, NULL, szEntryPoint, szShaderModel, 
 		dwShaderFlags, 0, NULL, ppBlobOut, &pErrorBlob, NULL);
 	if (FAILED(hr)) {
@@ -120,10 +120,8 @@ HRESULT D3DHelper::compileShader(const TString& strFileName, const char* szEntry
 			TRACE("[D3DHelper::compileShader] %s\t", (char*)pErrorBlob->GetBufferPointer());
 			MessageBoxA(NULL, (char*)pErrorBlob->GetBufferPointer(), "Error Compiling Shader", MB_OK | MB_ICONERROR);
 		}
-		if( pErrorBlob ) pErrorBlob->Release();
 		return hr;
 	}
-	if (pErrorBlob) pErrorBlob->Release();
 
 	return S_OK;
 }
@@ -336,7 +334,7 @@ HRESULT D3DHelper::loadTextureFromMemory(ID3D11Device* pDevice, ID3D11DeviceCont
 	initData.SysMemPitch = rowPitch;
 	initData.SysMemSlicePitch = 0;
 
-	ID3D11Texture2D* pTexture2D = nullptr;
+	CComPtr<ID3D11Texture2D> pTexture2D;
 	HRESULT hr = pDevice->CreateTexture2D(&desc, (autogen) ? nullptr : &initData, &pTexture2D);
 	if (SUCCEEDED(hr) && pTexture2D != 0) {
 		D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
@@ -347,7 +345,6 @@ HRESULT D3DHelper::loadTextureFromMemory(ID3D11Device* pDevice, ID3D11DeviceCont
 
 		hr = pDevice->CreateShaderResourceView(pTexture2D, &SRVDesc, ppTexture);
 		if (FAILED(hr)) {
-			pTexture2D->Release();
 			return hr;
 		}
 
@@ -356,8 +353,6 @@ HRESULT D3DHelper::loadTextureFromMemory(ID3D11Device* pDevice, ID3D11DeviceCont
 			pDeviceContext->UpdateSubresource(pTexture2D, 0, nullptr, pData, rowPitch, 0);
 			pDeviceContext->GenerateMips(*ppTexture);
 		}
-
-		pTexture2D->Release();
 	}
 
 	return hr;
@@ -492,13 +487,12 @@ HRESULT D3DHelper::createRenderTargetViewEx(ID3D11Device* pDevice, ID3D11Texture
 HRESULT D3DHelper::createTextureResourceView(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 											 ID3D11ShaderResourceView** ppTextureResourceView, D3D11_BIND_FLAG bindFlags)
 {
-	ID3D11Texture2D* pTexture2D = nullptr;
+	CComPtr<ID3D11Texture2D> pTexture2D;
 	HRESULT hr = createTexture2D(pDevice, width, height, format, &pTexture2D, bindFlags);
 	if (FAILED(hr))
 		return hr;
 
 	hr = createShaderResourceView(pDevice, pTexture2D, format, ppTextureResourceView);
-	pTexture2D->Release();
 	if (FAILED(hr))
 		return hr;
 
@@ -518,38 +512,38 @@ HRESULT D3DHelper::createIntermediateRenderTargetEx(ID3D11Device* pDevice, UINT 
 	if (!ppTexture2D && !ppShaderResourceView && !ppRenderTargetView)
 		return E_INVALIDARG;
 
-	ID3D11Texture2D* pTexture2D = nullptr;
+	CComPtr<ID3D11Texture2D> pTexture2D;
 	HRESULT hr = createTexture2DEx(pDevice, width, height, format, multisampled, multisampleCount, multisampleQuality,
 		&pTexture2D, (D3D11_BIND_FLAG)(D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET));
 	if (FAILED(hr))
 		return hr;
 
-	ID3D11ShaderResourceView* pShaderResourceView = nullptr;
+	CComPtr<ID3D11ShaderResourceView> pShaderResourceView;
 	if (ppShaderResourceView) {
 		hr = createShaderResourceViewEx(pDevice, pTexture2D, format, multisampled && multisampleCount > 1, &pShaderResourceView);
-		if (FAILED(hr)) {
-			pTexture2D->Release();
+		if (FAILED(hr))
 			return hr;
-		}
 	}
 
-	ID3D11RenderTargetView* pRenderTargetView = nullptr;
+	CComPtr<ID3D11RenderTargetView> pRenderTargetView;
 	if (ppRenderTargetView) {
 		hr = createRenderTargetViewEx(pDevice, pTexture2D, format, multisampled && multisampleCount > 1, &pRenderTargetView);
-		if (FAILED(hr)) {
-			pTexture2D->Release();
-			pShaderResourceView->Release();
+		if (FAILED(hr))
 			return hr;
-		}
 	}
 
 	if (ppTexture2D) {
 		*ppTexture2D = pTexture2D;
-	} else {
-		pTexture2D->Release();
+		(*ppTexture2D)->AddRef();
 	}
-	if (ppShaderResourceView) *ppShaderResourceView = pShaderResourceView;
-	if (ppRenderTargetView) *ppRenderTargetView = pRenderTargetView;
+	if (ppShaderResourceView) {
+		*ppShaderResourceView = pShaderResourceView;
+		(*ppShaderResourceView)->AddRef();
+	}
+	if (ppRenderTargetView) {
+		*ppRenderTargetView = pRenderTargetView;
+		(*ppRenderTargetView)->AddRef();
+	}
 
 	return S_OK;
 }
