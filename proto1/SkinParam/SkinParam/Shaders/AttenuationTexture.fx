@@ -24,7 +24,7 @@ float4 PS(PS_INPUT input) : SV_Target {
 			float sint = sin( thetap );
 			float cost = cos( thetap );
 			float3 L = float3( sinp * sint, cosp * sint, cost );
-			localsum += 0.5 * CookTorrance( N, V, L, normalize(V + L), m ) * sint;
+			localsum += CookTorrance( N, V, L, normalize(V + L), m ) * sint;
 		}
 		sum += localsum * (pi / 2.0) / float( numterms );
 	}

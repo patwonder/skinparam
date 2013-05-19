@@ -20,10 +20,10 @@ float4 PS(PS_INPUT input) : SV_Target {
 		color += g_weights[i] * g_gaussians[i].SampleLevel(g_samPoint, input.texCoord, 0).rgb;
 	}
 	
-	return float4(color * albedo + specular, 1.0);
+	return float4(1*color * albedo + specular, 1.0);
 }
 
 float4 PS_AA(PS_INPUT input) : SV_Target {
-	float3 color = PS(input).rgb;
+	float3 color = saturate(PS(input).rgb);
 	return float4(color, sqrt(dot(color, float3(0.299, 0.587, 0.114))));
 }

@@ -38,8 +38,8 @@ float CookTorrance(float3 N, float3 V, float3 L, float3 H, float rms_slope) {
 	float F = saturate(fresnel_term(VdotH));
 
 	// Cook-Torrance
-	return D * G * F / (PI * NdotV);
+	//return D * G * F / (PI * NdotV);
 
 	// Kelemen/Szirmay-Kalos Specular
-	//return max(D * F * NdotL / dot(L + V, L + V), 0);
+	return max(D * F * NdotL / dot(L + V, L + V), 0);
 }

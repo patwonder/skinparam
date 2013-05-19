@@ -184,7 +184,7 @@ namespace Skin {
 		Frustum m_frustum;
 
 		// Shadow mapping
-		static const UINT SM_SIZE = 1024;
+		static const UINT SM_SIZE = 1536;
 		static const UINT IDX_SHADOW_TEMPORARY = NUM_LIGHTS;
 		static const UINT NUM_SHADOW_VIEWS = IDX_SHADOW_TEMPORARY + 1;
 		D3D11_VIEWPORT m_vpShadowMap;

@@ -399,7 +399,7 @@ float distance(float3 vPosWS, float3 vNormalWS, float ldepth, matrix matViewProj
 	float d1f = sample.r + sd;
 	float d1n = sample.r - sd;
 	float d2 = ldepth;
-	return max(d2 - d1n, sd);
+	return max(d2 - sample.r, sd);
 }
 
 float3 backlit_amount(float3 vPosWS, float3 vNormalWS, float3 L, float ldepth, matrix matViewProjLight,
@@ -457,7 +457,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 		// look up shadow map for light amount
 		float lightAmount = light_amount(input.vPosWS, g_shadowMaps[i], g_samShadow, ldepth, g_matViewProjLights[i]);
 		// fresnel transmittance for diffuse irradiance
-		float fresnel_trans = saturate(1 - rho_s * 2 * g_attenuation.SampleLevel(g_samAttenuation, float2(NdotL, m), 0).r);
+		float fresnel_trans = saturate(1 - rho_s * g_attenuation.SampleLevel(g_samAttenuation, float2(NdotL, m), 0).r);
 
 		// calculate transmittance from back of the object
 		float3 backlitAmount = backlit_amount(input.vPosWS, input.vNormalWS, L, ldepth, g_matViewProjLights[i],
