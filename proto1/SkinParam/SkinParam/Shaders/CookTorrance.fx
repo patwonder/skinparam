@@ -5,7 +5,7 @@ static const float INDEX = 1.4;
 static const float FRESNEL_R0 = (1 - INDEX) * (1 - INDEX) / ((1 + INDEX) * (1 + INDEX));
 
 float fresnel_term(float cosA) {
-	return lerp(1, FRESNEL_R0 + (1 - FRESNEL_R0) * pow(1.0 - cosA, 5.0), 1);
+	return lerp(1, FRESNEL_R0 + (1 - FRESNEL_R0) * pow(1.0 - cosA, 5.0), 0.88);
 }
 
 float geometry_term(float NdotL, float NdotH, float NdotV, float VdotH) {

@@ -204,6 +204,7 @@ namespace Skin {
 		GaussianShadowConstantBuffer m_cbGaussainShadow;
 
 		// Bloom filter
+		ShaderGroup* m_psgBloomDetect;
 		ShaderGroup* m_psgBloomVertical;
 		ShaderGroup* m_psgBloomHorizontal;
 		ShaderGroup* m_psgBloomCombine;
@@ -220,6 +221,8 @@ namespace Skin {
 		static const UINT BLOOM_PASSES = 6;
 		CComPtr<ID3D11ShaderResourceView> m_pSRVBloomSource;
 		CComPtr<ID3D11RenderTargetView> m_pRTBloomSource;
+		CComPtr<ID3D11ShaderResourceView> m_pSRVBloomDetect;
+		CComPtr<ID3D11RenderTargetView> m_pRTBloomDetect;
 		CComPtr<ID3D11ShaderResourceView> m_pSRVBloomTemporary;
 		CComPtr<ID3D11RenderTargetView> m_pRTBloomTemporary;
 		CComPtr<ID3D11ShaderResourceView> m_apSRVBloom[BLOOM_PASSES];

@@ -18,9 +18,20 @@ cbuffer Bloom : register(b0) {
 // Standard Deviation = 0.8
 static const int KERNEL_WIDTH = 5;
 static const float KERNEL[] = {  0.0304, 0.2356, 0.4680, 0.2356, 0.0304 };
+//static const float KERNEL[] = {  0.2, 0.2, 0.2, 0.2, 0.2 };
 
 static const int KERNEL_START = -(KERNEL_WIDTH - 1) / 2;
 static const int KERNEL_END = -KERNEL_START;
+
+static const float2 DETECT_DIR[] = { { 0.0, 0.0 }, { -1.0, 0.0 }, { 1.0, 0.0 }, { 0.0, -1.0 }, { 0.0, 1.0 } };
+
+float4 PS_Detect(PS_INPUT input) : SV_Target {
+	float3 color = 1e30;
+	for (uint i = 0; i < 5; i++) {
+		color = min(color, g_screenTexture.SampleLevel(g_samPoint, input.texCoord + DETECT_DIR[i] * rcpScreenSize, 0).rgb);
+	}
+	return float4(max(color - 1.0, 0.0), 1.0);
+}
 
 float4 PS_Vertical(PS_INPUT input) : SV_Target {
 	float x = input.texCoord.x;
@@ -28,7 +39,7 @@ float4 PS_Vertical(PS_INPUT input) : SV_Target {
 	for (int i = KERNEL_START; i <= KERNEL_END; i++) {
 		float y = input.texCoord.y + i * rcpScreenSize.y;
 		float3 sample = g_screenTexture.SampleLevel(g_samPoint, float2(x, y), sampleLevel).rgb;
-		result += KERNEL[i - KERNEL_START] * max(sample - 1, 0);
+		result += KERNEL[i - KERNEL_START] * sample;
 	}
 	return float4(result, 1.0);
 }

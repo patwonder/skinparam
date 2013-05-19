@@ -102,6 +102,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_psgGaussianShadowHorizontal(nullptr),
 	  m_psgCopy(nullptr),
 	  m_psgCopyLinear(nullptr),
+	  m_psgBloomDetect(nullptr),
 	  m_psgBloomVertical(nullptr),
 	  m_psgBloomHorizontal(nullptr),
 	  m_psgBloomCombine(nullptr),
@@ -185,6 +186,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	m_vppShaderGroups.push_back(&m_psgGaussianShadowHorizontal);
 	m_vppShaderGroups.push_back(&m_psgCopy);
 	m_vppShaderGroups.push_back(&m_psgCopyLinear);
+	m_vppShaderGroups.push_back(&m_psgBloomDetect);
 	m_vppShaderGroups.push_back(&m_psgBloomVertical);
 	m_vppShaderGroups.push_back(&m_psgBloomHorizontal);
 	m_vppShaderGroups.push_back(&m_psgBloomCombine);
@@ -498,6 +500,7 @@ void Renderer::loadShaders() {
 	m_psgGaussianShadowHorizontal = new ShaderGroup(m_pDevice, _T("GaussianShadow.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
 
 	// Bloom filter
+	m_psgBloomDetect = new ShaderGroup(m_pDevice, _T("Bloom.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Detect");
 	m_psgBloomVertical = new ShaderGroup(m_pDevice, _T("Bloom.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
 	m_psgBloomHorizontal = new ShaderGroup(m_pDevice, _T("Bloom.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
 	m_psgBloomCombine = new ShaderGroup(m_pDevice, _T("BloomCombine.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
@@ -771,11 +774,15 @@ void Renderer::initBloom() {
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbBloom, &m_pBloomConstantBuffer),
 		_T("Failed to create bloom constant buffer"));
 
-	checkFailure(createIntermediateRenderTargetEx(m_pDevice, m_rectView.Width(), m_rectView.Height(), DXGI_FORMAT_R32G32B32A32_FLOAT, false, 1, 0,
+	checkFailure(createIntermediateRenderTarget(m_pDevice, m_rectView.Width(), m_rectView.Height(), DXGI_FORMAT_R32G32B32A32_FLOAT,
 		nullptr, &m_pSRVBloomSource, &m_pRTBloomSource),
 		_T("Failed to create bloom source texture"));
 
-	for (UINT i = 0; i < BLOOM_PASSES; i++) {
+	checkFailure(createIntermediateRenderTargetEx(m_pDevice, m_rectView.Width(), m_rectView.Height(), DXGI_FORMAT_R32G32B32A32_FLOAT, false, 1, 0,
+		nullptr, &m_pSRVBloomDetect, &m_pRTBloomDetect),
+		_T("Failed to create bloom detect texture"));
+
+	for (UINT i = 1; i < BLOOM_PASSES; i++) {
 		UINT width = m_rectView.Width() >> i;
 		UINT height = m_rectView.Height() >> i;
 		checkFailure(createIntermediateRenderTarget(m_pDevice, width, height, DXGI_FORMAT_R32G32B32A32_FLOAT,
@@ -1158,20 +1165,33 @@ void Renderer::blurShadowMaps() {
 }
 
 void Renderer::doBloom() {
-	// Generate mip-maps for shader use
-	m_pDeviceContext->GenerateMips(m_pSRVBloomSource);
-
-	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pBloomConstantBuffer);
+	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pBloomConstantBuffer.p);
 
 	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState);
 	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState);
 	
+	// Detect bloom area
+	m_cbBloom.rcpScreenSize = XMFLOAT2(1.0f / m_rectView.Width(), 1.0f / m_rectView.Height());
+	m_pDeviceContext->UpdateSubresource(m_pBloomConstantBuffer, 0, nullptr, &m_cbBloom, 0, 0);
+
+	m_psgBloomDetect->use(m_pDeviceContext);
+	m_pDeviceContext->OMSetRenderTargets(1, &m_pRTBloomDetect.p, nullptr);
+	m_pDeviceContext->PSSetShaderResources(0, 1, &m_pSRVBloomSource.p);
+
+	m_pDeviceContext->Draw(6, 0);
+
+	if (m_bDump)
+		dumpRenderTargetToFile(m_pRTBloomDetect, _T("BloomDetect"));
+
+	// Generate mip-maps for shader use
+	m_pDeviceContext->GenerateMips(m_pSRVBloomDetect);
+
 	// for unbinding shader resource views
 	ID3D11ShaderResourceView* apNullSRVs[BLOOM_PASSES + 1] = { nullptr };
 
-	// m_pSRVBloomSource -> m_apRTBloom[0~BLOOM_PASSES-1]
-	for (UINT i = 0; i < BLOOM_PASSES; i++) {
+	// m_pSRVBloomDetect -> m_apRTBloom[1~BLOOM_PASSES-1]
+	for (UINT i = 1; i < BLOOM_PASSES; i++) {
 		// set the viewport
 		m_pDeviceContext->RSSetViewports(1, &m_avpBloom[i]);
 
@@ -1180,17 +1200,17 @@ void Renderer::doBloom() {
 		m_cbBloom.sampleLevel = i;
 		m_pDeviceContext->UpdateSubresource(m_pBloomConstantBuffer, 0, nullptr, &m_cbBloom, 0, 0);
 
-		// m_pSRVBloomSource[mip level i] ->(vertical blur)-> m_apRTBloomTemp[i]
+		// m_pSRVBloomDetect[mip level i] ->(vertical blur)-> m_apRTBloomTemp[i]
 		m_psgBloomVertical->use(m_pDeviceContext);
-		m_pDeviceContext->OMSetRenderTargets(1, &m_apRTBloomTemp[i], nullptr);
-		m_pDeviceContext->PSSetShaderResources(0, 1, &m_pSRVBloomSource);
+		m_pDeviceContext->OMSetRenderTargets(1, &m_apRTBloomTemp[i].p, nullptr);
+		m_pDeviceContext->PSSetShaderResources(0, 1, &m_pSRVBloomDetect.p);
 
 		m_pDeviceContext->Draw(6, 0);
 
 		// m_apSRVBloomTemp[i] ->(horizontal blur)-> m_apRTBloom[i]
 		m_psgBloomHorizontal->use(m_pDeviceContext);
-		m_pDeviceContext->OMSetRenderTargets(1, &m_apRTBloom[i], nullptr);
-		m_pDeviceContext->PSSetShaderResources(0, 1, &m_apSRVBloomTemp[i]);
+		m_pDeviceContext->OMSetRenderTargets(1, &m_apRTBloom[i].p, nullptr);
+		m_pDeviceContext->PSSetShaderResources(0, 1, &m_apSRVBloomTemp[i].p);
 
 		m_pDeviceContext->Draw(6, 0);
 
@@ -1198,14 +1218,14 @@ void Renderer::doBloom() {
 
 		if (m_bDump) {
 			TStringStream tss;
-			tss << _T("Bloom_") << i + 1;
+			tss << _T("Bloom_") << i;
 			dumpRenderTargetToFile(m_apRTBloom[i], tss.str());
 		}
 	}
 
 	m_pDeviceContext->RSSetViewports(1, &m_vpScreen);
 
-	// m_pSRVBloomSource + m_apSRVBloom[0~BLOOM_PASSES-1] ->(combine)-> (final / post process)
+	// m_pSRVBloomSource + m_apSRVBloom[1~BLOOM_PASSES-1] ->(combine)-> (final / post process)
 	(m_bPostProcessAA ? m_psgBloomCombineAA : m_psgBloomCombine)->use(m_pDeviceContext);
 	m_pDeviceContext->OMSetRenderTargets(1, m_bPostProcessAA ? &m_apRTSSS[IDX_SSS_TEMPORARY] : &m_pRenderTargetView, nullptr);
 	ID3D11ShaderResourceView* apSRVs[BLOOM_PASSES + 1] = { m_pSRVBloomSource };

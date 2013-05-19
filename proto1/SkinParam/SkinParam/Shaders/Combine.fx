@@ -20,7 +20,7 @@ float4 PS(PS_INPUT input) : SV_Target {
 		color += g_weights[i] * g_gaussians[i].SampleLevel(g_samPoint, input.texCoord, 0).rgb;
 	}
 	
-	return float4(clamp(color * albedo + specular, 0, 2.0), 1.0);
+	return float4(clamp(color * albedo + specular, 0, 5.0), 1.0);
 }
 
 float4 PS_AA(PS_INPUT input) : SV_Target {
