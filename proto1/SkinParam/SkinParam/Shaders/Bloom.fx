@@ -15,9 +15,9 @@ cbuffer Bloom : register(b0) {
 //0.0807, 0.1062, 0.1253, 0.1324, 0.1253, 0.1062, 0.0807, 0.0549, \
 //0.0334, 0.0182, 0.0089, 0.0039, 0.0015, 0.0005, 0.0003};
 
-// Standard Deviation = 0.8
+// Standard Deviation ~ 0.9 (slightly smaller)
 static const int KERNEL_WIDTH = 5;
-static const float KERNEL[] = {  0.0304, 0.2356, 0.4680, 0.2356, 0.0304 };
+static const float KERNEL[] = { 0.0478, 0.2415, 0.4214, 0.2415, 0.0478 };
 //static const float KERNEL[] = {  0.2, 0.2, 0.2, 0.2, 0.2 };
 
 static const int KERNEL_START = -(KERNEL_WIDTH - 1) / 2;
