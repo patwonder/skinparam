@@ -191,6 +191,7 @@ namespace Skin {
 		CComPtr<ID3D11ShaderResourceView> m_apSRVShadowMaps[NUM_SHADOW_VIEWS];
 		CComPtr<ID3D11DepthStencilView> m_pShadowMapDepthStencilView;
 		CComPtr<ID3D11SamplerState> m_pShadowMapSamplerState;
+		CComPtr<ID3D11SamplerState> m_pShadowMapDepthSamplerState;
 
 		// Bloom filter
 		ShaderGroup* m_psgBloomDetect;
@@ -280,7 +281,6 @@ namespace Skin {
 
 		void initTransform();
 		XMMATRIX getViewProjMatrix(const Camera& camera, const XMMATRIX& matProjection, XMMATRIX& matView);
-		Camera getLightCamera(const Light& light);
 		void updateTransform();
 		void updateTransformForLight(const Light& light);
 		void updateTransform(const Camera& camera, const XMMATRIX& matProjection, float fAspectRatio);
@@ -376,6 +376,8 @@ namespace Skin {
 		void dump();
 
 		D3D_DRIVER_TYPE getDriverType() const { return m_driverType; }
+
+		Camera getLightCamera(const Light& light);
 
 		// IRenderer implementation
 		ID3D11Device* getDevice() const override;

@@ -393,6 +393,20 @@ HRESULT D3DHelper::createSamplerComparisonState(ID3D11Device* pDevice, D3D11_FIL
 												D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, D3D11_COMPARISON_FUNC comp,
 												ID3D11SamplerState** ppSamplerState)
 {
+	return createSamplerComparisonStateEx(pDevice, filter, addressU, addressV, addressW, comp, XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f), ppSamplerState);
+}
+
+HRESULT D3DHelper::createSamplerStateEx(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
+										D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW,
+										XMFLOAT4 borderColor, ID3D11SamplerState** ppSamplerState)
+{
+	return createSamplerComparisonStateEx(pDevice, filter, addressU, addressV, addressW, D3D11_COMPARISON_NEVER, borderColor, ppSamplerState);
+}
+
+HRESULT D3DHelper::createSamplerComparisonStateEx(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
+												  D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, D3D11_COMPARISON_FUNC comp,
+												  XMFLOAT4 borderColor, ID3D11SamplerState** ppSamplerState)
+{
 	D3D11_SAMPLER_DESC sampDesc;
 	ZeroMemory( &sampDesc, sizeof(sampDesc) );
 	sampDesc.Filter = filter;
@@ -402,13 +416,13 @@ HRESULT D3DHelper::createSamplerComparisonState(ID3D11Device* pDevice, D3D11_FIL
 	sampDesc.ComparisonFunc = comp;
 	sampDesc.MinLOD = 0;
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	memcpy(sampDesc.BorderColor, &borderColor, sizeof(sampDesc.BorderColor));
 	HRESULT hr = pDevice->CreateSamplerState(&sampDesc, ppSamplerState);
 	if (FAILED(hr))
 		return hr;
 
 	return S_OK;
 }
-
 
 HRESULT D3DHelper::createTexture2D(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 								   ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags)

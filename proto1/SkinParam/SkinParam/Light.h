@@ -23,5 +23,7 @@ namespace Skin {
 			  fAtten0(fAtten0), fAtten1(fAtten1), fAtten2(fAtten2)
 		{
 		}
+
+
 	};
 } // namespace Skin

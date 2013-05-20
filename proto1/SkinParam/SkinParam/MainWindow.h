@@ -40,7 +40,9 @@ namespace Skin {
 
 		// mouse actions
 		bool m_bChangingView;
+		bool m_bChangingLight;
 		CPoint m_ptStart;
+		Light* m_pCurrentLight;
 
 		static double getViewModifier(UINT nFlags);
 

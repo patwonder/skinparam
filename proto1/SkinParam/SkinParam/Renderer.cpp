@@ -34,7 +34,7 @@ namespace Skin {
 	}
 }
 
-const float Renderer::CLIPPING_LIGHT_NEAR = 5.0f;
+const float Renderer::CLIPPING_LIGHT_NEAR = 0.1f;
 const float Renderer::CLIPPING_LIGHT_FAR = 20.0f;
 const float Renderer::FOV_LIGHT = 50.0f;
 const float Renderer::CLIPPING_SCENE_NEAR = 0.1f;
@@ -598,11 +598,15 @@ void Renderer::initShadowMaps() {
 	checkFailure(m_pDevice->CreateDepthStencilView(pTexture2D, &descDSV, &m_pShadowMapDepthStencilView),
 		_T("Failed to create depth stencil view for shadow maps"));
 
-	// Create shadow map sampler state	
-	checkFailure(createSamplerComparisonState(m_pDevice, D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
-		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
-		D3D11_COMPARISON_LESS, &m_pShadowMapSamplerState),
+	// Create shadow map sampler state (clamp to border with minimum L vector length)
+	checkFailure(createSamplerComparisonStateEx(m_pDevice, D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+		D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER,
+		D3D11_COMPARISON_LESS, XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f), &m_pShadowMapSamplerState),
 		_T("Failed to create shadow map sampler comparison state"));
+	checkFailure(createSamplerStateEx(m_pDevice, D3D11_FILTER_MIN_MAG_MIP_POINT,
+		D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER,
+		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f), &m_pShadowMapDepthSamplerState),
+		_T("Failed to create shadow map depth sampler state"));
 
 	// Initialize shadow map view port
 	D3D11_VIEWPORT& vp = m_vpShadowMap;
@@ -615,10 +619,10 @@ void Renderer::initShadowMaps() {
 }
 
 void Renderer::bindShadowMaps() {
-	// use trilinear sampler for shadow maps
+	// use trilinear comparison sampler (clamp to border) for shadow maps
 	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAP, 1, &m_pShadowMapSamplerState.p);
-	// use point sampler for shadow depth
-	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAPDEPTH, 1, &m_pBumpSamplerState.p);
+	// use point sampler (clamp to border) for shadow depth
+	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAPDEPTH, 1, &m_pShadowMapDepthSamplerState.p);
 
 	m_pDeviceContext->PSSetShaderResources(SLOT_SHADOWMAP, NUM_LIGHTS, &m_apSRVShadowMaps[0].p);
 }

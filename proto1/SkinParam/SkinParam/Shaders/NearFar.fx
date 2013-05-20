@@ -3,7 +3,7 @@
 static const float DEPTH_NEAR = 0.1;
 static const float DEPTH_FAR = 20.0;
 
-static const float LIGHT_NEAR = 5.0;
+static const float LIGHT_NEAR = 0.1;
 static const float LIGHT_FAR = 20.0;
 
 // converts from camera space depth to projection space depth

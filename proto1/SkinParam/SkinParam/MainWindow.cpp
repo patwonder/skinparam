@@ -128,6 +128,9 @@ CMainWindow::CMainWindow()
 	m_bChangingView = false;
 	m_camera.restrictView(1.2, 8.0);
 
+	m_bChangingLight = false;
+	m_pCurrentLight = m_pLight1;
+
 	m_pRenderer->addRenderable(m_puirInfo);
 	m_pRenderer->addRenderable(m_puirGeneral);
 	m_pRenderer->addRenderable(m_puirSSS);
@@ -415,7 +418,7 @@ void CALLBACK CMainWindow::sldSSSStrength_Handler(CDXUTControl* sender, UINT nEv
 }
 
 BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {
-	if (m_bChangingView)
+	if (m_bChangingView || m_bChangingLight)
 		return FALSE;
 
 	if (m_pDialogResourceManager->MsgProc(pMsg->hwnd, pMsg->message, pMsg->wParam, pMsg->lParam)) {
@@ -468,20 +471,29 @@ afx_msg void CMainWindow::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags) {
 }
 
 afx_msg void CMainWindow::OnLButtonDown(UINT nFlags, CPoint point) {
+	if (!m_bChangingView)
+		SetCapture();
+	m_bChangingLight = true;
+	m_ptStart = point;
 }
 
 afx_msg void CMainWindow::OnRButtonDown(UINT nFlags, CPoint point) {
-	SetCapture();
+	if (!m_bChangingLight)
+		SetCapture();
 	m_bChangingView = true;
 	m_ptStart = point;
 }
 
 afx_msg void CMainWindow::OnLButtonUp(UINT nFlags, CPoint point) {
+	m_bChangingLight = false;
+	if (!m_bChangingView)
+		ReleaseCapture();
 }
 
 afx_msg void CMainWindow::OnRButtonUp(UINT nFlags, CPoint point) {
 	m_bChangingView = false;
-	ReleaseCapture();
+	if (!m_bChangingLight)
+		ReleaseCapture();
 }
 
 afx_msg void CMainWindow::OnLButtonDblClk(UINT nFlags, CPoint point) {
@@ -490,11 +502,20 @@ afx_msg void CMainWindow::OnLButtonDblClk(UINT nFlags, CPoint point) {
 afx_msg void CMainWindow::OnMouseMove(UINT nFlags, CPoint point) {
 	if (m_bChangingView) {
 		CPoint ptDist = (point - m_ptStart);
-		m_ptStart = point;
 
 		double modifier = getViewModifier(nFlags);
 		m_camera.changeView(modifier * ptDist.x * Math::PI / 720, modifier * ptDist.y * Math::PI / 720);
 	}
+	if (m_bChangingLight) {
+		Camera c = m_pRenderer->getLightCamera(*m_pCurrentLight);
+		CPoint ptDist = (point - m_ptStart);
+
+		double modifier = getViewModifier(nFlags);
+		c.changeView(modifier * ptDist.x * Math::PI / 720, modifier * ptDist.y * Math::PI / 720);
+		m_pCurrentLight->vecPosition = c.getVecEye();
+	}
+	if (m_bChangingView || m_bChangingLight)
+		m_ptStart = point;
 }
 
 afx_msg BOOL CMainWindow::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt) {

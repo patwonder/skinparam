@@ -71,24 +71,18 @@ float light_amount(float3 worldPos, Texture2D shadowMap, SamplerComparisonState 
 	// Texture space point location
 	float2 vPosTeSL = float2(0.5, -0.5) * (vPosPSL4.xy / vPosPSL4.w) + 0.5;
 
-	float lightAmount;
-	if (vPosTeSL.x < 0.0 || vPosTeSL.x > 1.0 || vPosTeSL.y < 0.0 || vPosTeSL.y > 1.0) {
-		// out of shadow map, lit the texel
-		lightAmount = 1.0;
-	} else {
-		ldepth -= SHADOW_BIAS;
-		float samples = 3;
-		float sample_start = -(samples - 1.0) / 2.0;
-		float sample_end = -sample_start;
-		float2 rcpScreenSize = float2(1.0 / SM_SIZE, 1.0 / SM_SIZE);
-		lightAmount = 0.0;
-		for (float x = sample_start; x <= sample_end; x += 1.0) {
-			for (float y = sample_start; y <= sample_end; y += 1.0) {
-				lightAmount += shadowMap.SampleCmpLevelZero(samShadow, vPosTeSL + float2(x, y) * rcpScreenSize, ldepth).r;
-			}
+	float lightAmount = 0.0;
+	ldepth -= SHADOW_BIAS;
+	float samples = 3;
+	float sample_start = -(samples - 1.0) / 2.0;
+	float sample_end = -sample_start;
+	float2 rcpScreenSize = float2(1.0 / SM_SIZE, 1.0 / SM_SIZE);
+	for (float x = sample_start; x <= sample_end; x += 1.0) {
+		for (float y = sample_start; y <= sample_end; y += 1.0) {
+			lightAmount += shadowMap.SampleCmpLevelZero(samShadow, vPosTeSL + float2(x, y) * rcpScreenSize, ldepth).r;
 		}
-		lightAmount /= samples * samples;
 	}
+	lightAmount /= samples * samples;
 	return lightAmount;
 }
 
