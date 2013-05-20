@@ -91,7 +91,7 @@ const double CMainWindow::SHIFT_MAGNIFIER = 3.0;
 CMainWindow::CMainWindow()
 	: m_camera(Vector(0, -5, 0), Vector(0, 0, 0), Vector(0, 0, 1))
 {
-	CSize resolution(804, 604);
+	CSize resolution(1284, 724);
 	Create(NULL, _APP_NAME_, WS_OVERLAPPEDWINDOW & (~WS_SIZEBOX) & (~WS_MAXIMIZEBOX), 
 		CRect(0, 0, resolution.cx, resolution.cy));
 

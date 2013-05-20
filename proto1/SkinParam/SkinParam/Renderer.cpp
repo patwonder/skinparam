@@ -1177,6 +1177,9 @@ void Renderer::doBloom() {
 void Renderer::copyRender(ID3D11ShaderResourceView* pSRV, ID3D11RenderTargetView* pRT, bool bLinear,
 						  XMFLOAT4 scaleFactor, XMFLOAT4 defaultValue, XMFLOAT4 lerps)
 {
+	bool bWireframe = getWireframe();
+	if (bWireframe) setWireframe(false);
+
 	m_cbCopy.scaleFactor = scaleFactor;
 	m_cbCopy.defaultValue = defaultValue;
 	m_cbCopy.lerps = lerps;
@@ -1195,6 +1198,8 @@ void Renderer::copyRender(ID3D11ShaderResourceView* pSRV, ID3D11RenderTargetView
 
 	ID3D11ShaderResourceView* pNullSRV = nullptr;
 	m_pDeviceContext->PSSetShaderResources(0, 1, &pNullSRV);
+
+	if (bWireframe) setWireframe(true);
 }
 
 void Renderer::render() {
