@@ -118,12 +118,12 @@ CMainWindow::CMainWindow()
 	//m_pRenderer->addRenderable(m_pTriangle);
 	m_pRenderer->addRenderable(m_pHead);
 
-	m_pLight1 = new Light(Vector(3, 7, 0), Color::Black, Color::White * 1.6f, Color::White * 3.2f, 1.0f, 0.1f, 0.0f);
-	m_pLight2 = new Light(Vector(-3, -3, 5), Color::Black, Color::White * 1.6f, Color::White * 3.2f, 1.0f, 0.1f, 0.0f);
+	m_pLight1 = new Light(Vector(3, 7, 0), Color::Black, Color::White * 3.2f, Color::White * 3.2f, 1.0f, 0.1f, 0.0f);
+	m_pLight2 = new Light(Vector(-3, -3, 5), Color::Black, Color::White * 3.2f, Color::White * 3.2f, 1.0f, 0.1f, 0.0f);
 	m_pRenderer->addLight(m_pLight1);
 	m_pRenderer->addLight(m_pLight2);
 
-	m_pRenderer->setGlobalAmbient(Color::White * 0.05f);
+	m_pRenderer->setGlobalAmbient(Color::White * 0.0005f);
 
 	m_bChangingView = false;
 	m_camera.restrictView(1.2, 8.0);
@@ -238,7 +238,7 @@ void CMainWindow::initGeneralDialog() {
 	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_TESSELLATION,    "(T)essellation", Tessellation );
 	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_BUMP,            "(B)ump mapping", Bump         );
 	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_WIREFRAME,       "Wire(f)rame"   , Wireframe    );
-	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_VSM_BLUR,        "(V)SM Blurring", VSMBlur      );
+//	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_VSM_BLUR,        "(V)SM Blurring", VSMBlur      );
 	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_POST_PROCESS_AA, "FX(A)A"        , PostProcessAA);
 	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_BLOOM,           "Bloom"         , Bloom        );
 
@@ -349,7 +349,7 @@ void CMainWindow::updateUI() {
 	UpdateUIForBool(Tessellation);
 	UpdateUIForBool(Bump);
 	UpdateUIForBool(Wireframe);
-	UpdateUIForBool(VSMBlur);
+//	UpdateUIForBool(VSMBlur);
 	UpdateUIForBool(PostProcessAA);
 	UpdateUIForBool(Bloom);
 
@@ -394,7 +394,7 @@ void CMainWindow::unregisterEventHandler(int nControlID) {
 DefineHandlerForBool(Tessellation)
 DefineHandlerForBool(Bump)
 DefineHandlerForBool(Wireframe)
-DefineHandlerForBool(VSMBlur)
+//DefineHandlerForBool(VSMBlur)
 DefineHandlerForBool(PostProcessAA)
 DefineHandlerForBool(Bloom)
 

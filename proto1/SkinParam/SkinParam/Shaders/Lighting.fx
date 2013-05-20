@@ -6,9 +6,9 @@
 #include "NearFar.fx"
 
 static const uint NUM_LIGHTS = 2;
-static const float SHADOW_VARIANCE_MIN = 4e-4;
-static const float SHADOW_LIGHTAMOUNT_MIN = 0.5;
+static const float SHADOW_BIAS = 1.5e-2;
 static const float RMS_SLOPE = 0.27;
+static const uint SM_SIZE = 2048;
 
 Texture2D g_texture : register(t0);
 Texture2D g_bump : register(t1);
@@ -19,7 +19,8 @@ SamplerState g_samTexture : register(s0);
 SamplerState g_samBump : register(s1);
 SamplerState g_samNormal : register(s2);
 SamplerState g_samAttenuation : register(s3);
-SamplerState g_samShadow : register(s4);
+SamplerComparisonState g_samShadow : register(s4);
+SamplerState g_samShadowDepth : register(s5);
 
 struct Light {
 	float3 ambient;
@@ -64,11 +65,7 @@ float light_attenuation(float3 pos, Light l) {
 	return 1 / (l.attenuation.x + l.attenuation.y * dist + l.attenuation.z * dist * dist);
 }
 
-float dampedLightAmount(float lightAmount) {
-	return max(0.0, lightAmount - SHADOW_LIGHTAMOUNT_MIN) / (1.0 - SHADOW_LIGHTAMOUNT_MIN);
-}
-
-float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow, float ldepth, matrix matViewProjLight) {
+float light_amount(float3 worldPos, Texture2D shadowMap, SamplerComparisonState samShadow, float ldepth, matrix matViewProjLight) {
 	float4 vPosPSL4 = mul(float4(worldPos, 1.0), matViewProjLight);
 
 	// Texture space point location
@@ -79,26 +76,25 @@ float light_amount(float3 worldPos, Texture2D shadowMap, SamplerState samShadow,
 		// out of shadow map, lit the texel
 		lightAmount = 1.0;
 	} else {
-		float2 vsmSample = shadowMap.Sample(samShadow, vPosTeSL).rg;
-		float depth = ldepth;
-		float meanDepth = vsmSample.r;
-		float meanDepthSquared = vsmSample.g;
-		if (depth <= meanDepth) {
-			lightAmount = 1.0;
-		} else {
-			// Calculate variance, addressing numerical inaccuracy
-			float variance = max(SHADOW_VARIANCE_MIN, meanDepthSquared - meanDepth * meanDepth);
-			float depthDiff = depth - meanDepth;
-
-			lightAmount = dampedLightAmount(variance / (variance + depthDiff * depthDiff));
+		ldepth -= SHADOW_BIAS;
+		float samples = 3;
+		float sample_start = -(samples - 1.0) / 2.0;
+		float sample_end = -sample_start;
+		float2 rcpScreenSize = float2(1.0 / SM_SIZE, 1.0 / SM_SIZE);
+		lightAmount = 0.0;
+		for (float x = sample_start; x <= sample_end; x += 1.0) {
+			for (float y = sample_start; y <= sample_end; y += 1.0) {
+				lightAmount += shadowMap.SampleCmpLevelZero(samShadow, vPosTeSL + float2(x, y) * rcpScreenSize, ldepth).r;
+			}
 		}
+		lightAmount /= samples * samples;
 	}
 	return lightAmount;
 }
 
 float3 phong_shadow(Material mt, float3 ambient, Light lights[NUM_LIGHTS],
 					float3 eyePos, float3 worldPos, float3 color, float3 normal,
-					Texture2D shadowMaps[NUM_LIGHTS], SamplerState samShadow, matrix matViewLights[NUM_LIGHTS], matrix matViewProjLights[NUM_LIGHTS])
+					Texture2D shadowMaps[NUM_LIGHTS], SamplerComparisonState samShadow, matrix matViewLights[NUM_LIGHTS], matrix matViewProjLights[NUM_LIGHTS])
 {
 	// global ambient
 	float3 result = color * ambient * mt.ambient;

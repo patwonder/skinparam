@@ -73,8 +73,6 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_psgSSSCombineAA(nullptr),
 	  m_psgSSSAttenuationTexture(nullptr),
 	  m_psgPostProcessAA(nullptr),
-	  m_psgGaussianShadowVertical(nullptr),
-	  m_psgGaussianShadowHorizontal(nullptr),
 	  m_psgCopy(nullptr),
 	  m_psgCopyLinear(nullptr),
 	  m_psgBloomDetect(nullptr),
@@ -118,8 +116,6 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	m_vppShaderGroups.push_back(&m_psgSSSCombineAA);
 	m_vppShaderGroups.push_back(&m_psgSSSAttenuationTexture);
 	m_vppShaderGroups.push_back(&m_psgPostProcessAA);
-	m_vppShaderGroups.push_back(&m_psgGaussianShadowVertical);
-	m_vppShaderGroups.push_back(&m_psgGaussianShadowHorizontal);
 	m_vppShaderGroups.push_back(&m_psgCopy);
 	m_vppShaderGroups.push_back(&m_psgCopyLinear);
 	m_vppShaderGroups.push_back(&m_psgBloomDetect);
@@ -417,10 +413,6 @@ void Renderer::loadShaders() {
 	// Post-process Anti-aliasing
 	m_psgPostProcessAA = new ShaderGroup(m_pDevice, _T("PostProcessAA.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS");
 
-	// Shadow map blurring
-	m_psgGaussianShadowVertical = new ShaderGroup(m_pDevice, _T("GaussianShadow.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
-	m_psgGaussianShadowHorizontal = new ShaderGroup(m_pDevice, _T("GaussianShadow.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Horizontal");
-
 	// Bloom filter
 	m_psgBloomDetect = new ShaderGroup(m_pDevice, _T("Bloom.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Detect");
 	m_psgBloomVertical = new ShaderGroup(m_pDevice, _T("Bloom.fx"), empty_layout, 0, "VS_Quad", nullptr, nullptr, "PS_Vertical");
@@ -587,8 +579,8 @@ void Renderer::updateTessellation() {
 
 void Renderer::initShadowMaps() {
 	for (UINT i = 0; i < NUM_SHADOW_VIEWS; i++) {
-		checkFailure(createIntermediateRenderTargetEx(m_pDevice, SM_SIZE, SM_SIZE, DXGI_FORMAT_R32G32_FLOAT,
-			i == IDX_SHADOW_TEMPORARY ? true : true, 1, 0, nullptr, &m_apSRVShadowMaps[i], &m_apRTShadowMaps[i]),
+		checkFailure(createIntermediateRenderTarget(m_pDevice, SM_SIZE, SM_SIZE, DXGI_FORMAT_R32_FLOAT,
+			nullptr, &m_apSRVShadowMaps[i], &m_apRTShadowMaps[i]),
 			_T("Failed to create intermediate render target for shadow map"));
 	}
 
@@ -620,16 +612,14 @@ void Renderer::initShadowMaps() {
 	vp.MaxDepth = 1.0f;
 	vp.TopLeftX = 0.0f;
 	vp.TopLeftY = 0.0f;
-
-	// Initialize constant buffer for shadow map blurring
-	m_cbGaussainShadow.rcpScreenSize = XMFLOAT2(1.0f / SM_SIZE, 1.0f / SM_SIZE);
-	checkFailure(createConstantBuffer(m_pDevice, &m_cbGaussainShadow, &m_pGaussianShadowConstantBuffer),
-		_T("Failed to create gaussian shadow constant buffer"));
 }
 
 void Renderer::bindShadowMaps() {
 	// use trilinear sampler for shadow maps
-	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAP, 1, &m_pLinearSamplerState.p);
+	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAP, 1, &m_pShadowMapSamplerState.p);
+	// use point sampler for shadow depth
+	m_pDeviceContext->PSSetSamplers(SLOT_SHADOWMAPDEPTH, 1, &m_pBumpSamplerState.p);
+
 	m_pDeviceContext->PSSetShaderResources(SLOT_SHADOWMAP, NUM_LIGHTS, &m_apSRVShadowMaps[0].p);
 }
 
@@ -1063,40 +1053,6 @@ void Renderer::doPostProcessAA() {
 	}
 }
 
-void Renderer::blurShadowMaps() {
-	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pGaussianShadowConstantBuffer.p);
-
-	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState.p);
-	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState.p);
-
-	ID3D11RenderTargetView* pRTTemporary = m_apRTShadowMaps[IDX_SHADOW_TEMPORARY];
-	ID3D11ShaderResourceView* pSRVTemporary = m_apSRVShadowMaps[IDX_SHADOW_TEMPORARY];
-
-	for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
-		// shadow map ->(vertical blur)-> temporary
-		m_psgGaussianShadowVertical->use(m_pDeviceContext);
-		m_pDeviceContext->OMSetRenderTargets(1, &pRTTemporary, nullptr);
-		m_pDeviceContext->PSSetShaderResources(0, 1, &m_apSRVShadowMaps[i].p);
-
-		m_pDeviceContext->Draw(6, 0);
-
-		// unbind shader resources
-		ID3D11ShaderResourceView* pNullSRV = nullptr;
-		m_pDeviceContext->PSSetShaderResources(0, 1, &pNullSRV);
-
-		// temporary ->(horizontal blur)-> shadow map
-		m_psgGaussianShadowHorizontal->use(m_pDeviceContext);
-		m_pDeviceContext->OMSetRenderTargets(1, &m_apRTShadowMaps[i].p, nullptr);
-		m_pDeviceContext->PSSetShaderResources(0, 1, &pSRVTemporary);
-
-		m_pDeviceContext->Draw(6, 0);
-
-		// unbind shader resources
-		m_pDeviceContext->PSSetShaderResources(0, 1, &pNullSRV);
-	}
-}
-
 void Renderer::doBloom() {
 	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pBloomConstantBuffer.p);
 
@@ -1222,7 +1178,7 @@ void Renderer::render() {
 		for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
 			m_pDeviceContext->OMSetRenderTargets(1, &m_apRTShadowMaps[i].p, m_pShadowMapDepthStencilView);
 			// Clear render target view & depth stencil
-			float ClearShadow[4] = { 30.0f, 900.0f, 0.0f, 0.0f }; // RGBA
+			float ClearShadow[4] = { 30.0f, 0.0f, 0.0f, 0.0f }; // RGBA
 			m_pDeviceContext->ClearRenderTargetView(m_apRTShadowMaps[i], ClearShadow);
 			m_pDeviceContext->ClearDepthStencilView(m_pShadowMapDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
@@ -1232,8 +1188,6 @@ void Renderer::render() {
 		}
 
 		unbindInputBuffers();
-		if (m_bVSMBlur)
-			blurShadowMaps();
 
 		for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
 			// Generate mip-maps for VSM
@@ -1242,9 +1196,9 @@ void Renderer::render() {
 				TStringStream tss;
 				tss << _T("ShadowMap_") << i + 1;
 				dumpIrregularResourceToFile(m_apSRVShadowMaps[i], tss.str(), false,
-					XMFLOAT4(1 / 30.0f, 1 / 900.0f, 0.0f, 0.0f),
+					XMFLOAT4(1 / 30.0f, 0.0f, 0.0f, 0.0f),
 					XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f),
-					XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f));
+					XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f));
 			}
 		}
 	} if (bToggle) toggleWireframe();

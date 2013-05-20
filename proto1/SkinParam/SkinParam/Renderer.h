@@ -118,6 +118,7 @@ namespace Skin {
 		static const UINT SLOT_NORMALMAP = 2;
 		static const UINT SLOT_ATTENUATION = 3;
 		static const UINT SLOT_SHADOWMAP = 4;
+		static const UINT SLOT_SHADOWMAPDEPTH = 5;
 
 		static const UINT NUM_LIGHTS = 2;
 		// 3D Transformation
@@ -183,24 +184,13 @@ namespace Skin {
 		Frustum m_frustum;
 
 		// Shadow mapping
-		static const UINT SM_SIZE = 1536;
-		static const UINT IDX_SHADOW_TEMPORARY = NUM_LIGHTS;
-		static const UINT NUM_SHADOW_VIEWS = IDX_SHADOW_TEMPORARY + 1;
+		static const UINT SM_SIZE = 2048;
+		static const UINT NUM_SHADOW_VIEWS = NUM_LIGHTS;
 		D3D11_VIEWPORT m_vpShadowMap;
 		CComPtr<ID3D11RenderTargetView> m_apRTShadowMaps[NUM_SHADOW_VIEWS];
 		CComPtr<ID3D11ShaderResourceView> m_apSRVShadowMaps[NUM_SHADOW_VIEWS];
 		CComPtr<ID3D11DepthStencilView> m_pShadowMapDepthStencilView;
 		CComPtr<ID3D11SamplerState> m_pShadowMapSamplerState;
-		ShaderGroup* m_psgGaussianShadowVertical;
-		ShaderGroup* m_psgGaussianShadowHorizontal;
-
-		// constant buffer for shadow map blurring
-		struct GaussianShadowConstantBuffer {
-			XMFLOAT2 rcpScreenSize;
-			float pad[2];
-		};
-		CComPtr<ID3D11Buffer> m_pGaussianShadowConstantBuffer;
-		GaussianShadowConstantBuffer m_cbGaussainShadow;
 
 		// Bloom filter
 		ShaderGroup* m_psgBloomDetect;
@@ -325,8 +315,6 @@ namespace Skin {
 		void initPostProcessAA();
 		void bindPostProcessConstantBuffer();
 		void doPostProcessAA();
-
-		void blurShadowMaps();
 
 		void initCopy();
 		void copyRender(ID3D11ShaderResourceView* pSRV, ID3D11RenderTargetView* pRT, bool bLinear = false,

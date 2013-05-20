@@ -82,7 +82,7 @@ namespace Skin {
 		static const UINT CID_GENERAL_CHK_TESSELLATION = 101;
 		static const UINT CID_GENERAL_CHK_BUMP = 102;
 		static const UINT CID_GENERAL_CHK_WIREFRAME = 103;
-		static const UINT CID_GENERAL_CHK_VSM_BLUR = 104;
+//		static const UINT CID_GENERAL_CHK_VSM_BLUR = 104;
 		static const UINT CID_GENERAL_CHK_POST_PROCESS_AA = 105;
 		static const UINT CID_GENERAL_CHK_BLOOM = 106;
 		static const UINT CID_SSS_LBL_CAPTION = 200;
@@ -122,7 +122,7 @@ namespace Skin {
 		DeclareHandlerForBool(Tessellation);
 		DeclareHandlerForBool(Bump);
 		DeclareHandlerForBool(Wireframe);
-		DeclareHandlerForBool(VSMBlur);
+//		DeclareHandlerForBool(VSMBlur);
 		DeclareHandlerForBool(PostProcessAA);
 		DeclareHandlerForBool(Bloom);
 		void CALLBACK chkEnableSSS_Handler(CDXUTControl* sender, UINT nEvent);
