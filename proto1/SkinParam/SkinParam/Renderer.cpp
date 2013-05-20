@@ -139,6 +139,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	updateProjection();
 	initTessellation();
 	initShadowMaps();
+	initCopy();
 
 	initSSS();
 	initBloom();
@@ -639,7 +640,8 @@ void Renderer::unbindShadowMaps() {
 
 void Renderer::initSSS() {
 	for (UINT i = 0; i < NUM_SSS_VIEWS; i++) {
-		checkFailure(createIntermediateRenderTarget(m_pDevice, m_rectView.Width(), m_rectView.Height(), DXGI_FORMAT_R32G32B32A32_FLOAT,
+		DXGI_FORMAT format = (i == IDX_SSS_DIFFUSE_STENCIL) ? DXGI_FORMAT_R32G32_FLOAT : DXGI_FORMAT_R32G32B32A32_FLOAT;
+		checkFailure(createIntermediateRenderTarget(m_pDevice, m_rectView.Width(), m_rectView.Height(), format,
 			nullptr, &m_apSRVSSS[i], &m_apRTSSS[i]),
 			_T("Failed to create intermediate render target for SSS"));
 	}
@@ -755,6 +757,15 @@ void Renderer::initPostProcessAA() {
 		_T("Failed to create post-process constant buffer"));
 }
 
+void Renderer::initCopy() {
+	m_cbCopy.scaleFactor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	m_cbCopy.defaultValue = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	m_cbCopy.lerps = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	checkFailure(createConstantBuffer(m_pDevice, &m_cbCopy, &m_pCopyConstantBuffer),
+		_T("Failed to create copy constant buffer"));
+}
+
 void Renderer::setConstantBuffers() {
 	ID3D11Buffer* buffers[] = {
 		m_pTransformConstantBuffer,
@@ -809,7 +820,10 @@ void Renderer::renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11
 	if (m_bDump) {
 		dumpRenderTargetToFile(pRTIrradiance, _T("Irradiance"));
 		dumpRenderTargetToFile(pRTAlbedo, _T("Albedo"));
-		dumpRenderTargetToFile(pRTDiffuseStencil, _T("DiffuseStencil"));
+		dumpIrregularResourceToFile(m_apSRVSSS[IDX_SSS_DIFFUSE_STENCIL], _T("DiffuseStencil"), false,
+			XMFLOAT4(50.0f, 50.0f, 0.0f, 0.0f),
+			XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f),
+			XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f));
 		dumpRenderTargetToFile(pRTSpecular, _T("Specular"));
 	}
 }
@@ -1160,6 +1174,29 @@ void Renderer::doBloom() {
 		dumpRenderTargetToFile(m_pRenderTargetView, _T("Final"));
 }
 
+void Renderer::copyRender(ID3D11ShaderResourceView* pSRV, ID3D11RenderTargetView* pRT, bool bLinear,
+						  XMFLOAT4 scaleFactor, XMFLOAT4 defaultValue, XMFLOAT4 lerps)
+{
+	m_cbCopy.scaleFactor = scaleFactor;
+	m_cbCopy.defaultValue = defaultValue;
+	m_cbCopy.lerps = lerps;
+	m_pDeviceContext->UpdateSubresource(m_pCopyConstantBuffer, 0, nullptr, &m_cbCopy, 0, 0);
+	m_pDeviceContext->PSSetConstantBuffers(0, 1, &m_pCopyConstantBuffer.p);
+
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_pDeviceContext->PSSetSamplers(0, 1, &m_pLinearSamplerState.p);
+	m_pDeviceContext->PSSetSamplers(1, 1, &m_pBumpSamplerState.p);
+
+	(bLinear ? m_psgCopyLinear : m_psgCopy)->use(m_pDeviceContext);
+	m_pDeviceContext->OMSetRenderTargets(1, &pRT, nullptr);
+	m_pDeviceContext->PSSetShaderResources(0, 1, &pSRV);
+
+	m_pDeviceContext->Draw(6, 0);
+
+	ID3D11ShaderResourceView* pNullSRV = nullptr;
+	m_pDeviceContext->PSSetShaderResources(0, 1, &pNullSRV);
+}
+
 void Renderer::render() {
 	updateLighting();
 	updateTessellation();
@@ -1199,7 +1236,10 @@ void Renderer::render() {
 			if (m_bDump) {
 				TStringStream tss;
 				tss << _T("ShadowMap_") << i + 1;
-				dumpShaderResourceViewToFile(m_apSRVShadowMaps[i], tss.str());
+				dumpIrregularResourceToFile(m_apSRVShadowMaps[i], tss.str(), false,
+					XMFLOAT4(1 / 30.0f, 1 / 900.0f, 0.0f, 0.0f),
+					XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f),
+					XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f));
 			}
 		}
 	} if (bToggle) toggleWireframe();
@@ -1329,6 +1369,33 @@ void Renderer::dump() {
 	m_bDump = true;
 
 	SetWindowText(m_hwnd, _APP_NAME_ _T(" (Capturing Frame...)"));
+}
+
+void Renderer::dumpIrregularResourceToFile(ID3D11ShaderResourceView* pSRV, const TString& strFileName, bool overrideAutoNaming,
+										   XMFLOAT4 scaleFactor, XMFLOAT4 defaultValue, XMFLOAT4 lerps)
+{
+	CComPtr<ID3D11Texture2D> pTexture2D;
+	pSRV->GetResource((ID3D11Resource**)&pTexture2D);
+	D3D11_TEXTURE2D_DESC desc;
+	pTexture2D->GetDesc(&desc);
+	
+	DXGI_FORMAT format = DXGI_FORMAT_R16G16B16A16_UNORM;
+	// Create temporary render target view
+	CComPtr<ID3D11Texture2D> pTexture2DTarget;
+	checkFailure(createTexture2D(m_pDevice, desc.Width, desc.Height, format, &pTexture2DTarget,
+		D3D11_BIND_RENDER_TARGET), _T("Failed to create temporary render target texture for irregular resource ") + strFileName);
+
+	CComPtr<ID3D11RenderTargetView> pRTTarget;
+	checkFailure(createRenderTargetView(m_pDevice, pTexture2DTarget, format, &pRTTarget),
+		_T("Failed to create temporary render target view for irregular resource ") + strFileName);
+
+	// Copy render to the temporary RT
+	copyRender(pSRV, pRTTarget, false, scaleFactor, defaultValue, lerps);
+
+	// dump the RT texture
+	dumpTextureToFile(pTexture2DTarget, strFileName, overrideAutoNaming);
+
+	// Things should be auto-cleared
 }
 
 void Renderer::dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const TString& strFileName, bool overrideAutoNaming) {

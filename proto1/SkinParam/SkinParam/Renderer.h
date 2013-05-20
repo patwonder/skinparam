@@ -230,6 +230,18 @@ namespace Skin {
 		CComPtr<ID3D11RenderTargetView> m_apRTBloomTemp[BLOOM_PASSES];
 		D3D11_VIEWPORT m_avpBloom[BLOOM_PASSES];
 
+		// Copy
+		ShaderGroup* m_psgCopy;
+		ShaderGroup* m_psgCopyLinear;
+
+		struct CopyConstantBuffer {
+			XMFLOAT4 scaleFactor;
+			XMFLOAT4 defaultValue;
+			XMFLOAT4 lerps;
+		};
+		CComPtr<ID3D11Buffer> m_pCopyConstantBuffer;
+		CopyConstantBuffer m_cbCopy;
+
 		// Rendering
 		Camera* m_pCamera;
 		std::vector<Renderable*> m_vpRenderables;
@@ -238,8 +250,6 @@ namespace Skin {
 		ShaderGroup* m_psgShadow;
 		ShaderGroup* m_psgTessellatedPhong;
 		ShaderGroup* m_psgTessellatedShadow;
-		ShaderGroup* m_psgCopy;
-		ShaderGroup* m_psgCopyLinear;
 
 		// Statistics
 		unsigned int m_nFrameCount;
@@ -317,6 +327,17 @@ namespace Skin {
 		void doPostProcessAA();
 
 		void blurShadowMaps();
+
+		void initCopy();
+		void copyRender(ID3D11ShaderResourceView* pSRV, ID3D11RenderTargetView* pRT, bool bLinear = false,
+			XMFLOAT4 scaleFactor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
+			XMFLOAT4 defaultValue = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f),
+			XMFLOAT4 lerps = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+
+		void dumpIrregularResourceToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			XMFLOAT4 scaleFactor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
+			XMFLOAT4 defaultValue = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f),
+			XMFLOAT4 lerps = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
 
 		void dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName, bool overrideAutoNaming = false);
 		void dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName, bool overrideAutoNaming = false);

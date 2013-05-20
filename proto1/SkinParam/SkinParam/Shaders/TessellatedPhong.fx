@@ -487,7 +487,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 
 	output.irradiance = float4(sq_tex_color * irradiance, g_sss_intensity);
 	output.albedo = float4(sq_tex_color * fresnel_trans_view, 1.0);
-	output.diffuseStencil = float4(kSizeX, kSizeY, input.depth, g_sss_intensity);
+	output.diffuseStencil = float4(kSizeX, kSizeY, 0.0, 0.0);
 	output.specular = float4(specular, 1.0);
 
 	return output;
