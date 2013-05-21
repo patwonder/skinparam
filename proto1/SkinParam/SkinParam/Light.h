@@ -24,6 +24,9 @@ namespace Skin {
 		{
 		}
 
-
+		bool isLit() const {
+			return !(coAmbient.colorEquals(Utils::Color::Black) && coDiffuse.colorEquals(Utils::Color::Black)
+				&& coSpecular.colorEquals(Utils::Color::Black));
+		}
 	};
 } // namespace Skin

@@ -79,8 +79,14 @@ namespace Utils {
 			alpha *= color.alpha;
 			return *this;
 		}
-		Color operator*(const Color& color) {
+		Color operator*(const Color& color) const {
 			return Color(*this) *= color;
+		}
+		bool operator==(const Color& color) const {
+			return colorEquals(color) && this->alpha == color.alpha;
+		}
+		bool colorEquals(const Color& color) const {
+			return this->red == color.red && this->green == color.green && this->blue == color.blue;
 		}
 	};
 

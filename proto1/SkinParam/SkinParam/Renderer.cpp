@@ -1180,6 +1180,8 @@ void Renderer::render() {
 	(m_bTessellation ? m_psgTessellatedShadow : m_psgShadow)->use(m_pDeviceContext);
 	if (bToggle) toggleWireframe(); { // Renders solid
 		for (UINT i = 0; i < NUM_LIGHTS && i < m_vpLights.size(); i++) {
+			if (!m_vpLights[i]->isLit()) continue;
+
 			m_pDeviceContext->OMSetRenderTargets(1, &m_apRTShadowMaps[i].p, m_pShadowMapDepthStencilView);
 			// Clear render target view & depth stencil
 			float ClearShadow[4] = { 30.0f, 0.0f, 0.0f, 0.0f }; // RGBA

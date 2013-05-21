@@ -28,6 +28,8 @@ namespace Skin {
 
 	class CMainWindow : public CFrameWnd, public RenderableManager {
 	private:
+		static const UINT NUM_LIGHTS = 2;
+
 		CRect m_rectClient;
 		Renderer* m_pRenderer;
 		Config m_config;
@@ -35,8 +37,7 @@ namespace Skin {
 
 		Triangle* m_pTriangle;
 		Head* m_pHead;
-		Light* m_pLight1;
-		Light* m_pLight2;
+		Light* m_pLights[NUM_LIGHTS];
 
 		// mouse actions
 		bool m_bChangingView;
@@ -87,6 +88,14 @@ namespace Skin {
 //		static const UINT CID_GENERAL_CHK_VSM_BLUR = 104;
 		static const UINT CID_GENERAL_CHK_POST_PROCESS_AA = 105;
 		static const UINT CID_GENERAL_CHK_BLOOM = 106;
+		static const UINT CID_GENERAL_LBL_DRAG_LIGHT_CAPTION1 = 107;
+		static const UINT CID_GENERAL_LBL_DRAG_LIGHT_CAPTION2 = 108;
+		static const UINT CID_GENERAL_LIGHT_START = 109;
+		static const UINT CID_GENERAL_LIGHT_STRIDE = 3;
+		static const UINT CID_GENERAL_RDGROUP_LIGHT = 0;
+		static const UINT CID_GENERAL_RD_LIGHT_SELECT_OFFSET = 0;
+		static const UINT CID_GENERAL_SLD_LIGHT_INTENSITY_OFFSET = 1;
+		static const UINT CID_GENERAL_LBL_LIGHT_INTENSITY_OFFSET = 2;
 		static const UINT CID_SSS_LBL_CAPTION = 200;
 		static const UINT CID_SSS_CHK_ENABLE_SSS = 201;
 		static const UINT CID_SSS_LBL_SSS_STRENGTH_LABEL = 202;
@@ -105,6 +114,9 @@ namespace Skin {
 		CDXUTCheckBox* m_pchkVSMBlur;
 		CDXUTCheckBox* m_pchkPostProcessAA;
 		CDXUTCheckBox* m_pchkBloom;
+		CDXUTRadioButton* m_prdLights[NUM_LIGHTS];
+		CDXUTSlider* m_psldLights[NUM_LIGHTS];
+		CDXUTStatic* m_plblLights[NUM_LIGHTS];
 		// SSS dialog
 		CDXUTCheckBox* m_pchkEnableSSS;
 		CDXUTCheckBox* m_pchkAdaptiveGaussian;
@@ -130,6 +142,8 @@ namespace Skin {
 		void CALLBACK chkEnableSSS_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK chkAdaptiveGaussian_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK sldSSSStrength_Handler(CDXUTControl* sender, UINT nEvent);
+		void CALLBACK rdLight_Handler(CDXUTControl* sender, UINT nEvent);
+		void CALLBACK sldLight_Handler(CDXUTControl* sender, UINT nEvent);
 
 		// Message mapping
 		BOOL PreTranslateMessage(MSG* pMsg);

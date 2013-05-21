@@ -10,8 +10,6 @@
 #include "Head.h"
 #include "Light.h"
 
-#include <dxgidebug.h>
-
 using namespace Skin;
 using namespace Utils;
 
@@ -111,25 +109,26 @@ CMainWindow::CMainWindow()
 	m_pRenderer = new Renderer(m_hWnd, CRect(0, 0, resolution.cx, resolution.cy), &m_config, &m_camera, this);
 	GetClientRect(&m_rectClient);
 
-	initUIDialogs();
-
 	m_pTriangle = new Triangle();
 	m_pHead = new Head();
 	//m_pRenderer->addRenderable(m_pTriangle);
 	m_pRenderer->addRenderable(m_pHead);
 
-	m_pLight1 = new Light(Vector(3, 7, 0), Color::Black, Color::White * 3.2f, Color::White * 3.2f, 1.0f, 0.1f, 0.0f);
-	m_pLight2 = new Light(Vector(-3, -3, 5), Color::Black, Color::White * 3.2f, Color::White * 3.2f, 1.0f, 0.1f, 0.0f);
-	m_pRenderer->addLight(m_pLight1);
-	m_pRenderer->addLight(m_pLight2);
+	memset(m_pLights, 0, sizeof(m_pLights));
+	m_pLights[0] = new Light(Vector(3, 7, 0), Color::Black, Color::White * 3.2f, Color::White * 3.2f, 1.0f, 0.1f, 0.0f);
+	m_pLights[1] = new Light(Vector(-3, -3, 5), Color::Black, Color::White * 3.2f, Color::White * 3.2f, 1.0f, 0.1f, 0.0f);
+	m_pRenderer->addLight(m_pLights[0]);
+	m_pRenderer->addLight(m_pLights[1]);
 
-	m_pRenderer->setGlobalAmbient(Color::White * 0.0005f);
+	m_pRenderer->setGlobalAmbient(Color::White * 0.0f);
 
 	m_bChangingView = false;
 	m_camera.restrictView(1.2, 8.0);
 
 	m_bChangingLight = false;
-	m_pCurrentLight = m_pLight1;
+	m_pCurrentLight = m_pLights[0];
+
+	initUIDialogs();
 
 	m_pRenderer->addRenderable(m_puirInfo);
 	m_pRenderer->addRenderable(m_puirGeneral);
@@ -145,8 +144,9 @@ CMainWindow::~CMainWindow() {
 	delete m_pRenderer;
 	delete m_pTriangle;
 	delete m_pHead;
-	delete m_pLight1;
-	delete m_pLight2;
+	for (UINT i = 0; i < NUM_LIGHTS; i++) {
+		delete m_pLights[i];
+	}
 
 	uninitUI();
 
@@ -244,6 +244,26 @@ void CMainWindow::initGeneralDialog() {
 //	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_VSM_BLUR,        "(V)SM Blurring", VSMBlur      );
 	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_POST_PROCESS_AA, "FX(A)A"        , PostProcessAA);
 	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_BLOOM,           "Bloom"         , Bloom        );
+
+	m_pdlgGeneral->AddStatic(CID_GENERAL_LBL_DRAG_LIGHT_CAPTION1, _T("Left drag to move"), width - 156, tmp += 20, 190, 20);
+	m_pdlgGeneral->AddStatic(CID_GENERAL_LBL_DRAG_LIGHT_CAPTION2, _T("selected light"), width - 156, tmp += 20, 190, 20);
+
+	for (UINT i = 0; i < NUM_LIGHTS; i++) {
+		UINT baseid = CID_GENERAL_LIGHT_START + CID_GENERAL_LIGHT_STRIDE * i;
+		UINT intensity = (UINT)(m_pLights[i]->coDiffuse.red * 10.0f + 0.5f);
+		TStringStream tss, tss2;
+		tss << _T("Light ") << i + 1;
+		m_pdlgGeneral->AddRadioButton(baseid + CID_GENERAL_RD_LIGHT_SELECT_OFFSET, CID_GENERAL_RDGROUP_LIGHT, tss.str().c_str(),
+			width - 156, tmp += 20, 120, 20, m_pCurrentLight == m_pLights[i], 0, false, &m_prdLights[i]);
+		m_pdlgGeneral->AddSlider(baseid + CID_GENERAL_SLD_LIGHT_INTENSITY_OFFSET, width - 156, tmp += 20, 100, 20, 0, 100, intensity,
+			false, &m_psldLights[i]);
+		tss2 << std::setiosflags(std::ios::fixed) << std::setprecision(1) << (float)intensity / 10.0f;
+		m_pdlgGeneral->AddStatic(baseid + CID_GENERAL_LBL_LIGHT_INTENSITY_OFFSET, tss2.str().c_str(), width - 41, tmp, 40, 20,
+			false, &m_plblLights[i]);
+
+		registerEventHandler(baseid + CID_GENERAL_RD_LIGHT_SELECT_OFFSET, &CMainWindow::rdLight_Handler);
+		registerEventHandler(baseid + CID_GENERAL_SLD_LIGHT_INTENSITY_OFFSET, &CMainWindow::sldLight_Handler);
+	}
 
 	//m_dlgTessellation.EnableNonUserEvents(true);
 	m_pdlgGeneral->SetVisible(true);
@@ -415,6 +435,27 @@ void CALLBACK CMainWindow::sldSSSStrength_Handler(CDXUTControl* sender, UINT nEv
 	tss << std::setiosflags(std::ios::fixed) << std::setprecision(2) << strength;
 	m_plblSSSStrength->SetText(tss.str().c_str());
 	m_pRenderer->setSSSStrength((float)strength);
+}
+
+void CALLBACK CMainWindow::rdLight_Handler(CDXUTControl* sender, UINT nEvent) {
+	UINT id = (sender->GetID() - CID_GENERAL_LIGHT_START - CID_GENERAL_RD_LIGHT_SELECT_OFFSET) / CID_GENERAL_LIGHT_STRIDE;
+
+	if (m_prdLights[id]->GetChecked())
+		m_pCurrentLight = m_pLights[id];
+}
+
+void CALLBACK CMainWindow::sldLight_Handler(CDXUTControl* sender, UINT nEvent) {
+	UINT id = (sender->GetID() - CID_GENERAL_LIGHT_START - CID_GENERAL_SLD_LIGHT_INTENSITY_OFFSET) / CID_GENERAL_LIGHT_STRIDE;
+
+	UINT intensity = m_psldLights[id]->GetValue();
+	float fint = (float)intensity / 10.0f;
+
+	Light& l = *m_pLights[id];
+	l.coDiffuse = l.coSpecular = Color::White * fint;
+
+	TStringStream tss;
+	tss << std::setiosflags(std::ios::fixed) << std::setprecision(1) << fint;
+	m_plblLights[id]->SetText(tss.str().c_str());
 }
 
 BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {

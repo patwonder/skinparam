@@ -385,10 +385,10 @@ float3 trans_atten(float s) {
 		 + float3(0.078, 0.000, 0.000) * exp(ns2 / 7.4100);
 }
 
-float distance(float3 vPosWS, float3 vNormalWS, float3 vPosLightWS, matrix matViewProjLight,
+float distance(float3 vPosWS, float3 vNormalWS, float NdotL, float3 vPosLightWS, matrix matViewProjLight,
 			   Texture2D shadowMap, SamplerState samShadow)
 {
-	float3 vShrinkedPosWS = vPosWS - vNormalWS * 0.01;
+	float3 vShrinkedPosWS = vPosWS - vNormalWS * lerp(0.01, 0, saturate(-NdotL));
 	float4 vPosPSL4 = mul(float4(vShrinkedPosWS, 1.0), matViewProjLight);
 	float2 vPosTeSL = float2(0.5, -0.5) * (vPosPSL4.xy / vPosPSL4.w) + 0.5;
 	float shadowDepth = shadowMap.Sample(samShadow, vPosTeSL).r;
@@ -397,10 +397,11 @@ float distance(float3 vPosWS, float3 vNormalWS, float3 vPosLightWS, matrix matVi
 
 float3 backlit_amount(float3 vPosWS, float3 vNormalWS, float3 L, float3 vPosLightWS, matrix matViewProjLight,
 					  Texture2D shadowMap, SamplerState samShadow) {
-	float s = 0.25 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, vPosLightWS, matViewProjLight, shadowMap, samShadow) * (1.0f / max(0.01f, g_sss_strength));
+	float NdotL = dot(vNormalWS, L);
+	float s = 0.25 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, NdotL, vPosLightWS, matViewProjLight, shadowMap, samShadow) * (1.0f / max(0.01f, g_sss_strength));
 	float3 atten = trans_atten(s);
-	float NdotL = max(0.3 + dot(-vNormalWS, L), 0);
-	return NdotL * atten;
+	float NdotL2 = saturate(0.3 - NdotL);
+	return NdotL2 * atten;
 }
 
 PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
@@ -424,7 +425,9 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 	float m = RMS_SLOPE;
 	// shading
 	// global ambient
-	float3 irradiance = g_ambient * g_material.ambient * FRESNEL_TRANS_TOTAL;
+	float3 totalambient = g_ambient * g_material.ambient;
+
+	float3 irradiance = 0.0;
 	float3 specular = 0.0;
 
 	float3 N = normalize(vNormalWS);
@@ -454,16 +457,24 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 
 		// calculate transmittance from back of the object
 		float3 backlitAmount = backlit_amount(input.vPosWS, input.vNormalWS, L, l.position, g_matViewProjLights[i],
-			g_shadowMaps[i], g_samShadowDepth) * (1 - lightAmount) * g_sss_intensity;
+			g_shadowMaps[i], g_samShadowDepth) * /*(1 - lightAmount) * */g_sss_intensity;
 		float3 backlit = atten * backlitAmount * l.diffuse * g_material.diffuse;
 
 		// putting them together
+		totalambient += ambient;
 		specular += atten * l.specular * g_material.specular * specularLight * lightAmount;
-		irradiance += ambient * FRESNEL_TRANS_TOTAL + diffuse * lightAmount * fresnel_trans + backlit;
+		irradiance += diffuse * lightAmount * fresnel_trans + backlit;
 	}
 
+	// specular reflection amount from view angle
+	float specRef = g_attenuation.SampleLevel(g_samAttenuation, float2(dot(N, V), m), 0).r;
+
+	// consider ambient reflection & transmittance
+	specular += totalambient * rho_s * specRef;
+	irradiance += totalambient * FRESNEL_TRANS_TOTAL;
+
 	// calculate fresnel outgoing factor
-	float fresnel_trans_view = saturate(1 - rho_s * g_attenuation.SampleLevel(g_samAttenuation, float2(dot(N, V), m), 0).r);
+	float fresnel_trans_view = saturate(1 - rho_s * specRef);
 
 	// calculate kernel size reduction due to tilt surface
 	//  1 - calculate local orthogonal coordinate system
