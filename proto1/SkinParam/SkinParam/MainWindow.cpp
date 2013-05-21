@@ -542,6 +542,10 @@ afx_msg void CMainWindow::OnLButtonDblClk(UINT nFlags, CPoint point) {
 
 afx_msg void CMainWindow::OnMouseMove(UINT nFlags, CPoint point) {
 	if (m_bChangingView) {
+		if (m_bChangingLight) {
+			// synchronize camera & light for better controlling the light's position
+			m_camera.moveTo(m_pCurrentLight->vecPosition);
+		}
 		CPoint ptDist = (point - m_ptStart);
 
 		double modifier = getViewModifier(nFlags);
