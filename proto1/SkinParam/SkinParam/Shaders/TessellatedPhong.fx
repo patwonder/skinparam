@@ -457,7 +457,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 
 		// calculate transmittance from back of the object
 		float3 backlitAmount = backlit_amount(input.vPosWS, input.vNormalWS, L, l.position, g_matViewProjLights[i],
-			g_shadowMaps[i], g_samShadowDepth) * /*(1 - lightAmount) * */g_sss_intensity;
+			g_shadowMaps[i], g_samShadowDepth) * (1 - lightAmount) * g_sss_intensity;
 		float3 backlit = atten * backlitAmount * l.diffuse * g_material.diffuse;
 
 		// putting them together

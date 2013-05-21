@@ -44,6 +44,12 @@ namespace Skin {
 		bool m_bChangingLight;
 		CPoint m_ptStart;
 		Light* m_pCurrentLight;
+		UINT m_nCurrentLightID;
+		ULONGLONG m_nBlinkStartTick;
+		static const UINT BLINK_DURATION = 900;
+		static const UINT BLINK_INTERVAL = 300;
+		static const UINT BLINK_SUB_DURATION = 150;
+		static const float BLINK_DIM_FACTOR;
 
 		static double getViewModifier(UINT nFlags);
 

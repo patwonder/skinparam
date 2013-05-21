@@ -85,6 +85,7 @@ END_MESSAGE_MAP()
 
 const double CMainWindow::CTRL_MINIFIER = 1 / 3.0;
 const double CMainWindow::SHIFT_MAGNIFIER = 3.0;
+const float CMainWindow::BLINK_DIM_FACTOR = 0.5f;
 
 CMainWindow::CMainWindow()
 	: m_camera(Vector(0, -5, 0), Vector(0, 0, 0), Vector(0, 0, 1))
@@ -127,6 +128,9 @@ CMainWindow::CMainWindow()
 
 	m_bChangingLight = false;
 	m_pCurrentLight = m_pLights[0];
+	m_nCurrentLightID = 0;
+
+	m_nBlinkStartTick = 0;
 
 	initUIDialogs();
 
@@ -175,6 +179,21 @@ BOOL CMainWindow::OnIdle(LONG lCount) {
 	// Stop doing work while minimized
 	if (IsIconic() || GetForegroundWindow() != this) {
 		return FALSE;
+	}
+
+	// do blink
+	ULONGLONG tick = GetTickCount64();
+	ULONGLONG diff = tick - m_nBlinkStartTick;
+	for (UINT i = 0; i < NUM_LIGHTS; i++) {
+		float intensity = (float)m_psldLights[i]->GetValue() / 10.0f;
+		if (i == m_nCurrentLightID && diff <= BLINK_DURATION) {
+			diff = diff % BLINK_INTERVAL;
+			if (diff < BLINK_SUB_DURATION) {
+				intensity *= BLINK_DIM_FACTOR;
+			}
+		}
+		Light& l = *m_pLights[i];
+		l.coSpecular = l.coDiffuse = Color::White * intensity;
 	}
 
 	m_pRenderer->render();
@@ -243,10 +262,10 @@ void CMainWindow::initGeneralDialog() {
 	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_WIREFRAME,       "Wire(f)rame"   , Wireframe    );
 //	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_VSM_BLUR,        "(V)SM Blurring", VSMBlur      );
 	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_POST_PROCESS_AA, "FX(A)A"        , PostProcessAA);
-	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_BLOOM,           "Bloom"         , Bloom        );
+	SetupControlForBool(m_pdlgGeneral, CID_GENERAL_CHK_BLOOM,           "Bl(o)om"       , Bloom        );
 
 	m_pdlgGeneral->AddStatic(CID_GENERAL_LBL_DRAG_LIGHT_CAPTION1, _T("Left drag to move"), width - 156, tmp += 20, 190, 20);
-	m_pdlgGeneral->AddStatic(CID_GENERAL_LBL_DRAG_LIGHT_CAPTION2, _T("selected light"), width - 156, tmp += 20, 190, 20);
+	m_pdlgGeneral->AddStatic(CID_GENERAL_LBL_DRAG_LIGHT_CAPTION2, _T("selected (l)ight"), width - 156, tmp += 20, 190, 20);
 
 	for (UINT i = 0; i < NUM_LIGHTS; i++) {
 		UINT baseid = CID_GENERAL_LIGHT_START + CID_GENERAL_LIGHT_STRIDE * i;
@@ -375,6 +394,7 @@ void CMainWindow::updateUI() {
 //	UpdateUIForBool(VSMBlur);
 	UpdateUIForBool(PostProcessAA);
 	UpdateUIForBool(Bloom);
+	m_prdLights[m_nCurrentLightID]->SetChecked(true);
 
 	// SSS dialog
 	m_pchkEnableSSS->SetChecked(m_pRenderer->getSSS());
@@ -440,8 +460,11 @@ void CALLBACK CMainWindow::sldSSSStrength_Handler(CDXUTControl* sender, UINT nEv
 void CALLBACK CMainWindow::rdLight_Handler(CDXUTControl* sender, UINT nEvent) {
 	UINT id = (sender->GetID() - CID_GENERAL_LIGHT_START - CID_GENERAL_RD_LIGHT_SELECT_OFFSET) / CID_GENERAL_LIGHT_STRIDE;
 
-	if (m_prdLights[id]->GetChecked())
+	if (m_prdLights[id]->GetChecked()) {
 		m_pCurrentLight = m_pLights[id];
+		m_nCurrentLightID = id;
+		m_nBlinkStartTick = GetTickCount64();
+	}
 }
 
 void CALLBACK CMainWindow::sldLight_Handler(CDXUTControl* sender, UINT nEvent) {
@@ -501,6 +524,15 @@ afx_msg void CMainWindow::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 		break;
 	case 'D':
 		m_pRenderer->toggleAdaptiveGaussian();
+		break;
+	case 'O':
+		m_pRenderer->toggleBloom();
+		break;
+	case 'L':
+		m_nCurrentLightID++;
+		m_nCurrentLightID %= NUM_LIGHTS;
+		m_pCurrentLight = m_pLights[m_nCurrentLightID];
+		m_nBlinkStartTick = GetTickCount64();
 		break;
 	case VK_F8:
 		m_pRenderer->dump();
