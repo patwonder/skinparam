@@ -59,6 +59,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	: m_psgShadow(nullptr),
 	  m_psgTessellatedPhong(nullptr),
 	  m_psgTessellatedShadow(nullptr),
+	  m_psgCanvas(nullptr),
+	  m_psgCanvasAA(nullptr),
 	  m_psgSSSIrradiance(nullptr),
 	  m_psgSSSIrradianceNoTessellation(nullptr),
 	  m_psgSSSIrradianceNoGaussian(nullptr),
@@ -106,6 +108,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	m_vppShaderGroups.push_back(&m_psgShadow);
 	m_vppShaderGroups.push_back(&m_psgTessellatedPhong);
 	m_vppShaderGroups.push_back(&m_psgTessellatedShadow);
+	m_vppShaderGroups.push_back(&m_psgCanvas);
+	m_vppShaderGroups.push_back(&m_psgCanvasAA);
 	m_vppShaderGroups.push_back(&m_psgSSSIrradiance);
 	m_vppShaderGroups.push_back(&m_psgSSSIrradianceNoTessellation);
 	m_vppShaderGroups.push_back(&m_psgSSSIrradianceNoGaussian);
@@ -144,6 +148,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	initTessellation();
 	initShadowMaps();
 	initCopy();
+	initViewInView();
 
 	initSSS();
 	initBloom();
@@ -338,15 +343,6 @@ void Renderer::initMisc() {
 	checkFailure(createSamplerState(m_pDevice, D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP,
 		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pLinearSamplerState),
 		_T("Failed to create linear sampler state"));
-
-	// initialize view-in-view viewport
-	D3D11_VIEWPORT& vp = m_vpViewInView;
-	vp.TopLeftX = m_rectView.Width() * 3.0f / 4.0f;
-	vp.TopLeftY = m_rectView.Height() * 3.0f / 4.0f;
-	vp.Width = m_rectView.Width() / 4.0f;
-	vp.Height = m_rectView.Height() / 4.0f;
-	vp.MinDepth = 0.0f;
-	vp.MaxDepth = 1.0f;
 }
 
 void Renderer::addRenderable(Renderable* renderable) {
@@ -422,6 +418,17 @@ void Renderer::loadShaders() {
 	m_psgSSSIrradianceNoTessellationNoGaussianAA = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
 		"VS_Irradiance_NoTessellation", nullptr, nullptr, "PS_Irradiance_NoGaussian_AA");
 
+	// Canvas-space shaders
+	D3D11_INPUT_ELEMENT_DESC canvas_layout[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+
+	m_psgCanvas = new ShaderGroup(m_pDevice, _T("Canvas.fx"), canvas_layout, ARRAYSIZE(canvas_layout),
+		"VS", nullptr, nullptr, "PS");
+	m_psgCanvasAA = new ShaderGroup(m_pDevice, _T("Canvas.fx"), canvas_layout, ARRAYSIZE(canvas_layout),
+		"VS", nullptr, nullptr, "PS_AA");
+
 	// Screen-space shaders
 	D3D11_INPUT_ELEMENT_DESC empty_layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 } };
 	// Copy shader
@@ -460,6 +467,33 @@ void Renderer::unloadShaders() {
 
 	m_vppShaderGroups.clear();
 	D3DHelper::clearShaderCache();
+}
+
+void Renderer::initViewInView() {
+	// initialize view-in-view vertex buffer
+	CanvasVertex vertices[] = {
+		// black background quad
+		{ XMFLOAT3(0.00f, 0.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(1.00f, 0.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(0.00f, 1.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(1.00f, 1.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
+		// White border lines
+		{ XMFLOAT3(0.00f, 0.00f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
+		{ XMFLOAT3(1.00f, 0.00f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
+		{ XMFLOAT3(0.00f, 0.00f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
+		{ XMFLOAT3(0.00f, 1.00f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
+	};
+	checkFailure(createVertexBuffer(m_pDevice, vertices, ARRAYSIZE(vertices), &m_pVIVVertexBuffer),
+		_T("Failed to create VIV vertex buffer"));
+
+	// initialize view-in-view viewport
+	D3D11_VIEWPORT& vp = m_vpViewInView;
+	vp.Width = m_rectView.Width() / 4.0f;
+	vp.Height = m_rectView.Width() / 4.0f;
+	vp.TopLeftX = m_rectView.Width() - vp.Width;
+	vp.TopLeftY = m_rectView.Height() - vp.Height;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
 }
 
 void Renderer::initTransform() {
@@ -900,24 +934,42 @@ void Renderer::renderIrradianceMap(bool* opbNeedBlur) {
 }
 
 void Renderer::renderViewInView(const Camera* pCamera) {
+	bool bAA = !m_bBloom && m_bPostProcessAA;
+	ShaderGroup* sgcanvas = bAA ? m_psgCanvasAA : m_psgCanvas;
+
 	ID3D11RenderTargetView* pRT = nullptr;
 	ShaderGroup* sg = nullptr;
 	float alpha = 1.0f;
 	getImmediateIrradianceRT(&pRT, &sg, &alpha);
 
-	setConstantBuffers();
-
+	// Draw background with depth buffer off
 	m_pDeviceContext->RSSetViewports(1, &m_vpViewInView);
+
+	UINT stride = sizeof(CanvasVertex);
+	UINT offset = 0;
+	m_pDeviceContext->IASetVertexBuffers(0, 1, &m_pVIVVertexBuffer.p, &stride, &offset);
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	sgcanvas->use(m_pDeviceContext);
+	m_pDeviceContext->OMSetRenderTargets(1, &pRT, nullptr);
+
+	m_pDeviceContext->Draw(4, 0);
+
+	// Draw border with depth buffer on
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+	m_pDeviceContext->OMSetRenderTargets(1, &pRT, m_pDepthStencilView);
+	// Clear depth stencil view only
+	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	m_pDeviceContext->Draw(4, 4);
+
+	// Draw stuff
+	setConstantBuffers();
 
 	m_pDeviceContext->IASetPrimitiveTopology(
 		m_bTessellation ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	sg->use(m_pDeviceContext);
 	
-	m_pDeviceContext->OMSetRenderTargets(1, &pRT, m_pDepthStencilView);
-	// Clear depth stencil view only
-	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
-	updateTransform(*pCamera, XMLoadFloat4x4(&m_matProjection), (float)m_rectView.Width() / m_rectView.Height());
+	updateTransform(*pCamera, XMLoadFloat4x4(&m_matLightProjection), (float)(SM_SIZE / SM_SIZE));
 	bindShadowMaps();
 	bindAttenuationTexture();
 	renderScene();

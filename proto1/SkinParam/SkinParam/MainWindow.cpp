@@ -196,7 +196,7 @@ BOOL CMainWindow::OnIdle(LONG lCount) {
 		l.coSpecular = l.coDiffuse = Color::White * intensity;
 	}
 
-	m_pRenderer->render(&m_pRenderer->getLightCamera(*m_pCurrentLight));
+	m_pRenderer->render(m_bChangingLight ? &m_pRenderer->getLightCamera(*m_pCurrentLight) : nullptr);
 
 	showInfo();
 	updateUI();
@@ -596,10 +596,6 @@ afx_msg void CMainWindow::OnLButtonDblClk(UINT nFlags, CPoint point) {
 
 afx_msg void CMainWindow::OnMouseMove(UINT nFlags, CPoint point) {
 	if (m_bChangingView) {
-		if (m_bChangingLight) {
-			// synchronize camera & light for better controlling the light's position
-			m_camera.moveTo(m_pCurrentLight->vecPosition);
-		}
 		CPoint ptDist = (point - m_ptStart);
 
 		double modifier = getViewModifier(nFlags);

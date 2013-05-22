@@ -168,9 +168,6 @@
     <ClCompile Include="Frustum.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\Triangle.fx">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Shaders\Lighting.fx">
       <Filter>Shaders</Filter>
     </None>
@@ -226,6 +223,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="Shaders\Lum.fx">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Canvas.fx">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

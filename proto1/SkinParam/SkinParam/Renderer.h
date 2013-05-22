@@ -237,11 +237,20 @@ namespace Skin {
 		CComPtr<ID3D11Buffer> m_pCopyConstantBuffer;
 		CopyConstantBuffer m_cbCopy;
 
+		// View-In-View
+		ShaderGroup* m_psgCanvas;
+		ShaderGroup* m_psgCanvasAA;
+		D3D11_VIEWPORT m_vpViewInView;
+		CComPtr<ID3D11Buffer> m_pVIVVertexBuffer;
+		struct CanvasVertex {
+			XMFLOAT3 position;
+			XMFLOAT4 color;
+		};
+
 		// Rendering
 		Camera* m_pCamera;
 		std::vector<Renderable*> m_vpRenderables;
 		std::vector<Light*> m_vpLights;
-		D3D11_VIEWPORT m_vpViewInView;
 
 		ShaderGroup* m_psgShadow;
 		ShaderGroup* m_psgTessellatedPhong;
@@ -284,6 +293,7 @@ namespace Skin {
 		void loadShaders();
 		void unloadShaders();
 
+		void initViewInView();
 		void initTransform();
 		XMMATRIX getViewProjMatrix(const Camera& camera, const XMMATRIX& matProjection, XMMATRIX& matView);
 		void updateTransform();

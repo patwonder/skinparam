@@ -39,7 +39,7 @@ struct HSCF_OUTPUT {
 
 struct PS_INPUT {
 	float4 vPosPS : SV_POSITION;
-	float4 color : COLOR0;
+	float4 color : COLOR;
 	float3 vNormalWS : NORMAL;
 	float3 vTangentWS : TANGENT;
 	float3 vBinormalWS : BINORMAL;
@@ -174,7 +174,7 @@ float4 PS(PS_INPUT input) : SV_Target {
 // Irradiance domain & pixel shader
 struct PS_INPUT_IRRADIANCE {
 	float4 vPosPS : SV_POSITION;
-	float4 color : COLOR0;
+	float4 color : COLOR;
 	float3 vNormalWS : NORMAL;
 	float3 vTangentWS : TANGENT;
 	float3 vBinormalWS : BINORMAL;

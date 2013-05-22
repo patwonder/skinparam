@@ -2195,7 +2195,8 @@ HRESULT DXUTChangeDevice( DXUTDeviceSettings* pNewDeviceSettings,
     {
         SAFE_DELETE( pOldDeviceSettings );
         DXUTCleanup3DEnvironment( true );
-        DXUTDisplayErrorMessage( hr );
+		if (hr != DXUTERR_CREATINGDEVICE)
+			DXUTDisplayErrorMessage( hr );
         DXUTPause( false, false );
         GetDXUTState().SetIgnoreSizeChange( false );
         return hr;

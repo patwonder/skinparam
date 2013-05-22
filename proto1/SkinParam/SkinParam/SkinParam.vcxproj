@@ -224,7 +224,7 @@
     <ClInclude Include="winver.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\Triangle.fx">
+    <None Include="Shaders\Canvas.fx">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
       </EntryPointName>
