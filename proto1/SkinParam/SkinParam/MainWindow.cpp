@@ -121,7 +121,7 @@ CMainWindow::CMainWindow()
 	m_pRenderer->addLight(m_pLights[0]);
 	m_pRenderer->addLight(m_pLights[1]);
 
-	m_pRenderer->setGlobalAmbient(Color::White * 0.0f);
+	m_pRenderer->setGlobalAmbient(Color::White * 0.5f);
 
 	m_bChangingView = false;
 	m_camera.restrictView(1.2, 8.0);
@@ -277,12 +277,23 @@ void CMainWindow::initGeneralDialog() {
 		m_pdlgGeneral->AddSlider(baseid + CID_GENERAL_SLD_LIGHT_INTENSITY_OFFSET, width - 156, tmp += 20, 100, 20, 0, 100, intensity,
 			false, &m_psldLights[i]);
 		tss2 << std::setiosflags(std::ios::fixed) << std::setprecision(1) << (float)intensity / 10.0f;
-		m_pdlgGeneral->AddStatic(baseid + CID_GENERAL_LBL_LIGHT_INTENSITY_OFFSET, tss2.str().c_str(), width - 41, tmp, 40, 20,
+		m_pdlgGeneral->AddStatic(baseid + CID_GENERAL_LBL_LIGHT_INTENSITY_OFFSET, tss2.str().c_str(), width - 41, tmp, 35, 20,
 			false, &m_plblLights[i]);
 
 		registerEventHandler(baseid + CID_GENERAL_RD_LIGHT_SELECT_OFFSET, &CMainWindow::rdLight_Handler);
 		registerEventHandler(baseid + CID_GENERAL_SLD_LIGHT_INTENSITY_OFFSET, &CMainWindow::sldLight_Handler);
 	}
+
+	UINT intensity = (UINT)(m_pRenderer->getGlobalAmbient().red * 100.0f + 0.5f);
+	TStringStream tss;
+	m_pdlgGeneral->AddStatic(CID_GENERAL_LBL_AMBIENT_CAPTION, _T("Ambient intensity"), width - 156, tmp += 20, 120, 20);
+	m_pdlgGeneral->AddSlider(CID_GENERAL_SLD_AMBIENT_INTENSITY, width - 156, tmp += 20, 100, 20, 0, 100, intensity,
+		false, &m_psldAmbient);
+	tss << std::setiosflags(std::ios::fixed) << std::setprecision(2) << (float)intensity / 100.0f;
+	m_pdlgGeneral->AddStatic(CID_GENERAL_LBL_AMBIENT_INTENSITY, tss.str().c_str(), width - 41, tmp, 35, 20,
+		false, &m_plblAmbient);
+
+	registerEventHandler(CID_GENERAL_SLD_AMBIENT_INTENSITY, &CMainWindow::sldAmbient_Handler);
 
 	//m_dlgTessellation.EnableNonUserEvents(true);
 	m_pdlgGeneral->SetVisible(true);
@@ -479,6 +490,17 @@ void CALLBACK CMainWindow::sldLight_Handler(CDXUTControl* sender, UINT nEvent) {
 	TStringStream tss;
 	tss << std::setiosflags(std::ios::fixed) << std::setprecision(1) << fint;
 	m_plblLights[id]->SetText(tss.str().c_str());
+}
+
+void CALLBACK CMainWindow::sldAmbient_Handler(CDXUTControl* sender, UINT nEvent) {
+	UINT intensity = m_psldAmbient->GetValue();
+	float fint = (float)intensity / 100.0f;
+
+	m_pRenderer->setGlobalAmbient(Color::White * fint);
+
+	TStringStream tss;
+	tss << std::setiosflags(std::ios::fixed) << std::setprecision(2) << fint;
+	m_plblAmbient->SetText(tss.str().c_str());
 }
 
 BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {

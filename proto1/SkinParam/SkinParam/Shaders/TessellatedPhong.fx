@@ -407,8 +407,10 @@ float3 backlit_amount(float3 vPosWS, float3 vNormalWS, float3 L, float3 vPosLigh
 PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 	PS_OUTPUT_IRRADIANCE output;
 	// textured irradiance color
-	float3 tex_color = input.color.rgb * g_texture.Sample(g_samTexture, input.texCoord).rgb;
+	float4 sample = g_texture.Sample(g_samTexture, input.texCoord);
+	float3 tex_color = input.color.rgb * sample.rgb;
 	float3 sq_tex_color = sqrt(tex_color);
+	float ao = sample.a;
 
 	input.vNormalWS = normalize(input.vNormalWS);
 
@@ -469,8 +471,9 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 	// specular reflection amount from view angle
 	float specRef = g_attenuation.SampleLevel(g_samAttenuation, float2(dot(N, V), m), 0).r;
 
-	// consider ambient reflection & transmittance
-	specular += totalambient * rho_s * specRef;
+	// consider ambient occlusion, reflection & transmittance
+	totalambient *= pow(ao, 4.4);
+	//specular += totalambient * rho_s * specRef;
 	irradiance += totalambient * FRESNEL_TRANS_TOTAL;
 
 	// calculate fresnel outgoing factor

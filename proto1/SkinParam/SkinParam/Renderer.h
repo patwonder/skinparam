@@ -344,6 +344,7 @@ namespace Skin {
 		void removeAllRenderables();
 
 		void setGlobalAmbient(const Utils::Color& coAmbient);
+		Utils::Color getGlobalAmbient() const;
 		void addLight(Light* light);
 		void removeLight(Light* light);
 		void removeAllLights();

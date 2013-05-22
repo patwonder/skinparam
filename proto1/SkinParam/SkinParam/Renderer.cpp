@@ -512,6 +512,11 @@ void Renderer::setGlobalAmbient(const Color& coAmbient) {
 	m_cbLighting.g_ambient = XMColor3(coAmbient);
 }
 
+Color Renderer::getGlobalAmbient() const {
+	const XMFLOAT3& a = m_cbLighting.g_ambient;
+	return Color(a.x, a.y, a.z, 1.0f);
+}
+
 void Renderer::initLighting() {
 	m_cbLighting.g_ambient = XMColor3(Color::Black);
 	for (UINT i = 0; i < NUM_LIGHTS; i++) {

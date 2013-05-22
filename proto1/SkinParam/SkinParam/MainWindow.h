@@ -102,6 +102,9 @@ namespace Skin {
 		static const UINT CID_GENERAL_RD_LIGHT_SELECT_OFFSET = 0;
 		static const UINT CID_GENERAL_SLD_LIGHT_INTENSITY_OFFSET = 1;
 		static const UINT CID_GENERAL_LBL_LIGHT_INTENSITY_OFFSET = 2;
+		static const UINT CID_GENERAL_LBL_AMBIENT_CAPTION = CID_GENERAL_LIGHT_START + CID_GENERAL_LIGHT_STRIDE * NUM_LIGHTS;
+		static const UINT CID_GENERAL_SLD_AMBIENT_INTENSITY = CID_GENERAL_LBL_AMBIENT_CAPTION + 1;
+		static const UINT CID_GENERAL_LBL_AMBIENT_INTENSITY = CID_GENERAL_LBL_AMBIENT_CAPTION + 2;
 		static const UINT CID_SSS_LBL_CAPTION = 200;
 		static const UINT CID_SSS_CHK_ENABLE_SSS = 201;
 		static const UINT CID_SSS_LBL_SSS_STRENGTH_LABEL = 202;
@@ -123,6 +126,8 @@ namespace Skin {
 		CDXUTRadioButton* m_prdLights[NUM_LIGHTS];
 		CDXUTSlider* m_psldLights[NUM_LIGHTS];
 		CDXUTStatic* m_plblLights[NUM_LIGHTS];
+		CDXUTSlider* m_psldAmbient;
+		CDXUTStatic* m_plblAmbient;
 		// SSS dialog
 		CDXUTCheckBox* m_pchkEnableSSS;
 		CDXUTCheckBox* m_pchkAdaptiveGaussian;
@@ -150,6 +155,7 @@ namespace Skin {
 		void CALLBACK sldSSSStrength_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK rdLight_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK sldLight_Handler(CDXUTControl* sender, UINT nEvent);
+		void CALLBACK sldAmbient_Handler(CDXUTControl* sender, UINT nEvent);
 
 		// Message mapping
 		BOOL PreTranslateMessage(MSG* pMsg);
