@@ -6,6 +6,7 @@
 #include "winver.h"
 
 // MFC headers
+#define _AFX_NO_MFC_CONTROLS_IN_DIALOGS
 #include <afxwin.h>
 
 // Direct3D 11 headers

@@ -225,10 +225,8 @@
     <None Include="Shaders\BloomCombine.fx">
       <Filter>Shaders</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Shaders\Lum.fx">
+    <None Include="Shaders\Lum.fx">
       <Filter>Shaders</Filter>
-    </FxCompile>
+    </None>
   </ItemGroup>
 </Project>
