@@ -294,6 +294,9 @@ HRESULT Renderer::initDX() {
 	desc.FillMode = D3D11_FILL_SOLID;
 	desc.CullMode = D3D11_CULL_BACK;
 	desc.DepthClipEnable = TRUE;
+	CComPtr<ID3D11RasterizerState> pRS;
+	m_pDevice->CreateRasterizerState(&desc, &pRS);
+	m_pDeviceContext->RSSetState(pRS);
 
     return S_OK;
 }
@@ -470,22 +473,6 @@ void Renderer::unloadShaders() {
 }
 
 void Renderer::initViewInView() {
-	// initialize view-in-view vertex buffer
-	CanvasVertex vertices[] = {
-		// black background quad
-		{ XMFLOAT3(0.00f, 0.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(1.00f, 0.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(0.00f, 1.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
-		{ XMFLOAT3(1.00f, 1.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
-		// White border lines
-		{ XMFLOAT3(0.00f, 0.00f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-		{ XMFLOAT3(1.00f, 0.00f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-		{ XMFLOAT3(0.00f, 0.00f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-		{ XMFLOAT3(0.00f, 1.00f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-	};
-	checkFailure(createVertexBuffer(m_pDevice, vertices, ARRAYSIZE(vertices), &m_pVIVVertexBuffer),
-		_T("Failed to create VIV vertex buffer"));
-
 	// initialize view-in-view viewport
 	D3D11_VIEWPORT& vp = m_vpViewInView;
 	vp.Width = m_rectView.Width() / 4.0f;
@@ -494,6 +481,23 @@ void Renderer::initViewInView() {
 	vp.TopLeftY = m_rectView.Height() - vp.Height;
 	vp.MinDepth = 0.0f;
 	vp.MaxDepth = 1.0f;
+
+	// initialize view-in-view vertex buffer
+	XMFLOAT2 rcpVPSizeHalf = XMFLOAT2(0.5f / vp.Width, 0.5f / vp.Height);
+	CanvasVertex vertices[] = {
+		// black background quad
+		{ XMFLOAT3(0.00f, 0.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(1.00f, 0.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(0.00f, 1.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(1.00f, 1.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
+		// White border lines
+		{ XMFLOAT3(0.00f, rcpVPSizeHalf.y, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
+		{ XMFLOAT3(1.00f, rcpVPSizeHalf.y, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
+		{ XMFLOAT3(rcpVPSizeHalf.x, 0.00f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
+		{ XMFLOAT3(rcpVPSizeHalf.x, 1.00f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
+	};
+	checkFailure(createVertexBuffer(m_pDevice, vertices, ARRAYSIZE(vertices), &m_pVIVVertexBuffer),
+		_T("Failed to create VIV vertex buffer"));
 }
 
 void Renderer::initTransform() {
@@ -1371,7 +1375,7 @@ void Renderer::render(const Camera* pSecondaryView) {
 		if (!bLightLit) {
 			// try to determine whether we should blur the irradiance map
 			updateTransform();
-			bool bNeedBlur = false;
+			bNeedBlur = false;
 			for (Renderable* renderable : m_vpRenderables) {
 				if (renderable->inScene()) {
 					// do frustum culling

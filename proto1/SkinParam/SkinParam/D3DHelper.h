@@ -6,6 +6,10 @@
 
 #include "TString.h"
 
+namespace DirectX {
+	enum DDS_ALPHA_MODE;
+}
+
 namespace Skin {
 	namespace D3DHelper {
 		// error reporting
@@ -36,6 +40,12 @@ namespace Skin {
 			ID3D11ShaderResourceView** ppTexture);
 		HRESULT loadTextureFromMemory(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, void* pData, UINT width, UINT height, DXGI_FORMAT format, UINT rowPitch,
 			ID3D11ShaderResourceView** ppTexture, bool autogen = true);
+		bool isDDSFile(const Utils::TString& strFileName);
+		HRESULT loadDDSTexture(ID3D11Device* pDevice, const Utils::TString& strFileName,
+			ID3D11ShaderResourceView** ppTexture, DirectX::DDS_ALPHA_MODE* pAlphaMode = nullptr);
+		HRESULT loadDDSTextureEx(ID3D11Device* pDevice, const Utils::TString& strFileName,
+			size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags, unsigned int miscFlags, bool forceSRGB,
+			ID3D11ShaderResourceView** ppTexture, DirectX::DDS_ALPHA_MODE* pAlphaMode = nullptr);
 		HRESULT loadImageData(const Utils::TString& strFileName, void* pData, UINT stride, UINT size);
 		HRESULT createSamplerState(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
 			D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, ID3D11SamplerState** ppSamplerState);

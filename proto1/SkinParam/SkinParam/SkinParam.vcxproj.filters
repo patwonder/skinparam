@@ -17,7 +17,6 @@
   <ItemGroup>
     <ClInclude Include="MainWindow.h" />
     <ClInclude Include="Constants.h" />
-    <ClInclude Include="winver.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Config.h" />
@@ -95,6 +94,10 @@
     </ClInclude>
     <ClInclude Include="RenderableManager.h" />
     <ClInclude Include="Frustum.h" />
+    <ClInclude Include="DirectXTex\DDSTextureLoader\DDSTextureLoader.h">
+      <Filter>DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -166,6 +169,9 @@
       <Filter>DXUT</Filter>
     </ClCompile>
     <ClCompile Include="Frustum.cpp" />
+    <ClCompile Include="DirectXTex\DDSTextureLoader\DDSTextureLoader.cpp">
+      <Filter>DirectXTex</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Lighting.fx">

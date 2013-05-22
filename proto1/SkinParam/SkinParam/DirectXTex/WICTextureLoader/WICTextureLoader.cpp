@@ -27,7 +27,7 @@
 
 // We could load multi-frame images (TIFF/GIF) into a texture array.
 // For now, we just load the first frame (note: DirectXTex supports multi-frame images)
-
+#include "..\..\version.h"
 #include <dxgiformat.h>
 #include <assert.h>
 

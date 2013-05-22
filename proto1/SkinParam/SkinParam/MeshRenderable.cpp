@@ -7,6 +7,7 @@
 #include "MeshRenderable.h"
 #include "ObjLoader.h"
 #include "D3DHelper.h"
+#include "DirectXTex\DDSTextureLoader\DDSTextureLoader.h"
 #include <unordered_map>
 #include <unordered_set>
 
@@ -120,16 +121,27 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 		const ObjMaterial& objMt = objMtPair.second;
 		if (objMt.TextureFileName.length()) {
 			CComPtr<ID3D11ShaderResourceView> pTexture = nullptr;
+			bool dds = isDDSFile(TStringFromANSIString(objMt.TextureFileName));
+			DirectX::DDS_ALPHA_MODE alphaMode = DirectX::DDS_ALPHA_MODE_STRAIGHT;
 			// use srgb for albedo textures
-			checkFailure(loadTextureEx(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.TextureFileName),
-				0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, true, &pTexture),
+			checkFailure(dds 
+				? loadDDSTextureEx(pDevice, _T("model\\") + TStringFromANSIString(objMt.TextureFileName),
+				  0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, true, &pTexture, &alphaMode)
+				: loadTextureEx(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.TextureFileName),
+				  0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, true, &pTexture),
 				_T("Unable to load texture ") + TStringFromANSIString(objMt.TextureFileName));
+			//ASSERT(alphaMode == DirectX::DDS_ALPHA_MODE_STRAIGHT);
 			m_vpTextures[objMtPair.first] = pTexture;
 		}
 		if (objMt.BumpMapFileName.length()) {
 			CComPtr<ID3D11ShaderResourceView> pBumpMap = nullptr;
-			checkFailure(loadTexture(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.BumpMapFileName), &pBumpMap),
-				_T("Unable to load bump map ") + TStringFromANSIString(objMt.BumpMapFileName));
+			bool dds = isDDSFile(TStringFromANSIString(objMt.BumpMapFileName));
+			DirectX::DDS_ALPHA_MODE alphaMode = DirectX::DDS_ALPHA_MODE_UNKNOWN;
+			checkFailure(dds
+				? loadDDSTexture(pDevice, _T("model\\") + TStringFromANSIString(objMt.BumpMapFileName), &pBumpMap, &alphaMode)
+				: loadTexture(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.BumpMapFileName), &pBumpMap),
+				  _T("Unable to load bump map ") + TStringFromANSIString(objMt.BumpMapFileName));
+			//ASSERT(alphaMode == DirectX::DDS_ALPHA_MODE_UNKNOWN);
 			m_vpBumpMaps[objMtPair.first] = pBumpMap;
 		}
 	}
@@ -306,6 +318,7 @@ void MeshRenderable::computeTangentSpace() {
 			ObjBinormal bn = ObjBinormal(-dt2.U * dv1.x + dt1.U * dv2.x,
 										-dt2.U * dv1.y + dt1.U * dv2.y,
 										-dt2.U * dv1.z + dt1.U * dv2.z);
+			if (invda != invda || isInfinite(invda)) continue;
 			tan *= invda; bn *= invda;
 
 			tangents[tri.Vertex[0]] += tan;

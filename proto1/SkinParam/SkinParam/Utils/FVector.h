@@ -7,6 +7,9 @@
 
 namespace Utils {
 
+bool floatEquals(float lhs, float rhs, float epsilon = std::numeric_limits<float>::epsilon());
+bool isInfinite(float f);
+
 struct FVector {
 	float x, y, z;
 	FVector();
@@ -26,6 +29,9 @@ struct FVector {
 
 	const float* toArray() const { return (float*)this; }
 
+	bool isNaN() const { return x != x || y != y || z != z || isInfinite(x) || isInfinite(y) || isInfinite(z); }
+	void fixNaN() { if (isNaN()) *this = FVector(0.0f, 0.0f, 1.0f); }
+
 	static const FVector ZERO;
 };
 
@@ -40,7 +46,5 @@ float angle(const FVector& v1, const FVector& v2);
 float shadow(const FVector& v1, const FVector& v2);
 bool operator==(const FVector& v1, const FVector& v2);
 bool operator!=(const FVector& v1, const FVector& v2);
-
-inline bool floatEquals(float lhs, float rhs, float epsilon = std::numeric_limits<float>::epsilon());
 
 } // namespace Utils

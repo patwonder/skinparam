@@ -111,7 +111,7 @@ float Utils::shadow(const FVector& v1, const FVector& v2) {
 	return v1 * v2 / v2.length();
 }
 
-inline bool Utils::floatEquals(float lhs, float rhs, float epsilon) {
+bool Utils::floatEquals(float lhs, float rhs, float epsilon) {
 	if(fabs(lhs) < fabs(rhs)) {
 		// Always use fabs(bigger/smaller - 1) < e to make sure the symmetry of equality.
 		// i.e. fequal(a, b) should produce the same result as fequal(b, a).
@@ -126,6 +126,11 @@ inline bool Utils::floatEquals(float lhs, float rhs, float epsilon) {
 		// because normally epsilon should be smaller than 1, so only "underflow " may occur.
 		return abs(lhs - rhs) < epsilon * abs(rhs);
 	}
+}
+
+bool Utils::isInfinite(float f) {
+	static const float inf = std::numeric_limits<float>::infinity();
+	return inf == f || inf == -f;
 }
 
 bool Utils::operator==(const FVector& v1, const FVector& v2) {

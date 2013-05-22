@@ -90,6 +90,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="DirectXTex\DDSTextureLoader\DDSTextureLoader.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(WindowsSDK_IncludePath);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(WindowsSDK_IncludePath);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="DirectXTex\WICTextureLoader\WICTextureLoader.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
@@ -187,6 +193,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Config.h" />
     <ClInclude Include="Constants.h" />
+    <ClInclude Include="DirectXTex\DDSTextureLoader\DDSTextureLoader.h" />
     <ClInclude Include="DirectXTex\DirectXTex\DirectXTex.h" />
     <ClInclude Include="DirectXTex\WICTextureLoader\WICTextureLoader.h" />
     <ClInclude Include="DXUT\Core\DXUT.h" />
@@ -221,7 +228,7 @@
     <ClInclude Include="Utils\TString.h" />
     <ClInclude Include="Utils\Vector.h" />
     <ClInclude Include="Utils\WICSingleton.h" />
-    <ClInclude Include="winver.h" />
+    <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Canvas.fx">

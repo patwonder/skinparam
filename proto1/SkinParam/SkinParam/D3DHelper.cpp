@@ -6,6 +6,7 @@
 
 #include "D3DHelper.h"
 #include "DirectXTex\WICTextureLoader\WICTextureLoader.h"
+#include "DirectXTex\DDSTextureLoader\DDSTextureLoader.h"
 #include "WICSingleton.h"
 #include <cmath>
 #include <cstring>
@@ -296,13 +297,13 @@ HRESULT D3DHelper::createBuffer(ID3D11Device* pDevice, UINT byteWidth, UINT bind
 	return S_OK;
 }
 
-HRESULT D3DHelper::loadTexture(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName,
+HRESULT D3DHelper::loadTexture(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const TString& strFileName,
 							   ID3D11ShaderResourceView** ppTexture)
 {
 	return CreateWICTextureFromFile(pDevice, pDeviceContext, strFileName.c_str(), nullptr, ppTexture);
 }
 
-HRESULT D3DHelper::loadTextureEx(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName,
+HRESULT D3DHelper::loadTextureEx(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const TString& strFileName,
 								 size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags,
 								 unsigned int miscFlags, bool forceSRGB,
 								 ID3D11ShaderResourceView** ppTexture)
@@ -311,6 +312,26 @@ HRESULT D3DHelper::loadTextureEx(ID3D11Device* pDevice, ID3D11DeviceContext* pDe
 		miscFlags, forceSRGB, nullptr, ppTexture);
 }
 
+bool D3DHelper::isDDSFile(const TString& strFileName) {
+	if (strFileName.length() < 4) return false;
+	TString ext = strFileName.substr(strFileName.length() - 4);
+	return _tcsicmp(ext.c_str(), _T(".dds")) == 0;
+}
+
+HRESULT D3DHelper::loadDDSTexture(ID3D11Device* pDevice, const TString& strFileName,
+								  ID3D11ShaderResourceView** ppTexture, DDS_ALPHA_MODE* pAlphaMode)
+{
+	return CreateDDSTextureFromFile(pDevice, strFileName.c_str(), nullptr, ppTexture, 0, pAlphaMode);
+}
+
+HRESULT D3DHelper::loadDDSTextureEx(ID3D11Device* pDevice, const TString& strFileName,
+									size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags,
+									unsigned int miscFlags, bool forceSRGB,
+									ID3D11ShaderResourceView** ppTexture, DDS_ALPHA_MODE* pAlphaMode)
+{
+	return CreateDDSTextureFromFileEx(pDevice, strFileName.c_str(), 0, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB,
+		nullptr, ppTexture, pAlphaMode);
+}
 
 HRESULT D3DHelper::loadTextureFromMemory(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, void* pData, UINT width, UINT height, DXGI_FORMAT format,
 							  UINT rowPitch, ID3D11ShaderResourceView** ppTexture, bool autogen)
