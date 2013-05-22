@@ -241,6 +241,7 @@ namespace Skin {
 		Camera* m_pCamera;
 		std::vector<Renderable*> m_vpRenderables;
 		std::vector<Light*> m_vpLights;
+		D3D11_VIEWPORT m_vpViewInView;
 
 		ShaderGroup* m_psgShadow;
 		ShaderGroup* m_psgTessellatedPhong;
@@ -304,8 +305,9 @@ namespace Skin {
 		void doBloom();
 
 		void initSSS();
-		void renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11RenderTargetView* pRTAlbedo,
-			ID3D11RenderTargetView* pRTDiffuseStencil, ID3D11RenderTargetView* pRTSpecular, bool* opbNeedBlur = nullptr);
+		void getImmediateIrradianceRT(ID3D11RenderTargetView** ppRT, ShaderGroup** ppsg, float* palpha);
+		void renderIrradianceMap(bool* opbNeedBlur = nullptr);
+		void renderViewInView(const Camera* pCamera);
 		void setGaussianKernelSize(float size);
 		void unbindInputBuffers();
 		void bindGaussianConstantBuffer();
@@ -353,7 +355,7 @@ namespace Skin {
 		void removeLight(Light* light);
 		void removeAllLights();
 
-		void render();
+		void render(const Camera* pSecondaryView = nullptr);
 
 		// Statistics
 		float getFPS() const { return m_fps; }

@@ -196,7 +196,7 @@ BOOL CMainWindow::OnIdle(LONG lCount) {
 		l.coSpecular = l.coDiffuse = Color::White * intensity;
 	}
 
-	m_pRenderer->render();
+	m_pRenderer->render(&m_pRenderer->getLightCamera(*m_pCurrentLight));
 
 	showInfo();
 	updateUI();

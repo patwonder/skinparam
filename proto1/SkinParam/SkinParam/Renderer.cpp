@@ -338,6 +338,15 @@ void Renderer::initMisc() {
 	checkFailure(createSamplerState(m_pDevice, D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP,
 		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pLinearSamplerState),
 		_T("Failed to create linear sampler state"));
+
+	// initialize view-in-view viewport
+	D3D11_VIEWPORT& vp = m_vpViewInView;
+	vp.TopLeftX = m_rectView.Width() * 3.0f / 4.0f;
+	vp.TopLeftY = m_rectView.Height() * 3.0f / 4.0f;
+	vp.Width = m_rectView.Width() / 4.0f;
+	vp.Height = m_rectView.Height() / 4.0f;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
 }
 
 void Renderer::addRenderable(Renderable* renderable) {
@@ -801,10 +810,30 @@ void Renderer::setConstantBuffers() {
 	m_pDeviceContext->PSSetConstantBuffers(0, ARRAYSIZE(buffers), buffers);
 }
 
-void Renderer::renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11RenderTargetView* pRTAlbedo,
-								   ID3D11RenderTargetView* pRTDiffuseStencil, ID3D11RenderTargetView* pRTSpecular,
-								   bool* opbNeedBlur) {
+void Renderer::getImmediateIrradianceRT(ID3D11RenderTargetView** ppRT, ShaderGroup** ppsg, float* palpha) {
+	if (palpha)
+		*palpha = 1.0f;
+	if (m_bBloom) {
+		if (ppsg)
+			*ppsg = m_bTessellation ? m_psgSSSIrradianceNoGaussian : m_psgSSSIrradianceNoTessellationNoGaussian;
+		if (ppRT)
+			*ppRT = m_pRTBloomSource;
+	} else if (m_bPostProcessAA) {
+		if (ppsg)
+			*ppsg = m_bTessellation ? m_psgSSSIrradianceNoGaussianAA : m_psgSSSIrradianceNoTessellationNoGaussianAA;
+		if (ppRT)
+			*ppRT = m_apRTSSS[IDX_SSS_TEMPORARY];
+		if (palpha)
+			*palpha = 0.0f; // for luminance
+	} else {
+		if (ppsg)
+			*ppsg = m_bTessellation ? m_psgSSSIrradianceNoGaussian : m_psgSSSIrradianceNoTessellationNoGaussian;
+		if (ppRT)
+			*ppRT = m_pRenderTargetView;
+	}
+}
 
+void Renderer::renderIrradianceMap(bool* opbNeedBlur) {
 	setConstantBuffers();
 
 	m_pDeviceContext->IASetPrimitiveTopology(
@@ -817,37 +846,26 @@ void Renderer::renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11
 		(m_bTessellation ? m_psgSSSIrradiance : m_psgSSSIrradianceNoTessellation)->use(m_pDeviceContext);
 
 		ID3D11RenderTargetView* apSSSRenderTargets[] = {
-			pRTIrradiance,
-			pRTAlbedo,
-			pRTDiffuseStencil,
-			pRTSpecular
+			m_apRTSSS[IDX_SSS_IRRADIANCE],
+			m_apRTSSS[IDX_SSS_ALBEDO],
+			m_apRTSSS[IDX_SSS_DIFFUSE_STENCIL],
+			m_apRTSSS[IDX_SSS_SPECULAR]
 		};
 		m_pDeviceContext->OMSetRenderTargets(ARRAYSIZE(apSSSRenderTargets), apSSSRenderTargets, m_pDepthStencilView);
 		// Clear render target view & depth stencil
 		float ClearIrradiance[4] = { 0.0f, 0.0f, 0.0f, 0.0f }; // RGBA
 		float ClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // RGBA
 		float ClearDiffuseStencil[4] = { 0.0f, 0.0f, 1.0f, 0.0f };
-		m_pDeviceContext->ClearRenderTargetView(pRTIrradiance, ClearIrradiance);
-		m_pDeviceContext->ClearRenderTargetView(pRTAlbedo, ClearColor);
-		m_pDeviceContext->ClearRenderTargetView(pRTDiffuseStencil, ClearDiffuseStencil);
-		m_pDeviceContext->ClearRenderTargetView(pRTSpecular, ClearColor);
+		m_pDeviceContext->ClearRenderTargetView(m_apRTSSS[IDX_SSS_IRRADIANCE], ClearIrradiance);
+		m_pDeviceContext->ClearRenderTargetView(m_apRTSSS[IDX_SSS_ALBEDO], ClearColor);
+		m_pDeviceContext->ClearRenderTargetView(m_apRTSSS[IDX_SSS_DIFFUSE_STENCIL], ClearDiffuseStencil);
+		m_pDeviceContext->ClearRenderTargetView(m_apRTSSS[IDX_SSS_SPECULAR], ClearColor);
 		m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
 	} else {
 		// fast routine, render directly to target
 		ShaderGroup* sg = nullptr;
 		float alpha = 1.0f;
-		if (m_bBloom) {
-			sg = m_bTessellation ? m_psgSSSIrradianceNoGaussian : m_psgSSSIrradianceNoTessellationNoGaussian;
-			pRT = m_pRTBloomSource;
-		} else if (m_bPostProcessAA) {
-			sg = m_bTessellation ? m_psgSSSIrradianceNoGaussianAA : m_psgSSSIrradianceNoTessellationNoGaussianAA;
-			pRT = m_apRTSSS[IDX_SSS_TEMPORARY];
-			alpha = 0.0f; // for luminance
-		} else {
-			sg = m_bTessellation ? m_psgSSSIrradianceNoGaussian : m_psgSSSIrradianceNoTessellationNoGaussian;
-			pRT = m_pRenderTargetView;
-		}
+		getImmediateIrradianceRT(&pRT, &sg, &alpha);
 		sg->use(m_pDeviceContext);
 
 		m_pDeviceContext->OMSetRenderTargets(1, &pRT, m_pDepthStencilView);
@@ -863,21 +881,51 @@ void Renderer::renderIrradianceMap(ID3D11RenderTargetView* pRTIrradiance, ID3D11
 	renderScene(opbNeedBlur);
 	unbindAttenuationTexture();
 	unbindShadowMaps();
+	unbindInputBuffers();
 
 	if (m_bDump) {
 		if (!bUseFastRoutine) {
-			dumpRenderTargetToFile(pRTIrradiance, _T("Irradiance"));
-			dumpRenderTargetToFile(pRTAlbedo, _T("Albedo"));
+			dumpRenderTargetToFile(m_apRTSSS[IDX_SSS_IRRADIANCE], _T("Irradiance"));
+			dumpRenderTargetToFile(m_apRTSSS[IDX_SSS_ALBEDO], _T("Albedo"));
 			dumpIrregularResourceToFile(m_apSRVSSS[IDX_SSS_DIFFUSE_STENCIL], _T("DiffuseStencil"), false,
 				XMFLOAT4(50.0f, 50.0f, 0.0f, 0.0f),
 				XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f),
 				XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f));
-			dumpRenderTargetToFile(pRTSpecular, _T("Specular"));
+			dumpRenderTargetToFile(m_apRTSSS[IDX_SSS_SPECULAR], _T("Specular"));
 		} else {
 			if (!m_bPostProcessAA && !m_bBloom)
 				dumpRenderTargetToFile(pRT, _T("Final"));
 		}
 	}
+}
+
+void Renderer::renderViewInView(const Camera* pCamera) {
+	ID3D11RenderTargetView* pRT = nullptr;
+	ShaderGroup* sg = nullptr;
+	float alpha = 1.0f;
+	getImmediateIrradianceRT(&pRT, &sg, &alpha);
+
+	setConstantBuffers();
+
+	m_pDeviceContext->RSSetViewports(1, &m_vpViewInView);
+
+	m_pDeviceContext->IASetPrimitiveTopology(
+		m_bTessellation ? D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	sg->use(m_pDeviceContext);
+	
+	m_pDeviceContext->OMSetRenderTargets(1, &pRT, m_pDepthStencilView);
+	// Clear depth stencil view only
+	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	updateTransform(*pCamera, XMLoadFloat4x4(&m_matProjection), (float)m_rectView.Width() / m_rectView.Height());
+	bindShadowMaps();
+	bindAttenuationTexture();
+	renderScene();
+	unbindAttenuationTexture();
+	unbindShadowMaps();
+	unbindInputBuffers();
+
+	m_pDeviceContext->RSSetViewports(1, &m_vpScreen);
 }
 
 void Renderer::unbindInputBuffers() {
@@ -1220,7 +1268,7 @@ void Renderer::copyRender(ID3D11ShaderResourceView* pSRV, ID3D11RenderTargetView
 	if (bWireframe) setWireframe(true);
 }
 
-void Renderer::render() {
+void Renderer::render(const Camera* pSecondaryView) {
 	updateLighting();
 	updateTessellation();
 	setConstantBuffers();
@@ -1288,9 +1336,8 @@ void Renderer::render() {
 	m_pDeviceContext->RSSetViewports(1, &m_vpScreen);
 
 	m_rsCurrent = RS_Irradiance;
-	renderIrradianceMap(m_apRTSSS[IDX_SSS_IRRADIANCE], m_apRTSSS[IDX_SSS_ALBEDO], 
-						m_apRTSSS[IDX_SSS_DIFFUSE_STENCIL], m_apRTSSS[IDX_SSS_SPECULAR],
-						&bNeedBlur);
+	renderIrradianceMap(&bNeedBlur);
+
 	if (bToggle) toggleWireframe(); {
 		if (bNeedBlur) {
 			m_rsCurrent = RS_Gaussian;
@@ -1299,6 +1346,10 @@ void Renderer::render() {
 
 			m_rsCurrent = RS_Combine;
 			doCombineShading(bNeedBlur, apSRVGaussians);
+		}
+
+		if (pSecondaryView) {
+			renderViewInView(pSecondaryView);
 		}
 
 		if (m_bBloom) {
