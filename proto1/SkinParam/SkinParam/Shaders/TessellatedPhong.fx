@@ -22,7 +22,7 @@ struct VS_INPUT {
 	float2 texCoord : TEXCOORD0;
 };
 
-struct HS_INPUT {
+struct HS_DS_INPUT {
 	float3 vPosWS : WORLDPOS;
 	float4 color : COLOR;
 	float3 vNormalWS : NORMAL;
@@ -36,15 +36,6 @@ struct HSCF_OUTPUT {
     float inside : SV_InsideTessFactor;
 };
 
-struct DS_INPUT {
-	float3 vPosWS : WORLDPOS;
-	float4 color : COLOR;
-	float3 vNormalWS : NORMAL;
-	float3 vTangentWS : TANGENT;
-	float3 vBinormalWS : BINORMAL;
-	float2 texCoord : TEXCOORD0;
-};
-
 struct PS_INPUT {
 	float4 vPosPS : SV_POSITION;
 	float4 color : COLOR0;
@@ -56,8 +47,8 @@ struct PS_INPUT {
 };
 
 // Vertex shader, do world transform only
-HS_INPUT VS(VS_INPUT input) {
-	HS_INPUT output;
+HS_DS_INPUT VS_Core_Part_1(VS_INPUT input) {
+	HS_DS_INPUT output;
 	float4 wpos4 = mul(input.vPosOS, g_matWorld);
 	output.vPosWS = wpos4.xyz / wpos4.w;
 	output.color = input.color;
@@ -68,32 +59,34 @@ HS_INPUT VS(VS_INPUT input) {
 	return output;
 }
 
-// Vertex shader without tessellation
-PS_INPUT VS_NoTessellation(VS_INPUT input) {
-	float4 wpos4 = mul(input.vPosOS, g_matWorld);
-	float3 vPosWS = wpos4.xyz / wpos4.w;
-	float3 vNormalWS = mul(input.vNormalOS, (float3x3)g_matWorld);
-	float3 vTangentWS = mul(input.vTangentOS, (float3x3)g_matWorld);
-	float3 vBinormalWS = mul(input.vBinormalOS, (float3x3)g_matWorld);
-
+PS_INPUT VS_Core_Part_2(HS_DS_INPUT input) {
 	// do view projection transform
-	vNormalWS = normalize(vNormalWS);
+	input.vNormalWS = normalize(input.vNormalWS);
 	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
-	vPosWS += bumpAmount * vNormalWS;
+	input.vPosWS += bumpAmount * input.vNormalWS;
 
 	PS_INPUT output;
-	output.vPosWS = vPosWS;
-	output.vPosPS = mul(float4(vPosWS, 1.0), g_matViewProj);
+	output.vPosWS = input.vPosWS;
+	output.vPosPS = mul(float4(input.vPosWS, 1.0), g_matViewProj);
 	output.color = input.color;
-	output.vNormalWS = vNormalWS;
-	output.vTangentWS = vTangentWS;
-	output.vBinormalWS = vBinormalWS;
+	output.vNormalWS = input.vNormalWS;
+	output.vTangentWS = input.vTangentWS;
+	output.vBinormalWS = input.vBinormalWS;
 	output.texCoord = input.texCoord;
 	return output;
 }
 
+HS_DS_INPUT VS(VS_INPUT input) {
+	return VS_Core_Part_1(input);
+}
+
+// Vertex shader without tessellation
+PS_INPUT VS_NoTessellation(VS_INPUT input) {
+	return VS_Core_Part_2(VS_Core_Part_1(input));
+}
+
 // Hull shader patch constant function
-HSCF_OUTPUT HSCF(InputPatch<HS_INPUT, 3> patch, uint patchId : SV_PrimitiveID) {
+HSCF_OUTPUT HSCF(InputPatch<HS_DS_INPUT, 3> patch, uint patchId : SV_PrimitiveID) {
     HSCF_OUTPUT output;
 
 	// View frustum culling
@@ -130,8 +123,8 @@ HSCF_OUTPUT HSCF(InputPatch<HS_INPUT, 3> patch, uint patchId : SV_PrimitiveID) {
 [outputcontrolpoints(3)]
 [patchconstantfunc("HSCF")]
 //[maxtessfactor(5.0)]
-DS_INPUT HS(InputPatch<HS_INPUT, 3> patch, uint pointId : SV_OutputControlPointID, uint patchId : SV_PrimitiveID) {
-	DS_INPUT output;
+HS_DS_INPUT HS(InputPatch<HS_DS_INPUT, 3> patch, uint pointId : SV_OutputControlPointID, uint patchId : SV_PrimitiveID) {
+	HS_DS_INPUT output;
 	output.vPosWS = patch[pointId].vPosWS;
 	output.color = patch[pointId].color;
 	output.vNormalWS = patch[pointId].vNormalWS;
@@ -143,9 +136,9 @@ DS_INPUT HS(InputPatch<HS_INPUT, 3> patch, uint pointId : SV_OutputControlPointI
 
 // Domain shader
 [domain("tri")]
-PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPatch<DS_INPUT, 3> patch) {
+PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPatch<HS_DS_INPUT, 3> patch) {
 	// interpolate new point data
-	DS_INPUT input;
+	HS_DS_INPUT input;
 	input.vPosWS = uvwCoord.x * patch[0].vPosWS + uvwCoord.y * patch[1].vPosWS + uvwCoord.z * patch[2].vPosWS;
 	input.color = uvwCoord.x * patch[0].color + uvwCoord.y * patch[1].color + uvwCoord.z * patch[2].color;
 	input.vNormalWS = uvwCoord.x * patch[0].vNormalWS + uvwCoord.y * patch[1].vNormalWS + uvwCoord.z * patch[2].vNormalWS;
@@ -153,22 +146,10 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 	input.vTangentWS = uvwCoord.x * patch[0].vTangentWS + uvwCoord.y * patch[1].vTangentWS + uvwCoord.z * patch[2].vTangentWS;
 	input.texCoord = uvwCoord.x * patch[0].texCoord + uvwCoord.y * patch[1].texCoord + uvwCoord.z * patch[2].texCoord;
 
-	// do view projection transform
-	input.vNormalWS = normalize(input.vNormalWS);
 	input.vTangentWS = normalize(input.vTangentWS);
 	input.vBinormalWS = normalize(input.vBinormalWS);
-	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
-	input.vPosWS += bumpAmount * input.vNormalWS;
 
-	PS_INPUT output;
-	output.vPosWS = input.vPosWS;
-	output.vPosPS = mul(float4(input.vPosWS, 1.0), g_matViewProj);
-	output.color = input.color;
-	output.vNormalWS = input.vNormalWS;
-	output.vTangentWS = input.vTangentWS;
-	output.vBinormalWS = input.vBinormalWS;
-	output.texCoord = input.texCoord;
-	return output;
+	return VS_Core_Part_2(input);
 }
 
 // Pixel shader
@@ -212,48 +193,9 @@ struct PS_OUTPUT_IRRADIANCE {
 	float4 specular : SV_Target3;
 };
 
-PS_INPUT_IRRADIANCE VS_Irradiance_NoTessellation(VS_INPUT input) {
-	float4 wpos4 = mul(input.vPosOS, g_matWorld);
-	float3 vPosWS = wpos4.xyz / wpos4.w;
-	float3 vNormalWS = mul(input.vNormalOS, (float3x3)g_matWorld);
-	float3 vTangentWS = mul(input.vTangentOS, (float3x3)g_matWorld);
-	float3 vBinormalWS = mul(input.vBinormalOS, (float3x3)g_matWorld);
-
-	// do view projection transform
-	vNormalWS = normalize(vNormalWS);
-	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
-	vPosWS += bumpAmount * vNormalWS;
-
-	float4 vPosVS = mul(float4(vPosWS, 1.0), g_matView);
-
-	PS_INPUT_IRRADIANCE output;
-	output.vPosWS = vPosWS;
-	output.vPosPS = mul(float4(vPosWS, 1.0), g_matViewProj);
-	output.color = input.color;
-	output.vNormalWS = vNormalWS;
-	output.vTangentWS = vTangentWS;
-	output.vBinormalWS = vBinormalWS;
-	output.texCoord = input.texCoord;
-	output.depth = vPosVS.z / vPosVS.w;
-	return output;
-}
-
-// Domain shader
-[domain("tri")]
-PS_INPUT_IRRADIANCE DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPatch<DS_INPUT, 3> patch) {
-	// interpolate new point data
-	DS_INPUT input;
-	input.vPosWS = uvwCoord.x * patch[0].vPosWS + uvwCoord.y * patch[1].vPosWS + uvwCoord.z * patch[2].vPosWS;
-	input.color = uvwCoord.x * patch[0].color + uvwCoord.y * patch[1].color + uvwCoord.z * patch[2].color;
-	input.vNormalWS = uvwCoord.x * patch[0].vNormalWS + uvwCoord.y * patch[1].vNormalWS + uvwCoord.z * patch[2].vNormalWS;
-	input.vBinormalWS = uvwCoord.x * patch[0].vBinormalWS + uvwCoord.y * patch[1].vBinormalWS + uvwCoord.z * patch[2].vBinormalWS;
-	input.vTangentWS = uvwCoord.x * patch[0].vTangentWS + uvwCoord.y * patch[1].vTangentWS + uvwCoord.z * patch[2].vTangentWS;
-	input.texCoord = uvwCoord.x * patch[0].texCoord + uvwCoord.y * patch[1].texCoord + uvwCoord.z * patch[2].texCoord;
-
+PS_INPUT_IRRADIANCE VS_Irradiance_Core_Part_2(HS_DS_INPUT input) {
 	// do view projection transform
 	input.vNormalWS = normalize(input.vNormalWS);
-	input.vTangentWS = normalize(input.vTangentWS);
-	input.vBinormalWS = normalize(input.vBinormalWS);
 	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
 	input.vPosWS += bumpAmount * input.vNormalWS;
 
@@ -269,6 +211,28 @@ PS_INPUT_IRRADIANCE DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLo
 	output.texCoord = input.texCoord;
 	output.depth = vPosVS.z / vPosVS.w;
 	return output;
+}
+
+PS_INPUT_IRRADIANCE VS_Irradiance_NoTessellation(VS_INPUT input) {
+	return VS_Irradiance_Core_Part_2(VS_Core_Part_1(input));
+}
+
+// Domain shader
+[domain("tri")]
+PS_INPUT_IRRADIANCE DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPatch<HS_DS_INPUT, 3> patch) {
+	// interpolate new point data
+	HS_DS_INPUT input;
+	input.vPosWS = uvwCoord.x * patch[0].vPosWS + uvwCoord.y * patch[1].vPosWS + uvwCoord.z * patch[2].vPosWS;
+	input.color = uvwCoord.x * patch[0].color + uvwCoord.y * patch[1].color + uvwCoord.z * patch[2].color;
+	input.vNormalWS = uvwCoord.x * patch[0].vNormalWS + uvwCoord.y * patch[1].vNormalWS + uvwCoord.z * patch[2].vNormalWS;
+	input.vBinormalWS = uvwCoord.x * patch[0].vBinormalWS + uvwCoord.y * patch[1].vBinormalWS + uvwCoord.z * patch[2].vBinormalWS;
+	input.vTangentWS = uvwCoord.x * patch[0].vTangentWS + uvwCoord.y * patch[1].vTangentWS + uvwCoord.z * patch[2].vTangentWS;
+	input.texCoord = uvwCoord.x * patch[0].texCoord + uvwCoord.y * patch[1].texCoord + uvwCoord.z * patch[2].texCoord;
+
+	input.vTangentWS = normalize(input.vTangentWS);
+	input.vBinormalWS = normalize(input.vBinormalWS);
+
+	return VS_Irradiance_Core_Part_2(input);
 }
 
 // kernel width calculation
