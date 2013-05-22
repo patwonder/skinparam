@@ -56,11 +56,15 @@ const float Renderer::SSS_GAUSSIAN_WEIGHTS[NUM_SSS_GAUSSIANS][3] = {
 };
 
 Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, RenderableManager* pRenderableManager)
-	: m_psgSSSIrradianceNoTessellation(nullptr),
-	  m_psgShadow(nullptr),
+	: m_psgShadow(nullptr),
 	  m_psgTessellatedPhong(nullptr),
 	  m_psgTessellatedShadow(nullptr),
 	  m_psgSSSIrradiance(nullptr),
+	  m_psgSSSIrradianceNoTessellation(nullptr),
+	  m_psgSSSIrradianceNoGaussian(nullptr),
+	  m_psgSSSIrradianceNoGaussianAA(nullptr),
+	  m_psgSSSIrradianceNoTessellationNoGaussian(nullptr),
+	  m_psgSSSIrradianceNoTessellationNoGaussianAA(nullptr),
 	  m_psgSSSGausianVertical(nullptr),
 	  m_psgSSSGausianHorizontal(nullptr),
 	  m_psgSSSGausianVertical7(nullptr),
@@ -99,11 +103,15 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_rsCurrent(RS_NotRendering),
 	  m_bPRAttenuationTexture(false)
 {
-	m_vppShaderGroups.push_back(&m_psgSSSIrradianceNoTessellation);
 	m_vppShaderGroups.push_back(&m_psgShadow);
 	m_vppShaderGroups.push_back(&m_psgTessellatedPhong);
 	m_vppShaderGroups.push_back(&m_psgTessellatedShadow);
 	m_vppShaderGroups.push_back(&m_psgSSSIrradiance);
+	m_vppShaderGroups.push_back(&m_psgSSSIrradianceNoTessellation);
+	m_vppShaderGroups.push_back(&m_psgSSSIrradianceNoGaussian);
+	m_vppShaderGroups.push_back(&m_psgSSSIrradianceNoGaussianAA);
+	m_vppShaderGroups.push_back(&m_psgSSSIrradianceNoTessellationNoGaussian);
+	m_vppShaderGroups.push_back(&m_psgSSSIrradianceNoTessellationNoGaussianAA);
 	m_vppShaderGroups.push_back(&m_psgSSSGausianVertical);
 	m_vppShaderGroups.push_back(&m_psgSSSGausianHorizontal);
 	m_vppShaderGroups.push_back(&m_psgSSSGausianVertical7);
@@ -206,6 +214,13 @@ HRESULT Renderer::initDX() {
     }
     if (FAILED(hr))
         return hr;
+
+	// Use lower presets for non-hardware devices
+	if (m_driverType != D3D_DRIVER_TYPE_HARDWARE) {
+		m_bTessellation = false;
+		m_bPostProcessAA = false;
+		m_bBloom = false;
+	}
 
 	m_pSwapChain = DXUTGetDXGISwapChain();
 	m_pDevice = DXUTGetD3D11Device();
@@ -366,8 +381,7 @@ void Renderer::removeAllLights() {
 
 void Renderer::loadShaders() {
 	// World-space shaders
-	D3D11_INPUT_ELEMENT_DESC phong_layout[] =
-    {
+	D3D11_INPUT_ELEMENT_DESC phong_layout[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -388,9 +402,16 @@ void Renderer::loadShaders() {
 	// SSS
 	m_psgSSSIrradiance = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
 		"VS", "HS", "DS_Irradiance", "PS_Irradiance");
-
 	m_psgSSSIrradianceNoTessellation = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
 		"VS_Irradiance_NoTessellation", nullptr, nullptr, "PS_Irradiance");
+	m_psgSSSIrradianceNoGaussian = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
+		"VS", "HS", "DS_Irradiance", "PS_Irradiance_NoGaussian");
+	m_psgSSSIrradianceNoGaussianAA = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
+		"VS", "HS", "DS_Irradiance", "PS_Irradiance_NoGaussian_AA");
+	m_psgSSSIrradianceNoTessellationNoGaussian = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
+		"VS_Irradiance_NoTessellation", nullptr, nullptr, "PS_Irradiance_NoGaussian");
+	m_psgSSSIrradianceNoTessellationNoGaussianAA = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
+		"VS_Irradiance_NoTessellation", nullptr, nullptr, "PS_Irradiance_NoGaussian_AA");
 
 	// Screen-space shaders
 	D3D11_INPUT_ELEMENT_DESC empty_layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 } };

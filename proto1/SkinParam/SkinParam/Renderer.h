@@ -61,6 +61,10 @@ namespace Skin {
 		D3D11_VIEWPORT m_vpAttenuationTexture;
 		ShaderGroup* m_psgSSSIrradiance;
 		ShaderGroup* m_psgSSSIrradianceNoTessellation;
+		ShaderGroup* m_psgSSSIrradianceNoGaussian;
+		ShaderGroup* m_psgSSSIrradianceNoGaussianAA;
+		ShaderGroup* m_psgSSSIrradianceNoTessellationNoGaussian;
+		ShaderGroup* m_psgSSSIrradianceNoTessellationNoGaussianAA;
 		ShaderGroup* m_psgSSSGausianVertical;
 		ShaderGroup* m_psgSSSGausianHorizontal;
 		ShaderGroup* m_psgSSSGausianVertical7;

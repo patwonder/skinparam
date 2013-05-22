@@ -3,6 +3,7 @@
 #include "Lighting.fx"
 #include "Culling.fx"
 #include "Bump.fx"
+#include "Lum.fx"
 
 cbuffer Tessellation : register(b3) {
 	float4 g_vTessellationFactor; // Edge, inside, minimum tessellation factor and (half screen height/desired triangle size)
@@ -462,4 +463,16 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 	output.specular = float4(specular, 1.0);
 
 	return output;
+}
+
+float4 PS_Irradiance_NoGaussian(PS_INPUT_IRRADIANCE input) : SV_Target {
+	PS_OUTPUT_IRRADIANCE output = PS_Irradiance(input);
+	// combine immediately
+	float4 color = output.irradiance * output.albedo + output.specular;
+	return float4(color.rgb, 1.0);
+}
+
+float4 PS_Irradiance_NoGaussian_AA(PS_INPUT_IRRADIANCE input) : SV_Target {
+	float3 color = PS_Irradiance_NoGaussian(input).rgb;
+	return lum_output_linear(color);
 }
