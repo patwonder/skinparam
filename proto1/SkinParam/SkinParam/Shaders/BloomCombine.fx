@@ -18,6 +18,6 @@ float4 PS(PS_INPUT input) : SV_Target {
 }
 
 float4 PS_AA(PS_INPUT input) : SV_Target {
-	float3 color = saturate(PS(input).rgb);
+	float3 color = PS(input).rgb;
 	return lum_output_linear(color);
 }

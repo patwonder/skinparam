@@ -468,8 +468,8 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 float4 PS_Irradiance_NoGaussian(PS_INPUT_IRRADIANCE input) : SV_Target {
 	PS_OUTPUT_IRRADIANCE output = PS_Irradiance(input);
 	// combine immediately
-	float4 color = output.irradiance * output.albedo + output.specular;
-	return float4(color.rgb, 1.0);
+	float3 color = output.irradiance.rgb * output.albedo.rgb + output.specular.rgb;
+	return float4(color, 1.0);
 }
 
 float4 PS_Irradiance_NoGaussian_AA(PS_INPUT_IRRADIANCE input) : SV_Target {
