@@ -21,6 +21,7 @@ struct VS_INPUT {
 	float3 vTangentOS : TANGENT;
 	float3 vBinormalOS : BINORMAL;
 	float2 texCoord : TEXCOORD0;
+	float2 bumpOverride : TEXCOORD1;
 };
 
 struct HS_DS_INPUT {
@@ -30,6 +31,7 @@ struct HS_DS_INPUT {
 	float3 vTangentWS : TANGENT;
 	float3 vBinormalWS : BINORMAL;
 	float2 texCoord : TEXCOORD0;
+	float2 bumpOverride : BUMP;
 };
 
 struct HSCF_OUTPUT {
@@ -57,13 +59,15 @@ HS_DS_INPUT VS_Core_Part_1(VS_INPUT input) {
 	output.vTangentWS = mul(input.vTangentOS, (float3x3)g_matWorld);
 	output.vBinormalWS = mul(input.vBinormalOS, (float3x3)g_matWorld);
 	output.texCoord = input.texCoord;
+	output.bumpOverride = input.bumpOverride;
 	return output;
 }
 
 PS_INPUT VS_Core_Part_2(HS_DS_INPUT input) {
 	// do view projection transform
 	input.vNormalWS = normalize(input.vNormalWS);
-	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
+	float bumpSample = lerp(g_bump.SampleLevel(g_samBump, input.texCoord, 0).r, input.bumpOverride.x, input.bumpOverride.y);
+	float bumpAmount = g_material.bump_multiplier * 2 * (bumpSample - 0.5);
 	input.vPosWS += bumpAmount * input.vNormalWS;
 
 	PS_INPUT output;
@@ -125,14 +129,7 @@ HSCF_OUTPUT HSCF(InputPatch<HS_DS_INPUT, 3> patch, uint patchId : SV_PrimitiveID
 [patchconstantfunc("HSCF")]
 //[maxtessfactor(5.0)]
 HS_DS_INPUT HS(InputPatch<HS_DS_INPUT, 3> patch, uint pointId : SV_OutputControlPointID, uint patchId : SV_PrimitiveID) {
-	HS_DS_INPUT output;
-	output.vPosWS = patch[pointId].vPosWS;
-	output.color = patch[pointId].color;
-	output.vNormalWS = patch[pointId].vNormalWS;
-	output.vTangentWS = patch[pointId].vTangentWS;
-	output.vBinormalWS = patch[pointId].vBinormalWS;
-	output.texCoord = patch[pointId].texCoord;
-	return output;
+	return patch[pointId];
 }
 
 // Domain shader
@@ -146,6 +143,7 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 	input.vBinormalWS = uvwCoord.x * patch[0].vBinormalWS + uvwCoord.y * patch[1].vBinormalWS + uvwCoord.z * patch[2].vBinormalWS;
 	input.vTangentWS = uvwCoord.x * patch[0].vTangentWS + uvwCoord.y * patch[1].vTangentWS + uvwCoord.z * patch[2].vTangentWS;
 	input.texCoord = uvwCoord.x * patch[0].texCoord + uvwCoord.y * patch[1].texCoord + uvwCoord.z * patch[2].texCoord;
+	input.bumpOverride = uvwCoord.x * patch[0].bumpOverride + uvwCoord.y * patch[1].bumpOverride + uvwCoord.z * patch[2].bumpOverride;
 
 	input.vTangentWS = normalize(input.vTangentWS);
 	input.vBinormalWS = normalize(input.vBinormalWS);
@@ -197,7 +195,8 @@ struct PS_OUTPUT_IRRADIANCE {
 PS_INPUT_IRRADIANCE VS_Irradiance_Core_Part_2(HS_DS_INPUT input) {
 	// do view projection transform
 	input.vNormalWS = normalize(input.vNormalWS);
-	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
+	float bumpSample = lerp(g_bump.SampleLevel(g_samBump, input.texCoord, 0).r, input.bumpOverride.x, input.bumpOverride.y);
+	float bumpAmount = g_material.bump_multiplier * 2 * (bumpSample - 0.5);
 	input.vPosWS += bumpAmount * input.vNormalWS;
 
 	float4 vPosVS = mul(float4(input.vPosWS, 1.0), g_matView);
@@ -229,6 +228,7 @@ PS_INPUT_IRRADIANCE DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLo
 	input.vBinormalWS = uvwCoord.x * patch[0].vBinormalWS + uvwCoord.y * patch[1].vBinormalWS + uvwCoord.z * patch[2].vBinormalWS;
 	input.vTangentWS = uvwCoord.x * patch[0].vTangentWS + uvwCoord.y * patch[1].vTangentWS + uvwCoord.z * patch[2].vTangentWS;
 	input.texCoord = uvwCoord.x * patch[0].texCoord + uvwCoord.y * patch[1].texCoord + uvwCoord.z * patch[2].texCoord;
+	input.bumpOverride = uvwCoord.x * patch[0].bumpOverride + uvwCoord.y * patch[1].bumpOverride + uvwCoord.z * patch[2].bumpOverride;
 
 	input.vTangentWS = normalize(input.vTangentWS);
 	input.vBinormalWS = normalize(input.vBinormalWS);

@@ -27,7 +27,7 @@ void D3DHelper::checkFailure(HRESULT hr, const TString& prompt) {
 	}
 }
 
-namespace Skin {
+namespace Skin { namespace D3DHelper {
 	using namespace std;
 	// Implements shader caching
 	struct ShaderCacheKey {
@@ -83,7 +83,7 @@ namespace Skin {
 	static unordered_map<ShaderCacheKey, DomainShaderCacheValue, ShaderCacheKeyHasher, ShaderCacheKeyEqualTo> g_dscache;
 	static unordered_map<ShaderCacheKey, GeometryShaderCacheValue, ShaderCacheKeyHasher, ShaderCacheKeyEqualTo> g_gscache;
 	static unordered_map<ShaderCacheKey, PixelShaderCacheValue, ShaderCacheKeyHasher, ShaderCacheKeyEqualTo> g_pscache;
-} // namespace Skin
+} } // namespace Skin::D3DHelper
 
 void D3DHelper::clearShaderCache() {
 	g_vscache.clear();
@@ -379,27 +379,73 @@ HRESULT D3DHelper::loadTextureFromMemory(ID3D11Device* pDevice, ID3D11DeviceCont
 	return hr;
 }
 
-HRESULT D3DHelper::loadImageData(const Utils::TString& strFileName, void* pData, UINT stride, UINT size) {
-    IWICImagingFactory* pWIC = GetWIC();
-    if (!pWIC)
-        return E_NOINTERFACE;
+namespace Skin { namespace D3DHelper {
+	static size_t _WICBitsPerPixel( REFGUID targetGuid ) {
+		IWICImagingFactory* pWIC = GetWIC();
+		if ( !pWIC )
+			return 0;
+ 
+		CComPtr<IWICComponentInfo> cinfo;
+		if ( FAILED( pWIC->CreateComponentInfo( targetGuid, &cinfo ) ) )
+			return 0;
 
-    // Initialize WIC
-    IWICBitmapDecoder* decoder;
+		WICComponentType type;
+		if ( FAILED( cinfo->GetComponentType( &type ) ) )
+			return 0;
+
+		if ( type != WICPixelFormat )
+			return 0;
+
+		CComPtr<IWICPixelFormatInfo> pfinfo;
+		if ( FAILED( cinfo->QueryInterface( __uuidof(IWICPixelFormatInfo), reinterpret_cast<void**>( &pfinfo )  ) ) )
+			return 0;
+
+		UINT bpp;
+		if ( FAILED( pfinfo->GetBitsPerPixel( &bpp ) ) )
+			return 0;
+
+		return bpp;
+	}
+
+	static size_t _WICBytesPerPixel( REFGUID targetGuid ) {
+		return (_WICBitsPerPixel(targetGuid) + 7) / 8;
+	}
+} } // namespace Skin::D3DHelper
+
+HRESULT D3DHelper::loadImageData(const TString& strFileName, void** ppData, UINT* pWidth, UINT* pHeight,
+								 WICPixelFormatGUID* pPixelFormatGUID)
+{
+	if (*ppData)
+		return E_INVALIDARG;
+
+	IWICImagingFactory* pWIC = GetWIC();
+	if (!pWIC)
+		return E_NOINTERFACE;
+
+	// Initialize WIC
+	CComPtr<IWICBitmapDecoder> decoder;
 	HRESULT hr = pWIC->CreateDecoderFromFilename(strFileName.c_str(), 0, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &decoder);
-    if (FAILED(hr))
-        return hr;
-
-    IWICBitmapFrameDecode* frame;
-    hr = decoder->GetFrame(0, &frame);
-	decoder->Release();
-    if (FAILED(hr))
-        return hr;
-
-	hr = frame->CopyPixels(nullptr, stride, size, (BYTE*)pData);
-	frame->Release();
 	if (FAILED(hr))
 		return hr;
+
+	CComPtr<IWICBitmapFrameDecode> frame;
+	hr = decoder->GetFrame(0, &frame);
+	if (FAILED(hr))
+		return hr;
+
+	frame->GetSize(pWidth, pHeight);
+	frame->GetPixelFormat(pPixelFormatGUID);
+	UINT bytePP = _WICBytesPerPixel(*pPixelFormatGUID);
+	UINT stride = (*pWidth) * bytePP;
+	UINT size = (*pWidth) * (*pHeight) * bytePP;
+	*ppData = new char[size];
+
+	hr = frame->CopyPixels(nullptr, stride, size, (BYTE*)(*ppData));
+	if (FAILED(hr)) {
+		delete [] *ppData;
+		*ppData = nullptr;
+		return hr;
+	}
 
 	return S_OK;
 }

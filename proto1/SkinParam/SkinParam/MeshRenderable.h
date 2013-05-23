@@ -7,9 +7,11 @@
 #include "Renderable.h"
 #include <string>
 #include <map>
+#include <unordered_map>
 
 namespace Utils {
 	class ObjModel;
+	struct ObjTexCoord;
 }
 
 namespace Skin {
@@ -18,6 +20,7 @@ namespace Skin {
 	private:
 		Utils::FVector m_vCenter;
 		float m_fBoundingSphereRadius;
+		std::unordered_map<UINT, float> m_mapContourBump;
 
 		static float getBumpMultiplierScale(const XMMATRIX& matWorld);
 
@@ -25,15 +28,18 @@ namespace Skin {
 		void computeNormals();
 		void computeBoundingSphere();
 		void computeTangentSpace();
+		void detectContourVertices();
 		void computeNormalMaps(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext);
 
 		typedef UINT16 BTT;
 		static const DXGI_FORMAT BumpTexFormat = DXGI_FORMAT_R16_UNORM;
+		static const WICPixelFormatGUID BumpTexWICFormat;
 		static const BTT BTTUpper = 65535;
 		typedef XMFLOAT2 NTT;
 		static const DXGI_FORMAT NormTexFormat = DXGI_FORMAT_R32G32_FLOAT;
 		static const float NormalDistance;
 
+		float sampleBumpMap(BTT** ppData, UINT* pWidth, UINT* pHeight, Utils::ObjTexCoord texCoord, const std::string& materialName);
 		void computeNormalMap(const BTT* pBumpTextureData, UINT width, UINT height, NTT* pNormalMapData);
 	protected:
 		struct Vertex {
@@ -43,6 +49,7 @@ namespace Skin {
 			XMFLOAT3 tangent;
 			XMFLOAT3 binormal;
 			XMFLOAT2 texCoord;
+			XMFLOAT2 bumpOverride;
 		};
 
 		Utils::ObjModel* m_pModel;

@@ -11,12 +11,14 @@ struct VS_INPUT {
 	float4 vPosOS : POSITION;
 	float3 vNormalOS : NORMAL;
 	float2 texCoord : TEXCOORD0;
+	float2 bumpOverride : TEXCOORD1;
 };
 
 struct HS_DS_INPUT {
 	float3 vPosWS : WORLDPOS;
 	float3 vNormalWS : NORMAL;
 	float2 texCoord : TEXCOORD0;
+	float2 bumpOverride : BUMP;
 };
 
 struct HSCF_OUTPUT {
@@ -36,6 +38,7 @@ HS_DS_INPUT VS_Core_Part_1(VS_INPUT input) {
 	output.vPosWS = wpos4.xyz / wpos4.w;
 	output.vNormalWS = mul(input.vNormalOS, (float3x3)g_matWorld);
 	output.texCoord = input.texCoord;
+	output.bumpOverride = input.bumpOverride;
 	return output;
 }
 
@@ -46,7 +49,8 @@ HS_DS_INPUT VS(VS_INPUT input) {
 PS_INPUT VS_Core_Part_2(HS_DS_INPUT input) {
 	// do view projection transform
 	input.vNormalWS = normalize(input.vNormalWS);
-	float bumpAmount = g_material.bump_multiplier * 2 * (g_bump.SampleLevel(g_samBump, input.texCoord, 0).r - 0.5);
+	float bumpSample = lerp(g_bump.SampleLevel(g_samBump, input.texCoord, 0).r, input.bumpOverride.x, input.bumpOverride.y);
+	float bumpAmount = g_material.bump_multiplier * 2 * (bumpSample - 0.5);
 	input.vPosWS += bumpAmount * input.vNormalWS;
 
 	PS_INPUT output;
@@ -99,11 +103,7 @@ HSCF_OUTPUT HSCF(InputPatch<HS_DS_INPUT, 3> patch, uint patchId : SV_PrimitiveID
 [patchconstantfunc("HSCF")]
 //[maxtessfactor(20.0)]
 HS_DS_INPUT HS(InputPatch<HS_DS_INPUT, 3> patch, uint pointId : SV_OutputControlPointID, uint patchId : SV_PrimitiveID) {
-	HS_DS_INPUT output;
-	output.vPosWS = patch[pointId].vPosWS;
-	output.vNormalWS = patch[pointId].vNormalWS;
-	output.texCoord = patch[pointId].texCoord;
-	return output;
+	return patch[pointId];
 }
 
 // Domain shader
@@ -114,7 +114,8 @@ PS_INPUT DS(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLocation, const OutputPa
 	input.vPosWS = uvwCoord.x * patch[0].vPosWS + uvwCoord.y * patch[1].vPosWS + uvwCoord.z * patch[2].vPosWS;
 	input.vNormalWS = uvwCoord.x * patch[0].vNormalWS + uvwCoord.y * patch[1].vNormalWS + uvwCoord.z * patch[2].vNormalWS;
 	input.texCoord = uvwCoord.x * patch[0].texCoord + uvwCoord.y * patch[1].texCoord + uvwCoord.z * patch[2].texCoord;
-	
+	input.bumpOverride = uvwCoord.x * patch[0].bumpOverride + uvwCoord.y * patch[1].bumpOverride + uvwCoord.z * patch[2].bumpOverride;
+
 	return VS_Core_Part_2(input);
 }
 

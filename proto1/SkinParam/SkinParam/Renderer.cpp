@@ -396,14 +396,13 @@ void Renderer::loadShaders() {
 		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 
 	m_psgTessellatedPhong = new ShaderGroup(m_pDevice, _T("TessellatedPhong.fx"), phong_layout, ARRAYSIZE(phong_layout),
 		"VS", "HS", "DS", "PS");
-
 	m_psgShadow = new ShaderGroup(m_pDevice, _T("TessellatedShadow.fx"), phong_layout, ARRAYSIZE(phong_layout),
 		"VS_NoTessellation", nullptr, nullptr, "PS");
-
 	m_psgTessellatedShadow = new ShaderGroup(m_pDevice, _T("TessellatedShadow.fx"), phong_layout, ARRAYSIZE(phong_layout),
 		"VS", "HS", "DS", "PS");
 
@@ -1587,7 +1586,7 @@ void Renderer::setMaterial(const Material& mt) {
 	m_cbMaterial.g_mtSpecular = XMColor3(mt.coSpecular);
 	m_cbMaterial.g_mtEmissive = XMColor3(mt.coEmissive);
 	m_cbMaterial.g_mtShininess = mt.fShininess;
-	m_cbMaterial.g_mtBumpMultiplier = mt.fBumpMultiplier;
+	m_cbMaterial.g_mtBumpMultiplier = m_bBump ? mt.fBumpMultiplier : 0.0f;
 	m_pDeviceContext->UpdateSubresource(m_pMaterialConstantBuffer, 0, NULL, &m_cbMaterial, 0, 0);
 }
 

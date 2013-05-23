@@ -8,7 +8,6 @@
 #include "ObjLoader.h"
 #include "D3DHelper.h"
 #include "DirectXTex\DDSTextureLoader\DDSTextureLoader.h"
-#include <unordered_map>
 #include <unordered_set>
 
 using namespace Skin;
@@ -16,6 +15,7 @@ using namespace Utils;
 using namespace D3DHelper;
 
 const float MeshRenderable::NormalDistance = 0.04f;
+const WICPixelFormatGUID MeshRenderable::BumpTexWICFormat = GUID_WICPixelFormat16bppGray;
 
 MeshRenderable::MeshRenderable(const TString& strObjFilePath) {
 	m_pModel = nullptr;
@@ -26,22 +26,8 @@ MeshRenderable::MeshRenderable(const TString& strObjFilePath) {
 	m_pModel = loader.ReturnObj();
 	computeNormals();
 	computeBoundingSphere();
+	detectContourVertices();
 	computeTangentSpace();
-	/*
-	std::map<UINT, UINT> mapVertexToTexCoord;
-	for (const ObjPart& part : m_pModel->Parts) {
-		for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
-			ObjTriangle& tri = m_pModel->Triangles[idxTri];
-			for (int j = 0; j < 3; j++) {
-				auto iter = mapVertexToTexCoord.find(tri.Vertex[j]);
-				if (iter != mapVertexToTexCoord.end() && iter->second != tri.TexCoord[j]) {
-					TRACE(_T("BOOM!"));
-				} else {
-					mapVertexToTexCoord[tri.Vertex[j]] = tri.TexCoord[j];
-				}
-			}
-		}
-	}*/
 }
 
 MeshRenderable::~MeshRenderable() {
@@ -101,6 +87,12 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 				v.binormal = XMFLOAT3(m_pModel->Binormals[tri.Vertex[j]].toArray());
 				v.tangent = XMFLOAT3(m_pModel->Tangents[tri.Vertex[j]].toArray());
 				v.texCoord = XMFLOAT2(&m_pModel->TexCoords[tri.TexCoord[j]].U);
+				auto& iter = m_mapContourBump.find(tri.Vertex[j]);
+				if (iter != m_mapContourBump.end()) {
+					v.bumpOverride = XMFLOAT2(iter->second, 1.0f);
+				} else {
+					v.bumpOverride = XMFLOAT2(0.5f, 0.0f);
+				}
 				i++;
 			}
 		}
@@ -327,9 +319,9 @@ void MeshRenderable::computeTangentSpace() {
 			binormals[tri.Vertex[0]] += bn;
 			binormals[tri.Vertex[1]] += bn;
 			binormals[tri.Vertex[2]] += bn;
-			normals[tri.Vertex[0]] += m_pModel->Normals[tri.Vertex[0]];
-			normals[tri.Vertex[1]] += m_pModel->Normals[tri.Vertex[1]];
-			normals[tri.Vertex[2]] += m_pModel->Normals[tri.Vertex[2]];
+			normals[tri.Vertex[0]] += m_pModel->Normals[tri.Normal[0]];
+			normals[tri.Vertex[1]] += m_pModel->Normals[tri.Normal[1]];
+			normals[tri.Vertex[2]] += m_pModel->Normals[tri.Normal[2]];
 		}
 	}
 
@@ -338,6 +330,7 @@ void MeshRenderable::computeTangentSpace() {
 		ObjTangent& tan = tangents[i];
 		ObjBinormal& bn = binormals[i];
 		ObjNormal& n = normals[i];
+
 		n = n.normalize();
 
 		// Gram-Schmidt orthogonalize
@@ -350,28 +343,24 @@ void MeshRenderable::computeTangentSpace() {
 
 void MeshRenderable::computeNormalMaps(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext) {
 	for (auto& texPair : m_vpBumpMaps) {
-		ID3D11ShaderResourceView* pTSRV = texPair.second;
-		CComPtr<ID3D11Texture2D> pBumpMap;
-		pTSRV->GetResource((ID3D11Resource**)&pBumpMap);
-		D3D11_TEXTURE2D_DESC desc;
-		pBumpMap->GetDesc(&desc);
-		if (desc.Format != BumpTexFormat)
+		BTT* pBumpTextureData = nullptr;
+		UINT width, height;
+		WICPixelFormatGUID pixelFormatGUID;
+		TString bumpFileName = TStringFromANSIString(m_pModel->Materials[texPair.first].BumpMapFileName);
+		checkFailure(loadImageData(_T("model\\") + bumpFileName, (void**)&pBumpTextureData, &width, &height, &pixelFormatGUID),
+			_T("Failed to load image data from ") + bumpFileName);
+
+		if (pixelFormatGUID != BumpTexWICFormat)
 			checkFailure(E_UNEXPECTED, _T("Unsupported bump map type"));
 
-		UINT bumpTextureSize = desc.Width * desc.Height;
-		BTT* pBumpTextureData = new BTT[bumpTextureSize];
-		NTT* pNormalMapData = new NTT[bumpTextureSize];
+		NTT* pNormalMapData = new NTT[width * height];
 
-		checkFailure(loadImageData(_T("model\\") + TStringFromANSIString(m_pModel->Materials[texPair.first].BumpMapFileName),
-			pBumpTextureData, desc.Width * sizeof(BTT), bumpTextureSize * sizeof(BTT)),
-			_T("Failed to load image data from ") + TStringFromANSIString(m_pModel->Materials[texPair.first].BumpMapFileName));
-
-		computeNormalMap(pBumpTextureData, desc.Width, desc.Height, pNormalMapData);
+		computeNormalMap(pBumpTextureData, width, height, pNormalMapData);
 		delete [] pBumpTextureData;
 
 		CComPtr<ID3D11ShaderResourceView> pNormalMapView;
-		checkFailure(loadTextureFromMemory(pDevice, pDeviceContext, pNormalMapData, desc.Width, desc.Height, NormTexFormat,
-			desc.Width * sizeof(NTT), &pNormalMapView),
+		checkFailure(loadTextureFromMemory(pDevice, pDeviceContext, pNormalMapData, width, height, NormTexFormat,
+			width * sizeof(NTT), &pNormalMapView),
 			_T("Failed to create normal map for material ") + TStringFromANSIString(texPair.first));
 		delete [] pNormalMapData;
 		m_vpNormalMaps[texPair.first] = pNormalMapView;
@@ -403,6 +392,85 @@ void MeshRenderable::computeNormalMap(const BTT* pBumpTextureData, UINT width, U
 	for (UINT x = 0; x < width; x++) {
 		pNormalMapData[x] = pNormalMapData[(height - 1) * width + x] = XMFLOAT2(0.0, 0.0);
 	}
+}
+
+void MeshRenderable::detectContourVertices() {
+	std::unordered_map<UINT, UINT> mapVertexToTexCoord;
+	std::unordered_map<UINT, std::unordered_set<UINT> > mapVertexDuplicates;
+	for (const ObjPart& part : m_pModel->Parts) {
+		// prepare bump map for sampling
+		BTT* pData = nullptr;
+		UINT width, height;
+
+		for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
+			ObjTriangle& tri = m_pModel->Triangles[idxTri];
+			for (int j = 0; j < 3; j++) {
+				auto iter = mapVertexToTexCoord.find(tri.Vertex[j]);
+				if (iter != mapVertexToTexCoord.end()) {
+					if (iter->second != tri.TexCoord[j]) {
+						const ObjTexCoord& t1 = m_pModel->TexCoords[iter->second];
+						const ObjTexCoord& t2 = m_pModel->TexCoords[tri.TexCoord[j]];
+						if (t1.U != t2.U || t1.V != t2.V) {
+							// contour vertex, look for duplicates
+							auto& setDuplicates = mapVertexDuplicates[tri.Vertex[j]];
+							for (UINT dupId : setDuplicates) {
+								UINT texId = mapVertexToTexCoord[dupId];
+								const ObjTexCoord& t3 = m_pModel->TexCoords[texId];
+								if (texId == tri.TexCoord[j] || (t2.U == t3.U && t2.V == t3.V)) {
+									// already duplicated, assign index to triangle vertex
+									tri.Vertex[j] = dupId;
+									goto next;
+								}
+							}
+							// no duplicates yet, create one
+							UINT dupId = m_pModel->Vertices.size();
+							m_pModel->Vertices.push_back(m_pModel->Vertices[tri.Vertex[j]]);
+							// record the duplicate
+							mapVertexDuplicates[tri.Vertex[j]].insert(dupId);
+							float bumpSample = sampleBumpMap(&pData, &width, &height, t1, part.MaterialName);
+							m_mapContourBump[tri.Vertex[j]] = bumpSample;
+							m_mapContourBump[dupId] = bumpSample;
+							// assign duplicate index
+							tri.Vertex[j] = dupId;
+							mapVertexToTexCoord[dupId] = tri.TexCoord[j];
+						}
+					}
+				} else {
+					mapVertexToTexCoord[tri.Vertex[j]] = tri.TexCoord[j];
+				}
+next:
+				;
+			}
+		}
+
+		delete [] pData;
+	}
+}
+
+float MeshRenderable::sampleBumpMap(BTT** ppData, UINT* pWidth, UINT* pHeight, ObjTexCoord texCoord, const std::string& materialName) {
+	if (!*ppData) {
+		TString bumpFileName = TStringFromANSIString(m_pModel->Materials[materialName].BumpMapFileName);
+		WICPixelFormatGUID pixelFormatGUID;
+		checkFailure(loadImageData(_T("model\\") + bumpFileName, (void**)ppData, pWidth, pHeight, &pixelFormatGUID),
+			_T("Failed to load bump texture data for sampling from ") + bumpFileName);
+
+		if (pixelFormatGUID != BumpTexWICFormat)
+			checkFailure(E_UNEXPECTED, _T("Unsupported bump map type"));
+	}
+	// use bilinear sampling
+	float pixelWidth = 1.0f / (*pWidth);
+	float x = Math::clampValue(texCoord.U * (*pWidth) - 0.5f, 0.0f, (*pWidth) - 1.0f);
+	float y = Math::clampValue(texCoord.V * (*pHeight) - 0.5f, 0.0f, (*pHeight) - 1.0f);
+	UINT ix = (UINT)x, iy = (UINT)y;
+	if (ix == (*pWidth - 1)) ix--;
+	if (iy == (*pHeight - 1)) iy--;
+	float fracx = x - ix, fracy = y - iy;
+	float samples[4];
+	samples[0] = (float)(*ppData)[iy * (*pWidth) + ix] / BTTUpper;
+	samples[1] = (float)(*ppData)[iy * (*pWidth) + ix + 1] / BTTUpper;
+	samples[2] = (float)(*ppData)[(iy + 1) * (*pWidth) + ix] / BTTUpper;
+	samples[3] = (float)(*ppData)[(iy + 1) * (*pWidth) + ix + 1] / BTTUpper;
+	return Math::lerp(Math::lerp(samples[0], samples[1], fracx), Math::lerp(samples[2], samples[3], fracx), fracy);
 }
 
 float MeshRenderable::getBumpMultiplierScale(const XMMATRIX& matWorld) {
