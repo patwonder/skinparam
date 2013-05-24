@@ -126,7 +126,7 @@ void CMainWindow::init() {
 	m_pRenderer->addLight(m_pLights[0]);
 	m_pRenderer->addLight(m_pLights[1]);
 
-	m_pRenderer->setGlobalAmbient(Color::White * 0.5f);
+	m_pRenderer->setGlobalAmbient(Color::White * 0.25f);
 
 	m_bChangingView = false;
 	m_camera.restrictView(1.2, 8.0);

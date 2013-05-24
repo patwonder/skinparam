@@ -303,7 +303,7 @@ void MeshRenderable::computeTangentSpace() {
 			//
 
 			// triangle area * 2 in texture space
-			float invda = -1.0f / (dt1.U * dt2.V - dt1.V * dt2.U);
+			float invda = 1.0f / (dt1.U * dt2.V - dt1.V * dt2.U);
 			ObjTangent tan = ObjTangent(dt2.V * dv1.x - dt1.V * dv2.x, 
 										 dt2.V * dv1.y - dt1.V * dv2.y,
 										 dt2.V * dv1.z - dt1.V * dv2.z);
@@ -335,8 +335,9 @@ void MeshRenderable::computeTangentSpace() {
 
 		// Gram-Schmidt orthogonalize
 		ObjTangent tangent = (tan - n * (n * tan)).normalize();
+		bool illHanded = (cross(n, tan) * bn) < 0.0f;
 		bn = cross(n, tangent).normalize();
-		if ((cross(n, tan) * bn) < 0.0f) bn = -bn;
+		if (illHanded) bn = -bn;
 		tan = tangent;
 	}
 }
