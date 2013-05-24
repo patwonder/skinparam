@@ -437,8 +437,8 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 	float specRef = g_attenuation.SampleLevel(g_samAttenuation, float2(dot(N, V), m), 0).r;
 
 	// consider ambient occlusion, reflection & transmittance
-	totalambient *= pow(ao, 4.4);
-	//specular += totalambient * rho_s * specRef;
+	totalambient *= ao;
+	//specular += totalambient * rho_s * specRef * 0.2;
 	irradiance += totalambient * FRESNEL_TRANS_TOTAL;
 
 	// calculate fresnel outgoing factor

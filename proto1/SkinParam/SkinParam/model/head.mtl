@@ -2,9 +2,9 @@
 # ToolType: PolyMesh3D
 # www.zbrush.com
 newmtl defaultMat
-map_Kd lambertian-ao.png
+map_Kd lambertian-ao.dds
 #map_bump -bm 0.005 bump.png
-map_bump -bm 0.005 bump-lowRes.png
+map_bump -bm 0.005 bump-lowRes2.png
 Kd 1 1 1
 Ka 1 1 1
 Ks 1 1 1

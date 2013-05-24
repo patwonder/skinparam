@@ -507,6 +507,12 @@ BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {
 	if (m_bChangingView || m_bChangingLight)
 		return FALSE;
 
+	// prioritize mouse wheel message handling
+	// thus preventing DXUT controls robbing focus
+	if (pMsg->message == WM_MOUSEWHEEL) {
+		return FALSE;
+	}
+
 	if (m_pDialogResourceManager->MsgProc(pMsg->hwnd, pMsg->message, pMsg->wParam, pMsg->lParam)) {
 		return TRUE;
 	}
