@@ -275,6 +275,8 @@ namespace Skin {
 		bool m_bDump;
 		UINT m_nDumpCount;
 
+		static const TCHAR* DEFAULT_DUMP_FOLDER;
+
 		// render stage control
 		enum RenderStage {
 			RS_NotRendering,

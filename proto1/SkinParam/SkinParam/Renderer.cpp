@@ -59,6 +59,8 @@ const float Renderer::SSS_GAUSSIAN_WEIGHTS[NUM_SSS_GAUSSIANS][3] = {
 	{ 0.078f, 0.000f, 0.000f }
 };
 
+const TCHAR* Renderer::DEFAULT_DUMP_FOLDER = _T("dump");
+
 Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, RenderableManager* pRenderableManager)
 	: m_psgShadow(nullptr),
 	  m_psgTessellatedPhong(nullptr),
@@ -1418,6 +1420,12 @@ void Renderer::render(const Camera* pSecondaryView) {
 	m_rsCurrent = RS_NotRendering;
 
 	computeStats();
+
+	if (m_bDump) {
+		// Open the dump folder in explorer
+		ShellExecute(nullptr, _T("open"), DEFAULT_DUMP_FOLDER, nullptr, nullptr, SW_SHOWNORMAL);
+	}
+
 	m_bDump = false;
 }
 
@@ -1588,10 +1596,16 @@ void Renderer::dumpResourceToFile(ID3D11RenderTargetView* pRT, const TString& st
 
 void Renderer::dumpResourceToFile(ID3D11Resource* pResource, const TString& strFileName, bool overrideAutoNaming, DXGI_FORMAT preferredFormat) {
 	TStringStream tss;
-	if (overrideAutoNaming)
+	if (overrideAutoNaming) {
 		tss << strFileName;
-	else
-		tss << (++m_nDumpCount) << _T("_") << strFileName << _T(".png");
+	} else {
+		const TCHAR* szDir = DEFAULT_DUMP_FOLDER;
+		if (!CreateDirectory(szDir, nullptr)) {
+			if (GetLastError() != ERROR_ALREADY_EXISTS)
+				checkFailure(E_FAIL, _T("Failed to create directory for dumping"));
+		}
+		tss << szDir << "\\" << (++m_nDumpCount) << _T("_") << strFileName << _T(".png");
+	}
 	SetWindowText(m_hwnd, (_APP_NAME_ _T(" (Capturing ") + tss.str() + _T("...)")).c_str());
 	ScratchImage img, newimg;
 	CaptureTexture(m_pDevice, m_pDeviceContext, pResource, img);

@@ -105,6 +105,7 @@ namespace Skin {
 		static const UINT CID_GENERAL_LBL_AMBIENT_CAPTION = CID_GENERAL_LIGHT_START + CID_GENERAL_LIGHT_STRIDE * NUM_LIGHTS;
 		static const UINT CID_GENERAL_SLD_AMBIENT_INTENSITY = CID_GENERAL_LBL_AMBIENT_CAPTION + 1;
 		static const UINT CID_GENERAL_LBL_AMBIENT_INTENSITY = CID_GENERAL_LBL_AMBIENT_CAPTION + 2;
+		static const UINT CID_GENERAL_BTN_DUMP = CID_GENERAL_LBL_AMBIENT_CAPTION + 3;
 		static const UINT CID_SSS_LBL_CAPTION = 200;
 		static const UINT CID_SSS_CHK_ENABLE_SSS = 201;
 		static const UINT CID_SSS_LBL_SSS_STRENGTH_LABEL = 202;
@@ -128,6 +129,7 @@ namespace Skin {
 		CDXUTStatic* m_plblLights[NUM_LIGHTS];
 		CDXUTSlider* m_psldAmbient;
 		CDXUTStatic* m_plblAmbient;
+		CDXUTButton* m_pbtnDump;
 		// SSS dialog
 		CDXUTCheckBox* m_pchkEnableSSS;
 		CDXUTCheckBox* m_pchkAdaptiveGaussian;
@@ -156,6 +158,7 @@ namespace Skin {
 		void CALLBACK rdLight_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK sldLight_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK sldAmbient_Handler(CDXUTControl* sender, UINT nEvent);
+		void CALLBACK btnDump_Handler(CDXUTControl* sender, UINT nEvent);
 
 		// Message mapping
 		BOOL PreTranslateMessage(MSG* pMsg);
@@ -176,6 +179,7 @@ namespace Skin {
 		CMainWindow();
 		~CMainWindow();
 
+		void init();
 		BOOL OnIdle(LONG lCount);
 
 		void onCreateDevice(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, IDXGISwapChain* pSwapChain) override;

@@ -55,8 +55,11 @@ BOOL CMainApp::InitInstance() {
 	CoInitialize(nullptr);
 	SetRegistryKey(_APP_NAME_);
 
+	CMainWindow* pWnd;
 	m_pMainWnd = NULL;
-	m_pMainWnd = new CMainWindow();
+	m_pMainWnd = pWnd = new CMainWindow();
+	pWnd->init();
+
 	m_pMainWnd->ShowWindow(m_nCmdShow);
 	m_pMainWnd->UpdateWindow();
 
@@ -101,13 +104,15 @@ CMainWindow::CMainWindow()
 	MoveWindow(0, 0, resolution.cx + windowRect.Width() - m_rectClient.Width(), 
 		resolution.cy + windowRect.Height() - m_rectClient.Height(), FALSE);
 	GetClientRect(&m_rectClient);
+}
 
+void CMainWindow::init() {
 	DXUTInit();
 	DXUTSetWindow(m_hWnd, m_hWnd, m_hWnd, false);
 
 	initUI();
 
-	m_pRenderer = new Renderer(m_hWnd, CRect(0, 0, resolution.cx, resolution.cy), &m_config, &m_camera, this);
+	m_pRenderer = new Renderer(m_hWnd, CRect(0, 0, m_rectClient.Width(), m_rectClient.Height()), &m_config, &m_camera, this);
 	GetClientRect(&m_rectClient);
 
 	m_pTriangle = new Triangle();
@@ -294,6 +299,12 @@ void CMainWindow::initGeneralDialog() {
 		false, &m_plblAmbient);
 
 	registerEventHandler(CID_GENERAL_SLD_AMBIENT_INTENSITY, &CMainWindow::sldAmbient_Handler);
+
+	// dump
+	m_pdlgGeneral->AddButton(CID_GENERAL_BTN_DUMP, _T("Dump Pipeline (F8)"), width - 156, tmp += 30, 150, 30, 0,
+		false, &m_pbtnDump);
+
+	registerEventHandler(CID_GENERAL_BTN_DUMP, &CMainWindow::btnDump_Handler);
 
 	//m_dlgTessellation.EnableNonUserEvents(true);
 	m_pdlgGeneral->SetVisible(true);
@@ -501,6 +512,10 @@ void CALLBACK CMainWindow::sldAmbient_Handler(CDXUTControl* sender, UINT nEvent)
 	TStringStream tss;
 	tss << std::setiosflags(std::ios::fixed) << std::setprecision(2) << fint;
 	m_plblAmbient->SetText(tss.str().c_str());
+}
+
+void CALLBACK CMainWindow::btnDump_Handler(CDXUTControl* sender, UINT nEvent) {
+	m_pRenderer->dump();
 }
 
 BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {

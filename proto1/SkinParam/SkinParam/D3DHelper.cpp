@@ -22,7 +22,7 @@ void D3DHelper::checkFailure(HRESULT hr, const TString& prompt) {
 	if (FAILED(hr)) {
 		TStringStream ss;
 		ss << (prompt) << _T("\nError description: ") << DXGetErrorDescription(hr);
-		::MessageBox(NULL, ss.str().c_str(), _T("Fatal Error"), MB_OK | MB_ICONERROR);
+		::MessageBox(AfxGetMainWnd()->m_hWnd, ss.str().c_str(), _T("Fatal Error"), MB_OK | MB_ICONERROR);
 		::exit(EXIT_FAILURE);
 	}
 }
@@ -119,7 +119,7 @@ HRESULT D3DHelper::compileShader(const TString& strFileName, const char* szEntry
 	if (FAILED(hr)) {
 		if( pErrorBlob != NULL ) {
 			TRACE("[D3DHelper::compileShader] %s\t", (char*)pErrorBlob->GetBufferPointer());
-			MessageBoxA(NULL, (char*)pErrorBlob->GetBufferPointer(), "Error Compiling Shader", MB_OK | MB_ICONERROR);
+			MessageBoxA(AfxGetMainWnd()->m_hWnd, (char*)pErrorBlob->GetBufferPointer(), "Error Compiling Shader", MB_OK | MB_ICONERROR);
 		}
 		return hr;
 	}
