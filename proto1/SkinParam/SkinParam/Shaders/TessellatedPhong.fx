@@ -363,7 +363,7 @@ float distance(float3 vPosWS, float3 vNormalWS, float NdotL, float3 vPosLightWS,
 float3 backlit_amount(float3 vPosWS, float3 vNormalWS, float3 L, float3 vPosLightWS, matrix matViewProjLight,
 					  Texture2D shadowMap, SamplerState samShadow) {
 	float NdotL = dot(vNormalWS, L);
-	float s = 0.25 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, NdotL, vPosLightWS, matViewProjLight, shadowMap, samShadow) * (1.0f / max(0.01f, g_sss_strength));
+	float s = 0.30 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, NdotL, vPosLightWS, matViewProjLight, shadowMap, samShadow) * (1.0f / max(0.01f, g_sss_strength));
 	float3 atten = trans_atten(s);
 	float NdotL2 = saturate(0.3 - NdotL);
 	return NdotL2 * atten;

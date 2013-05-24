@@ -121,8 +121,8 @@ void CMainWindow::init() {
 	m_pRenderer->addRenderable(m_pHead);
 
 	memset(m_pLights, 0, sizeof(m_pLights));
-	m_pLights[0] = new Light(Vector(3, 7, 0), Color::Black, Color::White * 3.2f, Color::White * 3.2f, 1.0f, 0.1f, 0.0f);
-	m_pLights[1] = new Light(Vector(-3, -3, 5), Color::Black, Color::White * 3.2f, Color::White * 3.2f, 1.0f, 0.1f, 0.0f);
+	m_pLights[0] = new Light(Vector(2.7574, 6.4340, 0), Color::Black, Color::White * 3.2f, Color::White * 3.2f, 1.0f, 0.1f, 0.0f);
+	m_pLights[1] = new Light(Vector(-3.2025, -3.2025, 5.3374), Color::Black, Color::White * 3.2f, Color::White * 3.2f, 1.0f, 0.1f, 0.0f);
 	m_pRenderer->addLight(m_pLights[0]);
 	m_pRenderer->addLight(m_pLights[1]);
 
