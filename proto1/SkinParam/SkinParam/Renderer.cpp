@@ -283,14 +283,8 @@ HRESULT Renderer::initDX() {
 	m_pDeviceContext->OMSetRenderTargets(1, &m_pRenderTargetView.p, m_pDepthStencilView);
 
 	// Setup the viewport
-    D3D11_VIEWPORT& vp = m_vpScreen;
-	vp.Width = (float)m_rectView.Width();
-	vp.Height = (float)m_rectView.Height();
-    vp.MinDepth = 0.0f;
-    vp.MaxDepth = 1.0f;
-	vp.TopLeftX = (float)m_rectView.left;
-	vp.TopLeftY = (float)m_rectView.top;
-    m_pDeviceContext->RSSetViewports(1, &vp);
+	m_vpScreen = createViewport(m_rectView.Width(), m_rectView.Height(), m_rectView.left, m_rectView.top);
+    m_pDeviceContext->RSSetViewports(1, &m_vpScreen);
 
 	// Create default rasterizer state
 	D3D11_RASTERIZER_DESC& desc = m_descRasterizerState;
@@ -477,16 +471,11 @@ void Renderer::unloadShaders() {
 
 void Renderer::initViewInView() {
 	// initialize view-in-view viewport
-	D3D11_VIEWPORT& vp = m_vpViewInView;
-	vp.Width = m_rectView.Width() / 4.0f;
-	vp.Height = m_rectView.Width() / 4.0f;
-	vp.TopLeftX = m_rectView.Width() - vp.Width;
-	vp.TopLeftY = m_rectView.Height() - vp.Height;
-	vp.MinDepth = 0.0f;
-	vp.MaxDepth = 1.0f;
+	UINT vpsize = m_rectView.Width() / 4;
+	m_vpViewInView = createViewport(vpsize, vpsize, m_rectView.right - vpsize, m_rectView.bottom - vpsize);
 
 	// initialize view-in-view vertex buffer
-	XMFLOAT2 rcpVPSizeHalf = XMFLOAT2(0.5f / vp.Width, 0.5f / vp.Height);
+	XMFLOAT2 rcpVPSizeHalf = XMFLOAT2(0.5f / vpsize, 0.5f / vpsize);
 	CanvasVertex vertices[] = {
 		// black background quad
 		{ XMFLOAT3(0.00f, 0.00f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
@@ -685,13 +674,7 @@ void Renderer::initShadowMaps() {
 		_T("Failed to create shadow map depth sampler state"));
 
 	// Initialize shadow map view port
-	D3D11_VIEWPORT& vp = m_vpShadowMap;
-	vp.Width = SM_SIZE;
-	vp.Height = SM_SIZE;
-	vp.MinDepth = 0.0f;
-	vp.MaxDepth = 1.0f;
-	vp.TopLeftX = 0.0f;
-	vp.TopLeftY = 0.0f;
+	m_vpShadowMap = createViewport(SM_SIZE, SM_SIZE);
 }
 
 void Renderer::bindShadowMaps() {
@@ -751,11 +734,7 @@ void Renderer::initSSS() {
 
 		m_bPRAttenuationTexture = true;
 
-		D3D11_VIEWPORT& vp = m_vpAttenuationTexture;
-		vp.Width = vp.Height = (float)SSS_ATTENUATION_TEXTURE_SIZE;
-		vp.TopLeftX = vp.TopLeftY = 0.0f;
-		vp.MinDepth = 0.0f;
-		vp.MaxDepth = 1.0f;
+		m_vpAttenuationTexture = createViewport(SSS_ATTENUATION_TEXTURE_SIZE, SSS_ATTENUATION_TEXTURE_SIZE);
 	}
 }
 
@@ -783,12 +762,7 @@ void Renderer::initBloom() {
 			nullptr, &m_apSRVBloomTemp[i], &m_apRTBloomTemp[i]),
 			_T("Failed to create bloom temporary texture"));
 
-		D3D11_VIEWPORT& vp = m_avpBloom[i];
-		vp.TopLeftX = vp.TopLeftY = 0.0f;
-		vp.MinDepth = 0.0f;
-		vp.MaxDepth = 1.0f;
-		vp.Width = (float)width;
-		vp.Height = (float)height;
+		m_avpBloom[i] = createViewport(width, height);
 	}
 
 	D3D11_BLEND_DESC desc;
@@ -1300,11 +1274,21 @@ void Renderer::doBloom() {
 		dumpResourceToFile(m_pRenderTargetView, _T("Final"), false, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
 }
 
+
 void Renderer::copyRender(ID3D11ShaderResourceView* pSRV, ID3D11RenderTargetView* pRT, bool bLinear,
 						  XMFLOAT4 scaleFactor, XMFLOAT4 defaultValue, XMFLOAT4 lerps)
 {
 	bool bWireframe = getWireframe();
 	if (bWireframe) setWireframe(false);
+
+	// Change viewport
+	UINT width, height;
+	getResourceSize(pRT, &width, &height);
+	D3D11_VIEWPORT vpOld, vpNew;
+	vpNew = createViewport(width, height);
+	UINT numViewports = 1;
+	m_pDeviceContext->RSGetViewports(&numViewports, &vpOld);
+	m_pDeviceContext->RSSetViewports(1, &vpNew);
 
 	m_cbCopy.scaleFactor = scaleFactor;
 	m_cbCopy.defaultValue = defaultValue;
@@ -1324,6 +1308,9 @@ void Renderer::copyRender(ID3D11ShaderResourceView* pSRV, ID3D11RenderTargetView
 
 	ID3D11ShaderResourceView* pNullSRV = nullptr;
 	m_pDeviceContext->PSSetShaderResources(0, 1, &pNullSRV);
+
+	// Change viewport back
+	m_pDeviceContext->RSSetViewports(1, &vpOld);
 
 	if (bWireframe) setWireframe(true);
 }

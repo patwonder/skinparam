@@ -35,6 +35,9 @@ namespace Skin {
 			ID3D11GeometryShader** ppGeometryShader);
 		void clearShaderCache();
 		// texture
+		void getResourceSize(ID3D11ShaderResourceView* pSRV, UINT* pWidth, UINT* pHeight);
+		void getResourceSize(ID3D11RenderTargetView* pRT, UINT* pWidth, UINT* pHeight);
+		void getResourceSize(ID3D11Resource* pResource, UINT* pWidth, UINT* pHeight);
 		HRESULT loadTexture(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName, ID3D11ShaderResourceView** ppTexture);
 		HRESULT loadTextureEx(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName,
 			size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags, unsigned int miscFlags, bool forceSRGB,
@@ -90,6 +93,7 @@ namespace Skin {
 		// utility functions
 		void extractPlanesFromFrustum(XMFLOAT4 aPlaneEquation[6], const XMMATRIX& matrix, bool bNormalize);
 		void normalizePlane(XMFLOAT4& planeEquation);
+		D3D11_VIEWPORT createViewport(UINT width, UINT height, UINT topLeftX = 0, UINT topLeftY = 0);
 
 		// template implementation
 		template <class VertexType>

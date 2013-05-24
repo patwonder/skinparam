@@ -297,6 +297,29 @@ HRESULT D3DHelper::createBuffer(ID3D11Device* pDevice, UINT byteWidth, UINT bind
 	return S_OK;
 }
 
+void D3DHelper::getResourceSize(ID3D11ShaderResourceView* pSRV, UINT* pWidth, UINT* pHeight) {
+	CComPtr<ID3D11Resource> pResource;
+	pSRV->GetResource(&pResource);
+
+	return getResourceSize(pResource, pWidth, pHeight);
+}
+
+void D3DHelper::getResourceSize(ID3D11RenderTargetView* pRT, UINT* pWidth, UINT* pHeight) {
+	CComPtr<ID3D11Resource> pResource;
+	pRT->GetResource(&pResource);
+
+	return getResourceSize(pResource, pWidth, pHeight);
+}
+
+void D3DHelper::getResourceSize(ID3D11Resource* pResource, UINT* pWidth, UINT* pHeight) {
+	CComQIPtr<ID3D11Texture2D> pT2D = pResource;
+	D3D11_TEXTURE2D_DESC desc;
+	pT2D->GetDesc(&desc);
+
+	*pWidth = desc.Width;
+	*pHeight = desc.Height;
+}
+
 HRESULT D3DHelper::loadTexture(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const TString& strFileName,
 							   ID3D11ShaderResourceView** ppTexture)
 {
@@ -694,4 +717,15 @@ void D3DHelper::normalizePlane(XMFLOAT4& planeEquation) {
 	planeEquation.y = planeEquation.y / mag;
 	planeEquation.z = planeEquation.z / mag;
 	planeEquation.w = planeEquation.w / mag;
+}
+
+D3D11_VIEWPORT D3DHelper::createViewport(UINT width, UINT height, UINT topLeftX, UINT topLeftY) {
+	D3D11_VIEWPORT vp;
+	vp.Width = (float)width;
+	vp.Height = (float)height;
+	vp.TopLeftX = (float)topLeftX;
+	vp.TopLeftY = (float)topLeftY;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
+	return vp;
 }

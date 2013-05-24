@@ -336,6 +336,7 @@ namespace Skin {
 		void doPostProcessAA();
 
 		void initCopy();
+
 		void copyRender(ID3D11ShaderResourceView* pSRV, ID3D11RenderTargetView* pRT, bool bLinear = false,
 			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
 			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
