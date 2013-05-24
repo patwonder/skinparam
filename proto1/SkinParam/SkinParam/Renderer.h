@@ -236,6 +236,9 @@ namespace Skin {
 		};
 		CComPtr<ID3D11Buffer> m_pCopyConstantBuffer;
 		CopyConstantBuffer m_cbCopy;
+		static const XMFLOAT4 COPY_DEFAULT_SCALE_FACTOR;
+		static const XMFLOAT4 COPY_DEFAULT_VALUE;
+		static const XMFLOAT4 COPY_DEFAULT_LERPS;
 
 		// View-In-View
 		ShaderGroup* m_psgCanvas;
@@ -334,18 +337,32 @@ namespace Skin {
 
 		void initCopy();
 		void copyRender(ID3D11ShaderResourceView* pSRV, ID3D11RenderTargetView* pRT, bool bLinear = false,
-			XMFLOAT4 scaleFactor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
-			XMFLOAT4 defaultValue = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f),
-			XMFLOAT4 lerps = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
+			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
+			XMFLOAT4 lerps = COPY_DEFAULT_LERPS);
 
 		void dumpIrregularResourceToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName, bool overrideAutoNaming = false,
-			XMFLOAT4 scaleFactor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
-			XMFLOAT4 defaultValue = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f),
-			XMFLOAT4 lerps = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
+			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
+			XMFLOAT4 lerps = COPY_DEFAULT_LERPS,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT preferredRTFormat = DXGI_FORMAT_UNKNOWN);
+		void dumpIrregularResourceToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
+			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
+			XMFLOAT4 lerps = COPY_DEFAULT_LERPS,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT preferredRTFormat = DXGI_FORMAT_UNKNOWN);
+		void dumpIrregularResourceToFile(ID3D11Resource* pResource, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
+			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
+			XMFLOAT4 lerps = COPY_DEFAULT_LERPS,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT preferredRTFormat = DXGI_FORMAT_UNKNOWN);
 
-		void dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName, bool overrideAutoNaming = false);
-		void dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName, bool overrideAutoNaming = false);
-		void dumpTextureToFile(ID3D11Resource* pTexture2D, const Utils::TString& strFileName, bool overrideAutoNaming = false);
+		void dumpResourceToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN);
+		void dumpResourceToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN);
+		void dumpResourceToFile(ID3D11Resource* pResource, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN);
 
 		void setConstantBuffers();
 		void computeStats();

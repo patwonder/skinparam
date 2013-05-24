@@ -34,6 +34,10 @@ namespace Skin {
 	}
 }
 
+const XMFLOAT4 Renderer::COPY_DEFAULT_SCALE_FACTOR = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+const XMFLOAT4 Renderer::COPY_DEFAULT_VALUE = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+const XMFLOAT4 Renderer::COPY_DEFAULT_LERPS = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
 const float Renderer::CLIPPING_LIGHT_NEAR = 0.1f;
 const float Renderer::CLIPPING_LIGHT_FAR = 20.0f;
 const float Renderer::FOV_LIGHT = 50.0f;
@@ -922,16 +926,17 @@ void Renderer::renderIrradianceMap(bool* opbNeedBlur) {
 
 	if (m_bDump) {
 		if (!bUseFastRoutine) {
-			dumpRenderTargetToFile(m_apRTSSS[IDX_SSS_IRRADIANCE], _T("Irradiance"));
-			dumpRenderTargetToFile(m_apRTSSS[IDX_SSS_ALBEDO], _T("Albedo"));
-			dumpIrregularResourceToFile(m_apSRVSSS[IDX_SSS_DIFFUSE_STENCIL], _T("DiffuseStencil"), false,
+			dumpResourceToFile(m_apRTSSS[IDX_SSS_IRRADIANCE], _T("Irradiance"), false, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+			dumpResourceToFile(m_apRTSSS[IDX_SSS_ALBEDO], _T("Albedo"), false, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+			dumpIrregularResourceToFile(m_apRTSSS[IDX_SSS_DIFFUSE_STENCIL], _T("DiffuseStencil"), false,
 				XMFLOAT4(50.0f, 50.0f, 0.0f, 0.0f),
 				XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f),
-				XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f));
-			dumpRenderTargetToFile(m_apRTSSS[IDX_SSS_SPECULAR], _T("Specular"));
+				XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f),
+				DXGI_FORMAT_R16G16B16A16_UNORM);
+			dumpResourceToFile(m_apRTSSS[IDX_SSS_SPECULAR], _T("Specular"), false, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
 		} else {
 			if (!m_bPostProcessAA && !m_bBloom)
-				dumpRenderTargetToFile(pRT, _T("Final"));
+				dumpResourceToFile(pRT, _T("Final"), false, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
 		}
 	}
 }
@@ -1139,7 +1144,7 @@ void Renderer::doGaussianBlurs(ID3D11ShaderResourceView* oapSRVGaussians[]) {
 		if (m_bDump) {
 			TStringStream tss;
 			tss << _T("Gaussian_") << i + 1;
-			dumpShaderResourceViewToFile(pSRVPrevious, tss.str());
+			dumpResourceToFile(pSRVPrevious, tss.str(), false, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
 		}
 	}
 }
@@ -1181,7 +1186,7 @@ void Renderer::doCombineShading(bool bNeedBlur, ID3D11ShaderResourceView* apSRVG
 	m_pDeviceContext->PSSetShaderResources(0, numViews, apNullSRVs);
 
 	if (m_bDump && !m_bPostProcessAA && !m_bBloom) {
-		dumpRenderTargetToFile(pRenderTargetView, _T("Final"));
+		dumpResourceToFile(pRenderTargetView, _T("Final"), false, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
 	}
 }
 
@@ -1214,7 +1219,7 @@ void Renderer::doPostProcessAA() {
 	m_pDeviceContext->PSSetShaderResources(0, 1, &pNullSRV);
 
 	if (m_bDump) {
-		dumpRenderTargetToFile(m_pRenderTargetView, _T("Final"));
+		dumpResourceToFile(m_pRenderTargetView, _T("Final"), false, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
 	}
 }
 
@@ -1236,7 +1241,7 @@ void Renderer::doBloom() {
 	m_pDeviceContext->Draw(6, 0);
 
 	if (m_bDump)
-		dumpRenderTargetToFile(m_pRTBloomDetect, _T("BloomDetect"));
+		dumpResourceToFile(m_pRTBloomDetect, _T("BloomDetect"), false, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
 
 	// Generate mip-maps for shader use
 	m_pDeviceContext->GenerateMips(m_pSRVBloomDetect);
@@ -1273,7 +1278,7 @@ void Renderer::doBloom() {
 		if (m_bDump) {
 			TStringStream tss;
 			tss << _T("Bloom_") << i;
-			dumpRenderTargetToFile(m_apRTBloom[i], tss.str());
+			dumpResourceToFile(m_apRTBloom[i], tss.str(), false, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
 		}
 	}
 
@@ -1292,7 +1297,7 @@ void Renderer::doBloom() {
 	m_pDeviceContext->PSSetShaderResources(0, BLOOM_PASSES + 1, apNullSRVs);
 
 	if (m_bDump && !m_bPostProcessAA)
-		dumpRenderTargetToFile(m_pRenderTargetView, _T("Final"));
+		dumpResourceToFile(m_pRenderTargetView, _T("Final"), false, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
 }
 
 void Renderer::copyRender(ID3D11ShaderResourceView* pSRV, ID3D11RenderTargetView* pRT, bool bLinear,
@@ -1367,7 +1372,8 @@ void Renderer::render(const Camera* pSecondaryView) {
 				dumpIrregularResourceToFile(m_apSRVShadowMaps[i], tss.str(), false,
 					XMFLOAT4(1 / 30.0f, 0.0f, 0.0f, 0.0f),
 					XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f),
-					XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f));
+					XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f),
+					DXGI_FORMAT_R16_UNORM, DXGI_FORMAT_R16_UNORM);
 			}
 		}
 
@@ -1470,7 +1476,7 @@ void Renderer::doPreRenderings() {
 		m_pDeviceContext->Draw(6, 0);
 		m_nDumpCount = 0;
 		TString fileName = _T("atten.png");
-		dumpRenderTargetToFile(m_pRTAttenuationTexture, fileName, true);
+		dumpResourceToFile(m_pRTAttenuationTexture, fileName, true, DXGI_FORMAT_R16_UNORM);
 		MessageBox(m_hwnd, (_T("Attenuation texture written to ") + fileName).c_str(), _T("Pre-rendering"), MB_OK);
 	}
 }
@@ -1520,14 +1526,16 @@ void Renderer::dump() {
 }
 
 void Renderer::dumpIrregularResourceToFile(ID3D11ShaderResourceView* pSRV, const TString& strFileName, bool overrideAutoNaming,
-										   XMFLOAT4 scaleFactor, XMFLOAT4 defaultValue, XMFLOAT4 lerps)
+										   XMFLOAT4 scaleFactor, XMFLOAT4 defaultValue, XMFLOAT4 lerps,
+										   DXGI_FORMAT preferredFormat, DXGI_FORMAT preferredRTFormat)
 {
-	CComPtr<ID3D11Texture2D> pTexture2D;
-	pSRV->GetResource((ID3D11Resource**)&pTexture2D);
+	CComPtr<ID3D11Resource> pResource;
+	pSRV->GetResource(&pResource);
+	CComQIPtr<ID3D11Texture2D> pT2D = pResource;
 	D3D11_TEXTURE2D_DESC desc;
-	pTexture2D->GetDesc(&desc);
+	pT2D->GetDesc(&desc);
 	
-	DXGI_FORMAT format = DXGI_FORMAT_R16G16B16A16_UNORM;
+	DXGI_FORMAT format = (preferredRTFormat != DXGI_FORMAT_UNKNOWN) ? preferredRTFormat : DXGI_FORMAT_R16G16B16A16_UNORM;
 	// Create temporary render target view
 	CComPtr<ID3D11Texture2D> pTexture2DTarget;
 	checkFailure(createTexture2D(m_pDevice, desc.Width, desc.Height, format, &pTexture2DTarget,
@@ -1541,35 +1549,72 @@ void Renderer::dumpIrregularResourceToFile(ID3D11ShaderResourceView* pSRV, const
 	copyRender(pSRV, pRTTarget, false, scaleFactor, defaultValue, lerps);
 
 	// dump the RT texture
-	dumpTextureToFile(pTexture2DTarget, strFileName, overrideAutoNaming);
+	dumpResourceToFile(pTexture2DTarget, strFileName, overrideAutoNaming, preferredFormat);
 
 	// Things should be auto-cleared
 }
 
-void Renderer::dumpShaderResourceViewToFile(ID3D11ShaderResourceView* pSRV, const TString& strFileName, bool overrideAutoNaming) {
-	CComPtr<ID3D11Resource> pTexture2D;
-	pSRV->GetResource(&pTexture2D);
+void Renderer::dumpIrregularResourceToFile(ID3D11RenderTargetView* pRT, const TString& strFileName, bool overrideAutoNaming,
+										   XMFLOAT4 scaleFactor, XMFLOAT4 defaultValue, XMFLOAT4 lerps,
+										   DXGI_FORMAT preferredFormat, DXGI_FORMAT preferredRTFormat)
+{
+	// No SRV for copy render here, delegate to texture version
+	CComPtr<ID3D11Resource> pResource;
+	pRT->GetResource(&pResource);
 
-	dumpTextureToFile(pTexture2D, strFileName, overrideAutoNaming);
+	dumpIrregularResourceToFile(pResource, strFileName, overrideAutoNaming, scaleFactor, defaultValue, lerps,
+		preferredFormat, preferredRTFormat);
 }
 
-void Renderer::dumpRenderTargetToFile(ID3D11RenderTargetView* pRT, const TString& strFileName, bool overrideAutoNaming) {
-	CComPtr<ID3D11Resource> pTexture2D;
-	pRT->GetResource(&pTexture2D);
+void Renderer::dumpIrregularResourceToFile(ID3D11Resource* pResource, const TString& strFileName, bool overrideAutoNaming,
+										   XMFLOAT4 scaleFactor, XMFLOAT4 defaultValue, XMFLOAT4 lerps,
+										   DXGI_FORMAT preferredFormat, DXGI_FORMAT preferredRTFormat)
+{
+	// Find the DXGI format
+	CComQIPtr<ID3D11Texture2D> pT2D = pResource;
+	D3D11_TEXTURE2D_DESC desc;
+	pT2D->GetDesc(&desc);
 
-	dumpTextureToFile(pTexture2D, strFileName, overrideAutoNaming);
+	// No SRV for copy render here, create one
+	CComPtr<ID3D11ShaderResourceView> pSRV;
+	checkFailure(createShaderResourceView(m_pDevice, pT2D, desc.Format, &pSRV),
+		_T("Failed to create temporary SRV for irregular resource ") + strFileName);
+
+	// Delegate to SRV version
+	dumpIrregularResourceToFile(pSRV, strFileName, overrideAutoNaming, scaleFactor, defaultValue, lerps,
+		preferredFormat, preferredRTFormat);
 }
 
-void Renderer::dumpTextureToFile(ID3D11Resource* pTexture2D, const TString& strFileName, bool overrideAutoNaming) {
+void Renderer::dumpResourceToFile(ID3D11ShaderResourceView* pSRV, const TString& strFileName, bool overrideAutoNaming, DXGI_FORMAT preferredFormat) {
+	CComPtr<ID3D11Resource> pResource;
+	pSRV->GetResource(&pResource);
+
+	dumpResourceToFile(pResource, strFileName, overrideAutoNaming, preferredFormat);
+}
+
+void Renderer::dumpResourceToFile(ID3D11RenderTargetView* pRT, const TString& strFileName, bool overrideAutoNaming, DXGI_FORMAT preferredFormat) {
+	CComPtr<ID3D11Resource> pResource;
+	pRT->GetResource(&pResource);
+
+	dumpResourceToFile(pResource, strFileName, overrideAutoNaming, preferredFormat);
+}
+
+void Renderer::dumpResourceToFile(ID3D11Resource* pResource, const TString& strFileName, bool overrideAutoNaming, DXGI_FORMAT preferredFormat) {
 	TStringStream tss;
 	if (overrideAutoNaming)
 		tss << strFileName;
 	else
 		tss << (++m_nDumpCount) << _T("_") << strFileName << _T(".png");
 	SetWindowText(m_hwnd, (_APP_NAME_ _T(" (Capturing ") + tss.str() + _T("...)")).c_str());
-	ScratchImage img;
-	CaptureTexture(m_pDevice, m_pDeviceContext, pTexture2D, img);
-	SaveToWICFile(*img.GetImage(0, 0, 0), WIC_FLAGS_NONE, GUID_ContainerFormatPng, tss.str().c_str());
+	ScratchImage img, newimg;
+	CaptureTexture(m_pDevice, m_pDeviceContext, pResource, img);
+	const Image* pImage = img.GetImage(0, 0, 0);
+	if (preferredFormat != DXGI_FORMAT_UNKNOWN && pImage->format != preferredFormat) {
+		// An image format conversion is needed
+		Convert(*pImage, preferredFormat, TEX_FILTER_DEFAULT, 0.0f, newimg);
+		pImage = newimg.GetImage(0, 0, 0);
+	}
+	SaveToWICFile(*pImage, WIC_FLAGS_NONE, GUID_ContainerFormatPng, tss.str().c_str());
 }
 
 ID3D11Device* Renderer::getDevice() const {
