@@ -51,6 +51,7 @@ namespace Skin {
 			size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags, unsigned int miscFlags, bool forceSRGB,
 			ID3D11ShaderResourceView** ppTexture, DirectX::DDS_ALPHA_MODE* pAlphaMode = nullptr);
 		HRESULT loadImageData(const Utils::TString& strFileName, void** ppData, UINT* pWidth, UINT* pHeight, WICPixelFormatGUID* pPixelFormatGUID);
+		void freeImageData(void* pData);
 		HRESULT createSamplerState(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
 			D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, ID3D11SamplerState** ppSamplerState);
 		HRESULT createSamplerComparisonState(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,

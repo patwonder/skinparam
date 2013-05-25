@@ -12,6 +12,7 @@
 namespace Utils {
 	class ObjModel;
 	struct ObjTexCoord;
+	struct ObjPart;
 }
 
 namespace Skin {
@@ -29,6 +30,7 @@ namespace Skin {
 		void computeBoundingSphere();
 		void computeTangentSpace();
 		void detectContourVertices();
+		void detectContourVerticesForPart(const Utils::ObjPart& part);
 		void computeNormalMaps(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext);
 
 		typedef UINT16 BTT;
@@ -38,6 +40,15 @@ namespace Skin {
 		typedef XMFLOAT2 NTT;
 		static const DXGI_FORMAT NormTexFormat = DXGI_FORMAT_R32G32_FLOAT;
 		static const float NormalDistance;
+
+		struct BumpMapSampleData {
+			BTT* pData;
+			UINT width;
+			UINT height;
+
+			BumpMapSampleData();
+			~BumpMapSampleData();
+		};
 
 		float sampleBumpMap(BTT** ppData, UINT* pWidth, UINT* pHeight, Utils::ObjTexCoord texCoord, const std::string& materialName);
 		void computeNormalMap(const BTT* pBumpTextureData, UINT width, UINT height, NTT* pNormalMapData);

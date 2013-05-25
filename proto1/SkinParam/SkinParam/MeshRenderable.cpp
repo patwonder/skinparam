@@ -9,6 +9,7 @@
 #include "D3DHelper.h"
 #include "DirectXTex\DDSTextureLoader\DDSTextureLoader.h"
 #include <unordered_set>
+#include <tuple>
 
 using namespace Skin;
 using namespace Utils;
@@ -16,6 +17,14 @@ using namespace D3DHelper;
 
 const float MeshRenderable::NormalDistance = 0.04f;
 const WICPixelFormatGUID MeshRenderable::BumpTexWICFormat = GUID_WICPixelFormat16bppGray;
+
+MeshRenderable::BumpMapSampleData::BumpMapSampleData() {
+	pData = nullptr; width = 0; height = 0;
+}
+
+MeshRenderable::BumpMapSampleData::~BumpMapSampleData() {
+	freeImageData(pData);
+}
 
 MeshRenderable::MeshRenderable(const TString& strObjFilePath) {
 	m_pModel = nullptr;
@@ -395,56 +404,109 @@ void MeshRenderable::computeNormalMap(const BTT* pBumpTextureData, UINT width, U
 	}
 }
 
-void MeshRenderable::detectContourVertices() {
+void MeshRenderable::detectContourVerticesForPart(const ObjPart& part) {
+	// prepare bump map for sampling
+	BumpMapSampleData sd;
+
+	// First step, detect vertices with different texcoords in different triangles
+
 	std::unordered_map<UINT, UINT> mapVertexToTexCoord;
 	std::unordered_map<UINT, std::unordered_set<UINT> > mapVertexDuplicates;
-	for (const ObjPart& part : m_pModel->Parts) {
-		// prepare bump map for sampling
-		BTT* pData = nullptr;
-		UINT width, height;
 
-		for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
-			ObjTriangle& tri = m_pModel->Triangles[idxTri];
-			for (int j = 0; j < 3; j++) {
-				auto iter = mapVertexToTexCoord.find(tri.Vertex[j]);
-				if (iter != mapVertexToTexCoord.end()) {
-					if (iter->second != tri.TexCoord[j]) {
-						const ObjTexCoord& t1 = m_pModel->TexCoords[iter->second];
-						const ObjTexCoord& t2 = m_pModel->TexCoords[tri.TexCoord[j]];
-						if (t1.U != t2.U || t1.V != t2.V) {
-							// contour vertex, look for duplicates
-							auto& setDuplicates = mapVertexDuplicates[tri.Vertex[j]];
-							for (UINT dupId : setDuplicates) {
-								UINT texId = mapVertexToTexCoord[dupId];
-								const ObjTexCoord& t3 = m_pModel->TexCoords[texId];
-								if (texId == tri.TexCoord[j] || (t2.U == t3.U && t2.V == t3.V)) {
-									// already duplicated, assign index to triangle vertex
-									tri.Vertex[j] = dupId;
-									goto next;
-								}
+	for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
+		ObjTriangle& tri = m_pModel->Triangles[idxTri];
+		for (int j = 0; j < 3; j++) {
+			auto iter = mapVertexToTexCoord.find(tri.Vertex[j]);
+			if (iter != mapVertexToTexCoord.end()) {
+				if (iter->second != tri.TexCoord[j]) {
+					const ObjTexCoord& t1 = m_pModel->TexCoords[iter->second];
+					const ObjTexCoord& t2 = m_pModel->TexCoords[tri.TexCoord[j]];
+					if (t1.U != t2.U || t1.V != t2.V) {
+						// contour vertex, look for duplicates
+						auto& setDuplicates = mapVertexDuplicates[tri.Vertex[j]];
+						for (UINT dupId : setDuplicates) {
+							UINT texId = mapVertexToTexCoord[dupId];
+							const ObjTexCoord& t3 = m_pModel->TexCoords[texId];
+							if (texId == tri.TexCoord[j] || (t2.U == t3.U && t2.V == t3.V)) {
+								// already duplicated, assign index to triangle vertex
+								tri.Vertex[j] = dupId;
+								goto NextVertex;
 							}
-							// no duplicates yet, create one
-							UINT dupId = m_pModel->Vertices.size();
-							m_pModel->Vertices.push_back(m_pModel->Vertices[tri.Vertex[j]]);
-							// record the duplicate
-							mapVertexDuplicates[tri.Vertex[j]].insert(dupId);
-							float bumpSample = sampleBumpMap(&pData, &width, &height, t1, part.MaterialName);
-							m_mapContourBump[tri.Vertex[j]] = bumpSample;
-							m_mapContourBump[dupId] = bumpSample;
-							// assign duplicate index
-							tri.Vertex[j] = dupId;
-							mapVertexToTexCoord[dupId] = tri.TexCoord[j];
 						}
+						// no duplicates yet, create one
+						UINT dupId = m_pModel->Vertices.size();
+						m_pModel->Vertices.push_back(m_pModel->Vertices[tri.Vertex[j]]);
+						// record the duplicate
+						mapVertexDuplicates[tri.Vertex[j]].insert(dupId);
+						float bumpSample = sampleBumpMap(&sd.pData, &sd.width, &sd.height, t1, part.MaterialName);
+						m_mapContourBump[tri.Vertex[j]] = bumpSample;
+						m_mapContourBump[dupId] = bumpSample;
+						// assign duplicate index
+						tri.Vertex[j] = dupId;
+						mapVertexToTexCoord[dupId] = tri.TexCoord[j];
 					}
-				} else {
-					mapVertexToTexCoord[tri.Vertex[j]] = tri.TexCoord[j];
 				}
-next:
-				;
+			} else {
+				mapVertexToTexCoord[tri.Vertex[j]] = tri.TexCoord[j];
+			}
+NextVertex:
+			;
+		}
+	}
+
+	// Second step, detect vertices adjacent to contour vertices with different texcoords
+	// mark them also as contour vertices to avoid aliasing through tessellation
+
+	// mapping duplicate vertices back to its origin
+	std::unordered_map<UINT, UINT> mapDuplicatedToOrigin;
+	for (const auto& pair : mapVertexDuplicates) {
+		mapDuplicatedToOrigin[pair.first] = pair.first;
+		for (UINT dupId : pair.second) {
+			mapDuplicatedToOrigin[dupId] = pair.first;
+		}
+	}
+
+	// build adjacency map
+	std::unordered_map<UINT, std::unordered_set<UINT> > mapVertexToAdjacentContour;
+	for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
+		ObjTriangle& tri = m_pModel->Triangles[idxTri];
+		// for each edge...
+		for (int j = 0; j < 3; j++) {
+			int v1 = (j + 1) % 3, v2 = (j + 2) % 3;
+			bool bContour1 = m_mapContourBump.find(tri.Vertex[v1]) != m_mapContourBump.end();
+			bool bContour2 = m_mapContourBump.find(tri.Vertex[v2]) != m_mapContourBump.end();
+			if (bContour1 == bContour2) // two contours or no contours
+				continue;
+			// Add to adjacency map
+			if (bContour1)
+				mapVertexToAdjacentContour[tri.Vertex[v2]].insert(tri.Vertex[v1]);
+			else
+				mapVertexToAdjacentContour[tri.Vertex[v1]].insert(tri.Vertex[v2]);
+		}
+	}
+
+	// seach for vertices adjacent to same contour vertex with different texcoords
+	for (const auto& pair : mapVertexToAdjacentContour) {
+		std::unordered_set<UINT> setAdjacentContourOrigins;
+		for (UINT contourId : pair.second) {
+			UINT oContourId = mapDuplicatedToOrigin[contourId];
+			if (setAdjacentContourOrigins.find(oContourId) != setAdjacentContourOrigins.end()) {
+				// Found the vertex, add it to set of contour vertices
+				const ObjTexCoord& texCoord = m_pModel->TexCoords[mapVertexToTexCoord[pair.first]];
+				float bumpSample = sampleBumpMap(&sd.pData, &sd.width, &sd.height, texCoord, part.MaterialName);
+				m_mapContourBump[pair.first] = bumpSample;
+
+				break;
+			} else {
+				setAdjacentContourOrigins.insert(oContourId);
 			}
 		}
+	}
+}
 
-		delete [] pData;
+void MeshRenderable::detectContourVertices() {
+	for (const ObjPart& part : m_pModel->Parts) {
+		detectContourVerticesForPart(part);
 	}
 }
 

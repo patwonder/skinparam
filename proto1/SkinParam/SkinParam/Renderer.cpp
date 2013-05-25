@@ -1612,7 +1612,8 @@ void Renderer::dumpResourceToFile(ID3D11Resource* pResource, const TString& strF
 	const Image* pImage = img.GetImage(0, 0, 0);
 	if (preferredFormat != DXGI_FORMAT_UNKNOWN && pImage->format != preferredFormat) {
 		// An image format conversion is needed
-		Convert(*pImage, preferredFormat, TEX_FILTER_DEFAULT, 0.0f, newimg);
+		checkFailure(Convert(*pImage, preferredFormat, TEX_FILTER_DEFAULT, 0.0f, newimg),
+			_T("Failed to convert image to preferred dump format"));
 		pImage = newimg.GetImage(0, 0, 0);
 	}
 	SaveToWICFile(*pImage, WIC_FLAGS_NONE, GUID_ContainerFormatPng, tss.str().c_str());

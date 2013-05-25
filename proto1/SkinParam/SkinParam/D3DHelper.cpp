@@ -461,7 +461,7 @@ HRESULT D3DHelper::loadImageData(const TString& strFileName, void** ppData, UINT
 	UINT bytePP = _WICBytesPerPixel(*pPixelFormatGUID);
 	UINT stride = (*pWidth) * bytePP;
 	UINT size = (*pWidth) * (*pHeight) * bytePP;
-	*ppData = new char[size];
+	*ppData = malloc(size);
 
 	hr = frame->CopyPixels(nullptr, stride, size, (BYTE*)(*ppData));
 	if (FAILED(hr)) {
@@ -471,6 +471,10 @@ HRESULT D3DHelper::loadImageData(const TString& strFileName, void** ppData, UINT
 	}
 
 	return S_OK;
+}
+
+void D3DHelper::freeImageData(void* pData) {
+	free(pData);
 }
 
 HRESULT D3DHelper::createSamplerState(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
