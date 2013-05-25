@@ -181,7 +181,7 @@ HRESULT Renderer::initDX() {
 	ds.MinimumFeatureLevel = D3D_FEATURE_LEVEL_11_0;
 	ds.ver = DXUT_D3D11_DEVICE;
 	ds.d3d11.AdapterOrdinal = 0;
-    ds.d3d11.CreateFlags = 0;
+    ds.d3d11.CreateFlags = createDeviceFlags;
     ds.d3d11.DriverType = D3D_DRIVER_TYPE_HARDWARE;
 	ds.d3d11.DeviceFeatureLevel = D3D_FEATURE_LEVEL_11_0;
     ds.d3d11.Output = 0;
