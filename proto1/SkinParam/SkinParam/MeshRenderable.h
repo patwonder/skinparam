@@ -76,6 +76,7 @@ namespace Skin {
 		~MeshRenderable() override;
 
 		virtual XMMATRIX getWorldMatrix() const = 0;
+		virtual Utils::TString getName() const = 0;
 	public:
 		void init(ID3D11Device* pDevice, IRenderer* pRenderer) override;
 		void render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRenderer, const Camera& pCamera) override;

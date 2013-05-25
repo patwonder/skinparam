@@ -148,6 +148,12 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 	}
 
 	computeNormalMaps(pDevice, pRenderer->getDeviceContext());
+	//for (auto& normPair : m_vpNormalMaps) {
+	//	TString name = _T("NormalMap_") + getName() + _T("_") + TStringFromANSIString(normPair.first) + _T(".png");
+	//	pRenderer->dumpIrregularResourceToFile(normPair.second, name, true,
+	//		XMFLOAT4(1.0f, 1.0f, 0.0f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT4(0.5f, 0.5f, 0.0f, 0.0f),
+	//		DXGI_FORMAT_R16G16B16A16_UNORM);
+	//}
 }
 
 namespace Skin {

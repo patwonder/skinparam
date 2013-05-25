@@ -24,6 +24,33 @@ namespace Skin {
 		virtual void useNormalMap(ID3D11SamplerState* pNormalMapSamplerState, ID3D11ShaderResourceView* pNormalMap) = 0;
 		virtual void usePlaceholderNormalMap() = 0;
 		virtual void setTessellationFactor(float edge, float inside, float min, float desiredSizeInPixels) = 0;
+
+		static const XMFLOAT4 COPY_DEFAULT_SCALE_FACTOR;
+		static const XMFLOAT4 COPY_DEFAULT_VALUE;
+		static const XMFLOAT4 COPY_DEFAULT_LERPS;
+
+		virtual void dumpIrregularResourceToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
+			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
+			XMFLOAT4 lerps = COPY_DEFAULT_LERPS,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT preferredRTFormat = DXGI_FORMAT_UNKNOWN) = 0;
+		virtual void dumpIrregularResourceToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
+			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
+			XMFLOAT4 lerps = COPY_DEFAULT_LERPS,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT preferredRTFormat = DXGI_FORMAT_UNKNOWN) = 0;
+		virtual void dumpIrregularResourceToFile(ID3D11Resource* pResource, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
+			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
+			XMFLOAT4 lerps = COPY_DEFAULT_LERPS,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT preferredRTFormat = DXGI_FORMAT_UNKNOWN) = 0;
+
+		virtual void dumpResourceToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN) = 0;
+		virtual void dumpResourceToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN) = 0;
+		virtual void dumpResourceToFile(ID3D11Resource* pResource, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN) = 0;
 	};
 
 	class Renderable /* interface */ {

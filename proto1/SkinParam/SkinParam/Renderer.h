@@ -236,9 +236,6 @@ namespace Skin {
 		};
 		CComPtr<ID3D11Buffer> m_pCopyConstantBuffer;
 		CopyConstantBuffer m_cbCopy;
-		static const XMFLOAT4 COPY_DEFAULT_SCALE_FACTOR;
-		static const XMFLOAT4 COPY_DEFAULT_VALUE;
-		static const XMFLOAT4 COPY_DEFAULT_LERPS;
 
 		// View-In-View
 		ShaderGroup* m_psgCanvas;
@@ -344,29 +341,6 @@ namespace Skin {
 			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
 			XMFLOAT4 lerps = COPY_DEFAULT_LERPS);
 
-		void dumpIrregularResourceToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName, bool overrideAutoNaming = false,
-			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
-			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
-			XMFLOAT4 lerps = COPY_DEFAULT_LERPS,
-			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT preferredRTFormat = DXGI_FORMAT_UNKNOWN);
-		void dumpIrregularResourceToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName, bool overrideAutoNaming = false,
-			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
-			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
-			XMFLOAT4 lerps = COPY_DEFAULT_LERPS,
-			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT preferredRTFormat = DXGI_FORMAT_UNKNOWN);
-		void dumpIrregularResourceToFile(ID3D11Resource* pResource, const Utils::TString& strFileName, bool overrideAutoNaming = false,
-			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
-			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
-			XMFLOAT4 lerps = COPY_DEFAULT_LERPS,
-			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT preferredRTFormat = DXGI_FORMAT_UNKNOWN);
-
-		void dumpResourceToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName, bool overrideAutoNaming = false,
-			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN);
-		void dumpResourceToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName, bool overrideAutoNaming = false,
-			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN);
-		void dumpResourceToFile(ID3D11Resource* pResource, const Utils::TString& strFileName, bool overrideAutoNaming = false,
-			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN);
-
 		void setConstantBuffers();
 		void computeStats();
 		void renderScene(bool* opbNeedBlur = nullptr);
@@ -428,6 +402,28 @@ namespace Skin {
 		void useNormalMap(ID3D11SamplerState* pNormalMapSamplerState, ID3D11ShaderResourceView* pNormalMap) override;
 		void usePlaceholderNormalMap() override;
 		void setTessellationFactor(float edge, float inside, float min, float desiredSizeInPixels) override;
+		void dumpIrregularResourceToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
+			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
+			XMFLOAT4 lerps = COPY_DEFAULT_LERPS,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT preferredRTFormat = DXGI_FORMAT_UNKNOWN) override;
+		void dumpIrregularResourceToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
+			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
+			XMFLOAT4 lerps = COPY_DEFAULT_LERPS,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT preferredRTFormat = DXGI_FORMAT_UNKNOWN) override;
+		void dumpIrregularResourceToFile(ID3D11Resource* pResource, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			XMFLOAT4 scaleFactor = COPY_DEFAULT_SCALE_FACTOR,
+			XMFLOAT4 defaultValue = COPY_DEFAULT_VALUE,
+			XMFLOAT4 lerps = COPY_DEFAULT_LERPS,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN, DXGI_FORMAT preferredRTFormat = DXGI_FORMAT_UNKNOWN) override;
+
+		void dumpResourceToFile(ID3D11ShaderResourceView* pSRV, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN) override;
+		void dumpResourceToFile(ID3D11RenderTargetView* pRT, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN) override;
+		void dumpResourceToFile(ID3D11Resource* pResource, const Utils::TString& strFileName, bool overrideAutoNaming = false,
+			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN) override;
 	};
 
 } // namespace Skin

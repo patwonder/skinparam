@@ -34,10 +34,6 @@ namespace Skin {
 	}
 }
 
-const XMFLOAT4 Renderer::COPY_DEFAULT_SCALE_FACTOR = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-const XMFLOAT4 Renderer::COPY_DEFAULT_VALUE = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-const XMFLOAT4 Renderer::COPY_DEFAULT_LERPS = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-
 const float Renderer::CLIPPING_LIGHT_NEAR = 0.1f;
 const float Renderer::CLIPPING_LIGHT_FAR = 20.0f;
 const float Renderer::FOV_LIGHT = 50.0f;
