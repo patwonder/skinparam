@@ -254,8 +254,8 @@ HRESULT D3DHelper::loadDomainShader(ID3D11Device* pDevice,
 }
 
 HRESULT D3DHelper::loadGeometryShader(ID3D11Device* pDevice,
-									const Utils::TString& strFileName, const char* szEntryPoint,
-									ID3D11GeometryShader** ppGeometryShader)
+									  const Utils::TString& strFileName, const char* szEntryPoint,
+									  ID3D11GeometryShader** ppGeometryShader)
 {
 	const char* PROFILE = "gs_5_0";
 	ShaderCacheKey key(strFileName, PROFILE, szEntryPoint);
@@ -320,19 +320,18 @@ void D3DHelper::getResourceSize(ID3D11Resource* pResource, UINT* pWidth, UINT* p
 	*pHeight = desc.Height;
 }
 
-HRESULT D3DHelper::loadTexture(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const TString& strFileName,
-							   ID3D11ShaderResourceView** ppTexture)
+HRESULT D3DHelper::loadSRVFromWICFile(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const TString& strFileName,
+									  ID3D11ShaderResourceView** ppSRV)
 {
-	return CreateWICTextureFromFile(pDevice, pDeviceContext, strFileName.c_str(), nullptr, ppTexture);
+	return CreateWICTextureFromFile(pDevice, pDeviceContext, strFileName.c_str(), nullptr, ppSRV);
 }
 
-HRESULT D3DHelper::loadTextureEx(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const TString& strFileName,
-								 size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags,
-								 unsigned int miscFlags, bool forceSRGB,
-								 ID3D11ShaderResourceView** ppTexture)
+HRESULT D3DHelper::loadSRVFromWICFileEx(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const TString& strFileName,
+										size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags,
+										unsigned int miscFlags, bool forceSRGB, ID3D11ShaderResourceView** ppSRV)
 {
 	return CreateWICTextureFromFileEx(pDevice, pDeviceContext, strFileName.c_str(), maxsize, usage, bindFlags, cpuAccessFlags,
-		miscFlags, forceSRGB, nullptr, ppTexture);
+		miscFlags, forceSRGB, nullptr, ppSRV);
 }
 
 bool D3DHelper::isDDSFile(const TString& strFileName) {
@@ -341,23 +340,23 @@ bool D3DHelper::isDDSFile(const TString& strFileName) {
 	return _tcsicmp(ext.c_str(), _T(".dds")) == 0;
 }
 
-HRESULT D3DHelper::loadDDSTexture(ID3D11Device* pDevice, const TString& strFileName,
-								  ID3D11ShaderResourceView** ppTexture, DDS_ALPHA_MODE* pAlphaMode)
+HRESULT D3DHelper::loadSRVFromDDSFile(ID3D11Device* pDevice, const TString& strFileName,
+									  ID3D11ShaderResourceView** ppSRV, DDS_ALPHA_MODE* pAlphaMode)
 {
-	return CreateDDSTextureFromFile(pDevice, strFileName.c_str(), nullptr, ppTexture, 0, pAlphaMode);
+	return CreateDDSTextureFromFile(pDevice, strFileName.c_str(), nullptr, ppSRV, 0, pAlphaMode);
 }
 
-HRESULT D3DHelper::loadDDSTextureEx(ID3D11Device* pDevice, const TString& strFileName,
-									size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags,
-									unsigned int miscFlags, bool forceSRGB,
-									ID3D11ShaderResourceView** ppTexture, DDS_ALPHA_MODE* pAlphaMode)
+HRESULT D3DHelper::loadSRVFromDDSFileEx(ID3D11Device* pDevice, const TString& strFileName,
+										size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags,
+										unsigned int miscFlags, bool forceSRGB,
+										ID3D11ShaderResourceView** ppSRV, DDS_ALPHA_MODE* pAlphaMode)
 {
 	return CreateDDSTextureFromFileEx(pDevice, strFileName.c_str(), 0, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB,
-		nullptr, ppTexture, pAlphaMode);
+		nullptr, ppSRV, pAlphaMode);
 }
 
-HRESULT D3DHelper::loadTextureFromMemory(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, void* pData, UINT width, UINT height, DXGI_FORMAT format,
-							  UINT rowPitch, ID3D11ShaderResourceView** ppTexture, bool autogen)
+HRESULT D3DHelper::loadSRVFromMemory(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, void* pData, UINT width, UINT height, DXGI_FORMAT format,
+									 UINT rowPitch, ID3D11ShaderResourceView** ppSRV, bool autogen)
 {
 	// Create texture
 	D3D11_TEXTURE2D_DESC desc;
@@ -387,15 +386,15 @@ HRESULT D3DHelper::loadTextureFromMemory(ID3D11Device* pDevice, ID3D11DeviceCont
 		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 		SRVDesc.Texture2D.MipLevels = (autogen) ? -1 : 1;
 
-		hr = pDevice->CreateShaderResourceView(pTexture2D, &SRVDesc, ppTexture);
+		hr = pDevice->CreateShaderResourceView(pTexture2D, &SRVDesc, ppSRV);
 		if (FAILED(hr)) {
 			return hr;
 		}
 
 		if (autogen) {
-			_ASSERT(pDeviceContext != 0 );
+			ASSERT(pDeviceContext != 0);
 			pDeviceContext->UpdateSubresource(pTexture2D, 0, nullptr, pData, rowPitch, 0);
-			pDeviceContext->GenerateMips(*ppTexture);
+			pDeviceContext->GenerateMips(*ppSRV);
 		}
 	}
 
@@ -487,19 +486,20 @@ HRESULT D3DHelper::createSamplerComparisonState(ID3D11Device* pDevice, D3D11_FIL
 												D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, D3D11_COMPARISON_FUNC comp,
 												ID3D11SamplerState** ppSamplerState)
 {
-	return createSamplerComparisonStateEx(pDevice, filter, addressU, addressV, addressW, comp, XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f), ppSamplerState);
+	return createSamplerComparisonStateEx(pDevice, filter, addressU, addressV, addressW, comp, XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f), 0, ppSamplerState);
 }
 
 HRESULT D3DHelper::createSamplerStateEx(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
 										D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW,
-										XMFLOAT4 borderColor, ID3D11SamplerState** ppSamplerState)
+										XMFLOAT4 borderColor, UINT maxAnisotropy, ID3D11SamplerState** ppSamplerState)
 {
-	return createSamplerComparisonStateEx(pDevice, filter, addressU, addressV, addressW, D3D11_COMPARISON_NEVER, borderColor, ppSamplerState);
+	return createSamplerComparisonStateEx(pDevice, filter, addressU, addressV, addressW, D3D11_COMPARISON_NEVER,
+		borderColor, maxAnisotropy, ppSamplerState);
 }
 
 HRESULT D3DHelper::createSamplerComparisonStateEx(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
 												  D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, D3D11_COMPARISON_FUNC comp,
-												  XMFLOAT4 borderColor, ID3D11SamplerState** ppSamplerState)
+												  XMFLOAT4 borderColor, UINT maxAnisotropy, ID3D11SamplerState** ppSamplerState)
 {
 	D3D11_SAMPLER_DESC sampDesc;
 	ZeroMemory( &sampDesc, sizeof(sampDesc) );
@@ -510,11 +510,11 @@ HRESULT D3DHelper::createSamplerComparisonStateEx(ID3D11Device* pDevice, D3D11_F
 	sampDesc.ComparisonFunc = comp;
 	sampDesc.MinLOD = 0;
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	sampDesc.MaxAnisotropy = maxAnisotropy;
 	memcpy(sampDesc.BorderColor, &borderColor, sizeof(sampDesc.BorderColor));
 	HRESULT hr = pDevice->CreateSamplerState(&sampDesc, ppSamplerState);
 	if (FAILED(hr))
 		return hr;
-
 	return S_OK;
 }
 
@@ -549,14 +549,14 @@ HRESULT D3DHelper::createTexture2DEx(ID3D11Device* pDevice, UINT width, UINT hei
 	return S_OK;
 }
 
-HRESULT D3DHelper::createShaderResourceView(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
-											ID3D11ShaderResourceView** ppShaderResourceView)
+HRESULT D3DHelper::createSRVFromTexture2D(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
+										  ID3D11ShaderResourceView** ppShaderResourceView)
 {
-	return createShaderResourceViewEx(pDevice, pTexture2D, format, false, ppShaderResourceView);
+	return createSRVFromTexture2DEx(pDevice, pTexture2D, format, false, ppShaderResourceView);
 }
 
-HRESULT D3DHelper::createShaderResourceViewEx(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format, bool multisampled,
-											  ID3D11ShaderResourceView** ppShaderResourceView)
+HRESULT D3DHelper::createSRVFromTexture2DEx(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format, bool multisampled,
+											ID3D11ShaderResourceView** ppShaderResourceView)
 {
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	ZeroMemory(&srvDesc, sizeof(srvDesc));
@@ -571,14 +571,14 @@ HRESULT D3DHelper::createShaderResourceViewEx(ID3D11Device* pDevice, ID3D11Textu
 	return S_OK;
 }
 
-HRESULT D3DHelper::createRenderTargetView(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
-										  ID3D11RenderTargetView** ppRenderTargetView)
+HRESULT D3DHelper::createRTFromTexture2D(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
+										 ID3D11RenderTargetView** ppRenderTargetView)
 {
-	return createRenderTargetViewEx(pDevice, pTexture2D, format, false, ppRenderTargetView);
+	return createRTFromTexture2DEx(pDevice, pTexture2D, format, false, ppRenderTargetView);
 }
 
-HRESULT D3DHelper::createRenderTargetViewEx(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format, bool multisampled,
-											ID3D11RenderTargetView** ppRenderTargetView)
+HRESULT D3DHelper::createRTFromTexture2DEx(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format, bool multisampled,
+										   ID3D11RenderTargetView** ppRenderTargetView)
 {
 	D3D11_RENDER_TARGET_VIEW_DESC desc;
 	desc.Format = format;
@@ -592,15 +592,15 @@ HRESULT D3DHelper::createRenderTargetViewEx(ID3D11Device* pDevice, ID3D11Texture
 	return S_OK;
 }
 
-HRESULT D3DHelper::createTextureResourceView(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
-											 ID3D11ShaderResourceView** ppTextureResourceView, D3D11_BIND_FLAG bindFlags)
+HRESULT D3DHelper::createShaderResourceView2D(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
+											  ID3D11ShaderResourceView** ppTextureResourceView, D3D11_BIND_FLAG bindFlags)
 {
 	CComPtr<ID3D11Texture2D> pTexture2D;
 	HRESULT hr = createTexture2D(pDevice, width, height, format, &pTexture2D, bindFlags);
 	if (FAILED(hr))
 		return hr;
 
-	hr = createShaderResourceView(pDevice, pTexture2D, format, ppTextureResourceView);
+	hr = createSRVFromTexture2D(pDevice, pTexture2D, format, ppTextureResourceView);
 	if (FAILED(hr))
 		return hr;
 
@@ -608,14 +608,16 @@ HRESULT D3DHelper::createTextureResourceView(ID3D11Device* pDevice, UINT width, 
 }
 
 HRESULT D3DHelper::createIntermediateRenderTarget(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
-	ID3D11Texture2D** ppTexture2D, ID3D11ShaderResourceView** ppShaderResourceView, ID3D11RenderTargetView** ppRenderTargetView)
+												  ID3D11Texture2D** ppTexture2D, ID3D11ShaderResourceView** ppShaderResourceView,
+												  ID3D11RenderTargetView** ppRenderTargetView)
 {
 	return createIntermediateRenderTargetEx(pDevice, width, height, format, true, 1, 0, ppTexture2D, ppShaderResourceView, ppRenderTargetView);
 }
 
 HRESULT D3DHelper::createIntermediateRenderTargetEx(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
-	bool multisampled, UINT multisampleCount, UINT multisampleQuality,
-	ID3D11Texture2D** ppTexture2D, ID3D11ShaderResourceView** ppShaderResourceView, ID3D11RenderTargetView** ppRenderTargetView)
+													bool multisampled, UINT multisampleCount, UINT multisampleQuality,
+													ID3D11Texture2D** ppTexture2D, ID3D11ShaderResourceView** ppShaderResourceView,
+													ID3D11RenderTargetView** ppRenderTargetView)
 {
 	if (!ppTexture2D && !ppShaderResourceView && !ppRenderTargetView)
 		return E_INVALIDARG;
@@ -628,14 +630,14 @@ HRESULT D3DHelper::createIntermediateRenderTargetEx(ID3D11Device* pDevice, UINT 
 
 	CComPtr<ID3D11ShaderResourceView> pShaderResourceView;
 	if (ppShaderResourceView) {
-		hr = createShaderResourceViewEx(pDevice, pTexture2D, format, multisampled && multisampleCount > 1, &pShaderResourceView);
+		hr = createSRVFromTexture2DEx(pDevice, pTexture2D, format, multisampled && multisampleCount > 1, &pShaderResourceView);
 		if (FAILED(hr))
 			return hr;
 	}
 
 	CComPtr<ID3D11RenderTargetView> pRenderTargetView;
 	if (ppRenderTargetView) {
-		hr = createRenderTargetViewEx(pDevice, pTexture2D, format, multisampled && multisampleCount > 1, &pRenderTargetView);
+		hr = createRTFromTexture2DEx(pDevice, pTexture2D, format, multisampled && multisampleCount > 1, &pRenderTargetView);
 		if (FAILED(hr))
 			return hr;
 	}

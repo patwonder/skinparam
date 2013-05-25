@@ -38,18 +38,19 @@ namespace Skin {
 		void getResourceSize(ID3D11ShaderResourceView* pSRV, UINT* pWidth, UINT* pHeight);
 		void getResourceSize(ID3D11RenderTargetView* pRT, UINT* pWidth, UINT* pHeight);
 		void getResourceSize(ID3D11Resource* pResource, UINT* pWidth, UINT* pHeight);
-		HRESULT loadTexture(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName, ID3D11ShaderResourceView** ppTexture);
-		HRESULT loadTextureEx(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName,
+		HRESULT loadSRVFromWICFile(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName,
+			ID3D11ShaderResourceView** ppSRV);
+		HRESULT loadSRVFromWICFileEx(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, const Utils::TString& strFileName,
 			size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags, unsigned int miscFlags, bool forceSRGB,
-			ID3D11ShaderResourceView** ppTexture);
-		HRESULT loadTextureFromMemory(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, void* pData, UINT width, UINT height, DXGI_FORMAT format, UINT rowPitch,
-			ID3D11ShaderResourceView** ppTexture, bool autogen = true);
+			ID3D11ShaderResourceView** ppSRV);
+		HRESULT loadSRVFromMemory(ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext, void* pData, UINT width, UINT height, DXGI_FORMAT format,
+			UINT rowPitch, ID3D11ShaderResourceView** ppSRV, bool autogen = true);
 		bool isDDSFile(const Utils::TString& strFileName);
-		HRESULT loadDDSTexture(ID3D11Device* pDevice, const Utils::TString& strFileName,
-			ID3D11ShaderResourceView** ppTexture, DirectX::DDS_ALPHA_MODE* pAlphaMode = nullptr);
-		HRESULT loadDDSTextureEx(ID3D11Device* pDevice, const Utils::TString& strFileName,
+		HRESULT loadSRVFromDDSFile(ID3D11Device* pDevice, const Utils::TString& strFileName,
+			ID3D11ShaderResourceView** ppSRV, DirectX::DDS_ALPHA_MODE* pAlphaMode = nullptr);
+		HRESULT loadSRVFromDDSFileEx(ID3D11Device* pDevice, const Utils::TString& strFileName,
 			size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags, unsigned int miscFlags, bool forceSRGB,
-			ID3D11ShaderResourceView** ppTexture, DirectX::DDS_ALPHA_MODE* pAlphaMode = nullptr);
+			ID3D11ShaderResourceView** ppSRV, DirectX::DDS_ALPHA_MODE* pAlphaMode = nullptr);
 		HRESULT loadImageData(const Utils::TString& strFileName, void** ppData, UINT* pWidth, UINT* pHeight, WICPixelFormatGUID* pPixelFormatGUID);
 		void freeImageData(void* pData);
 		HRESULT createSamplerState(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
@@ -57,23 +58,25 @@ namespace Skin {
 		HRESULT createSamplerComparisonState(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
 			D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, D3D11_COMPARISON_FUNC comp, ID3D11SamplerState** ppSamplerState);
 		HRESULT createSamplerStateEx(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
-			D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, XMFLOAT4 borderColor, ID3D11SamplerState** ppSamplerState);
+			D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW,
+			XMFLOAT4 borderColor, UINT maxAnisotropy, ID3D11SamplerState** ppSamplerState);
 		HRESULT createSamplerComparisonStateEx(ID3D11Device* pDevice, D3D11_FILTER filter, D3D11_TEXTURE_ADDRESS_MODE addressU,
-			D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, D3D11_COMPARISON_FUNC comp, XMFLOAT4 borderColor, ID3D11SamplerState** ppSamplerState);
+			D3D11_TEXTURE_ADDRESS_MODE addressV, D3D11_TEXTURE_ADDRESS_MODE addressW, D3D11_COMPARISON_FUNC comp,
+			XMFLOAT4 borderColor, UINT maxAnisotropy, ID3D11SamplerState** ppSamplerState);
 		HRESULT createTexture2D(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 			ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags = D3D11_BIND_SHADER_RESOURCE);
 		HRESULT createTexture2DEx(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 			bool multisampled, UINT multisampleCount, UINT multisampleQuality,
 			ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags = D3D11_BIND_SHADER_RESOURCE);
-		HRESULT createShaderResourceView(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
+		HRESULT createSRVFromTexture2D(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
 			ID3D11ShaderResourceView** ppShaderResourceView);
-		HRESULT createShaderResourceViewEx(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format, bool multisampled,
+		HRESULT createSRVFromTexture2DEx(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format, bool multisampled,
 			ID3D11ShaderResourceView** ppShaderResourceView);
-		HRESULT createTextureResourceView(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
+		HRESULT createShaderResourceView2D(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 			ID3D11ShaderResourceView** ppTextureResourceView, D3D11_BIND_FLAG bindFlags = D3D11_BIND_SHADER_RESOURCE);
-		HRESULT createRenderTargetView(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
+		HRESULT createRTFromTexture2D(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
 			ID3D11RenderTargetView** ppRenderTargetView);
-		HRESULT createRenderTargetViewEx(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format, bool multisampled,
+		HRESULT createRTFromTexture2DEx(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format, bool multisampled,
 			ID3D11RenderTargetView** ppRenderTargetView);
 		HRESULT createIntermediateRenderTarget(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 			ID3D11Texture2D** ppTexture2D, ID3D11ShaderResourceView** ppShaderResourceView, ID3D11RenderTargetView** ppRenderTargetView);

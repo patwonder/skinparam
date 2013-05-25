@@ -303,7 +303,7 @@ void Renderer::initMisc() {
 		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pPlaceholderSamplerState),
 		_T("Failed to create placeholder sampler state"));
 
-	checkFailure(createTextureResourceView(m_pDevice, 1, 1, DXGI_FORMAT_R32_FLOAT, &m_pPlaceholderTexture),
+	checkFailure(createShaderResourceView2D(m_pDevice, 1, 1, DXGI_FORMAT_R32_FLOAT, &m_pPlaceholderTexture),
 		_T("Failed to create placeholder texture"));
 
 	{
@@ -318,7 +318,7 @@ void Renderer::initMisc() {
 		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pBumpSamplerState),
 		_T("Failed to create placeholder bump sampler state"));
 
-	checkFailure(createTextureResourceView(m_pDevice, 1, 1, DXGI_FORMAT_R32_FLOAT, &m_pBumpTexture),
+	checkFailure(createShaderResourceView2D(m_pDevice, 1, 1, DXGI_FORMAT_R32_FLOAT, &m_pBumpTexture),
 		_T("Failed to create placeholder bump map"));
 
 	{
@@ -329,7 +329,7 @@ void Renderer::initMisc() {
 	}
 
 	// Creates the placeholder normal texture for non-normalmapped objects
-	checkFailure(createTextureResourceView(m_pDevice, 1, 1, DXGI_FORMAT_R32G32_FLOAT, &m_pNormalTexture),
+	checkFailure(createShaderResourceView2D(m_pDevice, 1, 1, DXGI_FORMAT_R32G32_FLOAT, &m_pNormalTexture),
 		_T("Failed to create placeholder normal map"));
 	{
 		float initData[] = { 0.0f, 0.0f };
@@ -664,11 +664,11 @@ void Renderer::initShadowMaps() {
 	// Create shadow map sampler state (clamp to border with minimum L vector length)
 	checkFailure(createSamplerComparisonStateEx(m_pDevice, D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
 		D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER,
-		D3D11_COMPARISON_LESS, XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f), &m_pShadowMapSamplerState),
+		D3D11_COMPARISON_LESS, XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f), 0, &m_pShadowMapSamplerState),
 		_T("Failed to create shadow map sampler comparison state"));
 	checkFailure(createSamplerStateEx(m_pDevice, D3D11_FILTER_MIN_MAG_MIP_POINT,
 		D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER, D3D11_TEXTURE_ADDRESS_BORDER,
-		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f), &m_pShadowMapDepthSamplerState),
+		XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f), 0, &m_pShadowMapDepthSamplerState),
 		_T("Failed to create shadow map depth sampler state"));
 
 	// Initialize shadow map view port
@@ -719,7 +719,7 @@ void Renderer::initSSS() {
 
 	// initalize attenuation texture & viewport
 	// first try to load it from file
-	HRESULT hr = loadTexture(m_pDevice, m_pDeviceContext, _T("atten.png"), &m_pSRVAttenuationTexture);
+	HRESULT hr = loadSRVFromWICFile(m_pDevice, m_pDeviceContext, _T("atten.png"), &m_pSRVAttenuationTexture);
 	if (FAILED(hr)) {
 		// not exists, try to compute it on the fly
 		MessageBox(m_hwnd, _T("Attenuation texture not found. Will compute it on the fly.\nThis might take a few seconds."),
@@ -1533,7 +1533,7 @@ void Renderer::dumpIrregularResourceToFile(ID3D11ShaderResourceView* pSRV, const
 		D3D11_BIND_RENDER_TARGET), _T("Failed to create temporary render target texture for irregular resource ") + strFileName);
 
 	CComPtr<ID3D11RenderTargetView> pRTTarget;
-	checkFailure(createRenderTargetView(m_pDevice, pTexture2DTarget, format, &pRTTarget),
+	checkFailure(createRTFromTexture2D(m_pDevice, pTexture2DTarget, format, &pRTTarget),
 		_T("Failed to create temporary render target view for irregular resource ") + strFileName);
 
 	// Copy render to the temporary RT
@@ -1568,7 +1568,7 @@ void Renderer::dumpIrregularResourceToFile(ID3D11Resource* pResource, const TStr
 
 	// No SRV for copy render here, create one
 	CComPtr<ID3D11ShaderResourceView> pSRV;
-	checkFailure(createShaderResourceView(m_pDevice, pT2D, desc.Format, &pSRV),
+	checkFailure(createSRVFromTexture2D(m_pDevice, pT2D, desc.Format, &pSRV),
 		_T("Failed to create temporary SRV for irregular resource ") + strFileName);
 
 	// Delegate to SRV version

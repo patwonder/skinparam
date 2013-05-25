@@ -112,9 +112,9 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 
 	delete[] vertices;
 
-	// Create sampler state
-	checkFailure(createSamplerState(pDevice, D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP,
-		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pSamplerState),
+	// Create sampler state, anisotropic for texture, normal maps and bump maps
+	checkFailure(createSamplerStateEx(pDevice, D3D11_FILTER_ANISOTROPIC, D3D11_TEXTURE_ADDRESS_CLAMP,
+		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, XMFLOAT4(), 16, &m_pSamplerState),
 		_T("Failed to create sampler state"));
 
 	// Create textures for each material
@@ -126,9 +126,9 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 			DirectX::DDS_ALPHA_MODE alphaMode = DirectX::DDS_ALPHA_MODE_STRAIGHT;
 			// use srgb for albedo textures
 			checkFailure(dds 
-				? loadDDSTextureEx(pDevice, _T("model\\") + TStringFromANSIString(objMt.TextureFileName),
+				? loadSRVFromDDSFileEx(pDevice, _T("model\\") + TStringFromANSIString(objMt.TextureFileName),
 				  0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, true, &pTexture, &alphaMode)
-				: loadTextureEx(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.TextureFileName),
+				: loadSRVFromWICFileEx(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.TextureFileName),
 				  0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, true, &pTexture),
 				_T("Unable to load texture ") + TStringFromANSIString(objMt.TextureFileName));
 			//ASSERT(alphaMode == DirectX::DDS_ALPHA_MODE_STRAIGHT);
@@ -139,8 +139,8 @@ void MeshRenderable::init(ID3D11Device* pDevice, IRenderer* pRenderer) {
 			bool dds = isDDSFile(TStringFromANSIString(objMt.BumpMapFileName));
 			DirectX::DDS_ALPHA_MODE alphaMode = DirectX::DDS_ALPHA_MODE_UNKNOWN;
 			checkFailure(dds
-				? loadDDSTexture(pDevice, _T("model\\") + TStringFromANSIString(objMt.BumpMapFileName), &pBumpMap, &alphaMode)
-				: loadTexture(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.BumpMapFileName), &pBumpMap),
+				? loadSRVFromDDSFile(pDevice, _T("model\\") + TStringFromANSIString(objMt.BumpMapFileName), &pBumpMap, &alphaMode)
+				: loadSRVFromWICFile(pDevice, pRenderer->getDeviceContext(), _T("model\\") + TStringFromANSIString(objMt.BumpMapFileName), &pBumpMap),
 				  _T("Unable to load bump map ") + TStringFromANSIString(objMt.BumpMapFileName));
 			//ASSERT(alphaMode == DirectX::DDS_ALPHA_MODE_UNKNOWN);
 			m_vpBumpMaps[objMtPair.first] = pBumpMap;
@@ -375,7 +375,7 @@ void MeshRenderable::computeNormalMaps(ID3D11Device* pDevice, ID3D11DeviceContex
 		delete [] pBumpTextureData;
 
 		CComPtr<ID3D11ShaderResourceView> pNormalMapView;
-		checkFailure(loadTextureFromMemory(pDevice, pDeviceContext, pNormalMapData, width, height, NormTexFormat,
+		checkFailure(loadSRVFromMemory(pDevice, pDeviceContext, pNormalMapData, width, height, NormTexFormat,
 			width * sizeof(NTT), &pNormalMapView),
 			_T("Failed to create normal map for material ") + TStringFromANSIString(texPair.first));
 		delete [] pNormalMapData;
