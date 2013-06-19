@@ -18,5 +18,7 @@ namespace RLSkin {
 		~Renderer();
 
 		void render();
+		void onError(RLenum error, const void* privateData, size_t privateSize, const char* message);
+		static void onError(RLenum error, const void* privateData, size_t privateSize, const char* message, void* userData);
 	};
 } // namespace RLSkin
