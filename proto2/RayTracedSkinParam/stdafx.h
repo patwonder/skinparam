@@ -19,3 +19,11 @@
 // Common containers
 #include <vector>
 #include <unordered_map>
+
+// Direct3D headers
+#include <D3D11.h>
+#include <D3DX11.h>
+#include <DxErr.h>
+#include <D3DX10math.h>
+#include <D3Dcompiler.h>
+#include <xnamath.h>

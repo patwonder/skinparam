@@ -41,12 +41,14 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(OPENRL_SDK_ROOT)Include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(OPENRL_SDK_ROOT)Lib\VisualStudio10\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(OPENRL_SDK_ROOT)Include;$(DXSDK_DIR)Include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(OPENRL_SDK_ROOT)Lib\VisualStudio10\x64;$(DXSDK_DIR)Lib\x64;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>$(DXSDK_DIR)Utilities\bin\x64;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LibraryPath>$(OPENRL_SDK_ROOT)Lib\VisualStudio10\x64;$(LibraryPath)</LibraryPath>
-    <IncludePath>$(OPENRL_SDK_ROOT)Include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(OPENRL_SDK_ROOT)Lib\VisualStudio10\x64;$(DXSDK_DIR)Lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(OPENRL_SDK_ROOT)Include;$(DXSDK_DIR)Include;$(IncludePath)</IncludePath>
+    <ExecutablePath>$(DXSDK_DIR)Utilities\bin\x64;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -59,7 +61,8 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>OpenRL.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>OpenRL.lib;d3d11.lib;d3dcompiler.lib;d3dx11d.lib;d3dx10d.lib;d3dx9d.lib;dxerr.lib;dxguid.lib;winmm.lib;comctl32.lib;version.lib;imm32.lib;DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>DirectXTex\DirectXTex\x64\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -77,15 +80,28 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>OpenRL.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>OpenRL.lib;d3d11.lib;d3dcompiler.lib;d3dx11.lib;d3dx10.lib;d3dx9.lib;dxerr.lib;dxguid.lib;imm32.lib;winmm.lib;comctl32.lib;version.lib;DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>DirectXTex\DirectXTex\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="D3DHelper.cpp" />
+    <ClCompile Include="DirectXTex\DDSTextureLoader\DDSTextureLoader.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(WindowsSDK_IncludePath);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(WindowsSDK_IncludePath);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\WICTextureLoader\WICTextureLoader.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(WindowsSDK_IncludePath);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(WindowsSDK_IncludePath);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
     <ClCompile Include="MainWindow.cpp" />
     <ClCompile Include="Program.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="RLHelper.cpp" />
     <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="ShaderGroup.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
@@ -114,14 +130,22 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Utils\WICSingleton.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="constants.h" />
+    <ClInclude Include="D3DHelper.h" />
+    <ClInclude Include="DirectXTex\DDSTextureLoader\DDSTextureLoader.h" />
+    <ClInclude Include="DirectXTex\DirectXTex\DirectXTex.h" />
+    <ClInclude Include="DirectXTex\WICTextureLoader\WICTextureLoader.h" />
     <ClInclude Include="MainWindow.h" />
     <ClInclude Include="Program.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="RLHelper.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="ShaderGroup.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Utils\Color.h" />
     <ClInclude Include="Utils\FVector.h" />
@@ -129,10 +153,19 @@
     <ClInclude Include="Utils\TString.h" />
     <ClInclude Include="Utils\UMath.h" />
     <ClInclude Include="Utils\Vector.h" />
+    <ClInclude Include="Utils\WICSingleton.h" />
     <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\frame.rlsl.glsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\DirectDraw.fx">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Shaders\Quad.fx">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

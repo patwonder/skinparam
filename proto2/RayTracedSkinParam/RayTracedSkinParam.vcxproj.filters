@@ -27,6 +27,20 @@
     <ClInclude Include="RLHelper.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="Program.h" />
+    <ClInclude Include="D3DHelper.h" />
+    <ClInclude Include="DirectXTex\DDSTextureLoader\DDSTextureLoader.h">
+      <Filter>DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\WICTextureLoader\WICTextureLoader.h">
+      <Filter>DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXTex\DirectXTex\DirectXTex.h">
+      <Filter>DirectXTex</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\WICSingleton.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderGroup.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -53,6 +67,17 @@
     <ClCompile Include="RLHelper.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="Program.cpp" />
+    <ClCompile Include="D3DHelper.cpp" />
+    <ClCompile Include="DirectXTex\DDSTextureLoader\DDSTextureLoader.cpp">
+      <Filter>DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="DirectXTex\WICTextureLoader\WICTextureLoader.cpp">
+      <Filter>DirectXTex</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\WICSingleton.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="ShaderGroup.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Utils">
@@ -61,9 +86,18 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{29c76d08-860d-4576-b14c-ce90a0ffebc1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DirectXTex">
+      <UniqueIdentifier>{a13cdc43-8555-4b0c-8522-c077151c9949}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\frame.rlsl.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\DirectDraw.fx">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\Quad.fx">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
