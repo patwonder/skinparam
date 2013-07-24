@@ -24,6 +24,9 @@
       <Filter>Utils</Filter>
     </ClInclude>
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="RLHelper.h" />
+    <ClInclude Include="Shader.h" />
+    <ClInclude Include="Program.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -47,10 +50,21 @@
     </ClCompile>
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="RLHelper.cpp" />
+    <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="Program.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Utils">
       <UniqueIdentifier>{56d2e9bd-3c4e-43e2-b0dd-1994000ce7f6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{29c76d08-860d-4576-b14c-ce90a0ffebc1}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\frame.rlsl.glsl">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

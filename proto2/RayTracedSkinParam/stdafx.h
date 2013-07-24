@@ -15,3 +15,7 @@
 
 #include "TString.h"
 #include "UMath.h"
+
+// Common containers
+#include <vector>
+#include <unordered_map>

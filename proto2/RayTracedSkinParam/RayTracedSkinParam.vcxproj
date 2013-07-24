@@ -82,7 +82,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
+    <ClCompile Include="Program.cpp" />
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="RLHelper.cpp" />
+    <ClCompile Include="Shader.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
@@ -115,7 +118,10 @@
   <ItemGroup>
     <ClInclude Include="constants.h" />
     <ClInclude Include="MainWindow.h" />
+    <ClInclude Include="Program.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="RLHelper.h" />
+    <ClInclude Include="Shader.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Utils\Color.h" />
     <ClInclude Include="Utils\FVector.h" />
@@ -124,6 +130,9 @@
     <ClInclude Include="Utils\UMath.h" />
     <ClInclude Include="Utils\Vector.h" />
     <ClInclude Include="version.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\frame.rlsl.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
