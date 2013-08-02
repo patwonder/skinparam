@@ -65,6 +65,8 @@ namespace RLSkin {
 			XMFLOAT4 borderColor, UINT maxAnisotropy, ID3D11SamplerState** ppSamplerState);
 		HRESULT createTexture2D(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 			ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags = D3D11_BIND_SHADER_RESOURCE);
+		HRESULT createDynamicTexture2D(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
+			ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags);
 		HRESULT createTexture2DEx(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
 			bool multisampled, UINT multisampleCount, UINT multisampleQuality,
 			ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags = D3D11_BIND_SHADER_RESOURCE);

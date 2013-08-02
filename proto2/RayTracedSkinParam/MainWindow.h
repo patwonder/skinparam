@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Renderer.h"
+#include "Head.h"
 
 namespace RLSkin {
 	class CMainWindow;
@@ -23,6 +24,9 @@ namespace RLSkin {
 
 		// Renderer
 		Renderer* m_pRenderer;
+
+		// Drawables
+		Head* m_pHead;
 
 		// Message mapping
 		BOOL PreTranslateMessage(MSG* pMsg) override;

@@ -36,3 +36,11 @@ std::string RLHelper::readShaderSource(const TString& fileName) {
 	}
 	return "";
 }
+
+void RLHelper::RLprogramRelease(RLprogram program) {
+	rlDeleteProgram(program);
+}
+
+void RLHelper::RLshaderRelease(RLshader shader) {
+	rlDeleteShader(shader);
+}

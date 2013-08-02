@@ -15,10 +15,13 @@
 
 #include "TString.h"
 #include "UMath.h"
+#include "FVector.h"
+#include "Vector.h"
 
 // Common containers
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
 // Direct3D headers
 #include <D3D11.h>

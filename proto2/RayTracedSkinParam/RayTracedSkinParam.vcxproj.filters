@@ -41,6 +41,14 @@
       <Filter>Utils</Filter>
     </ClInclude>
     <ClInclude Include="ShaderGroup.h" />
+    <ClInclude Include="Drawable.h" />
+    <ClInclude Include="MeshDrawable.h" />
+    <ClInclude Include="RLUnknown.h" />
+    <ClInclude Include="RLPtr.h" />
+    <ClInclude Include="Texture.h" />
+    <ClInclude Include="Primitive.h" />
+    <ClInclude Include="Buffer.h" />
+    <ClInclude Include="Head.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -78,6 +86,12 @@
       <Filter>Utils</Filter>
     </ClCompile>
     <ClCompile Include="ShaderGroup.cpp" />
+    <ClCompile Include="Drawable.cpp" />
+    <ClCompile Include="MeshDrawable.cpp" />
+    <ClCompile Include="RLUnknown.cpp" />
+    <ClCompile Include="Texture.cpp" />
+    <ClCompile Include="Primitive.cpp" />
+    <ClCompile Include="Buffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Utils">
@@ -98,6 +112,12 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="Shaders\Quad.fx">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\ray.rlsl.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\vertex.rlsl.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

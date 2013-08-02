@@ -5,6 +5,8 @@
 #pragma once
 
 #include "Program.h"
+#include "RLPtr.h"
+#include "Drawable.h"
 
 namespace RLSkin {
 	class ShaderGroup;
@@ -14,6 +16,9 @@ namespace RLSkin {
 		HWND m_hwnd;
 		CRect m_rectView;
 
+		// Drawables management
+		std::vector<Drawable*> m_vpDrawables;
+
 		// OpenRL context
 		OpenRLContext m_rlContext;
 		RLtexture m_rlMainTexture;
@@ -21,10 +26,11 @@ namespace RLSkin {
 		RLbuffer m_rlTempBuffer;
 
 		// Shaders
-		std::vector<Shader**> m_vppShaders;
-		std::vector<Program**> m_vppPrograms;
-		Shader* m_pMainFrameShader;
-		Program* m_pMainProgram;
+		RLPtr<Shader> m_pvsdDrawable;
+		RLPtr<Shader> m_prsdDrawable;
+		RLPtr<Program> m_pprgDrawable;
+		RLPtr<Shader> m_pfsdMain;
+		RLPtr<Program> m_pprgMain;
 
 		// Direct3D backend
 		D3D_DRIVER_TYPE m_d3dDriverType;
@@ -49,9 +55,15 @@ namespace RLSkin {
 		void initDXShaders();
 		void uninitDXShaders();
 		void uninitDX();
+
+		void setupProjection();
 	public:
 		Renderer(HWND hwnd, CRect rectView);
 		~Renderer();
+
+		void addDrawable(Drawable* pDrawable);
+		void removeDrawable(Drawable* pDrawable);
+		void removeAllDrawables();
 
 		void render();
 		void onError(RLenum error, const void* privateData, size_t privateSize, const char* message);

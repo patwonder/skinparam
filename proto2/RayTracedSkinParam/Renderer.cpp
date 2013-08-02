@@ -13,8 +13,6 @@ using namespace Utils;
 
 Renderer::Renderer(HWND hwnd, CRect rectView)
 	: m_hwnd(hwnd), m_rectView(rectView),
-	  m_pMainFrameShader(nullptr),
-	  m_pMainProgram(nullptr),
 	  m_psgDirectDraw(nullptr)
 {
 	initRL();
@@ -45,6 +43,7 @@ void Renderer::onError(RLenum error, const void* privateData, size_t privateSize
 	TStringStream tss;
 	tss << _T("ERROR ") << error << _T(": ") << strMessage;
 	MessageBox(m_hwnd, tss.str().c_str(), APP_NAME _T(" ERROR"), MB_OK | MB_ICONERROR);
+	exit(EXIT_FAILURE);
 }
 
 void Renderer::onError(RLenum error, const void* privateData, size_t privateSize, const char* message, void* userData) {
@@ -91,32 +90,71 @@ void Renderer::initRL() {
 }
 
 void Renderer::initShaders() {
-	m_vppShaders.push_back(&m_pMainFrameShader);
-	m_vppPrograms.push_back(&m_pMainProgram);
+	Shader::createInstance(_T("Shaders/frame.rlsl.glsl"), RL_FRAME_SHADER, &m_pfsdMain);
+	Program::createInstance(std::vector<Shader*>(&m_pfsdMain.p, &m_pfsdMain.p + 1), &m_pprgMain);
 
-	m_pMainFrameShader = new FrameShader(_T("Shaders/frame.rlsl.glsl"));
-	m_pMainProgram = new Program(std::vector<Shader*>(&m_pMainFrameShader, &m_pMainFrameShader + 1));
+	Shader::createInstance(_T("Shaders/ray.rlsl.glsl"), RL_RAY_SHADER, &m_prsdDrawable);
+	Shader::createInstance(_T("Shaders/vertex.rlsl.glsl"), RL_VERTEX_SHADER, &m_pvsdDrawable);
+	Shader* apDrawableShaders[] = {
+		m_prsdDrawable.p,
+		m_pvsdDrawable.p
+	};
+	Program::createInstance(std::vector<Shader*>(apDrawableShaders, apDrawableShaders + ARRAYSIZE(apDrawableShaders)),
+		&m_pprgDrawable);
 }
 
 void Renderer::uninitShaders() {
-	for (Program** ppProgram : m_vppPrograms) {
-		delete *ppProgram;
-		*ppProgram = nullptr;
+	m_pfsdMain.Release();
+	m_pprgMain.Release();
+
+	m_prsdDrawable.Release();
+	m_pvsdDrawable.Release();
+	m_pprgDrawable.Release();
+}
+
+void Renderer::addDrawable(Drawable* pDrawable) {
+	pDrawable->init();
+	m_vpDrawables.push_back(pDrawable);
+}
+
+void Renderer::removeDrawable(Drawable* pDrawable) {
+	for (size_t i = 0; i < m_vpDrawables.size(); i++) {
+		if (pDrawable == m_vpDrawables[i]) {
+			m_vpDrawables.erase(m_vpDrawables.begin() + i);
+			pDrawable->cleanup();
+			break;
+		}
 	}
-	m_vppPrograms.clear();
-	for (Shader** ppShader : m_vppShaders) {
-		delete *ppShader;
-		*ppShader = nullptr;
-	}
-	m_vppShaders.clear();
+}
+
+void Renderer::removeAllDrawables() {
+	m_vpDrawables.clear();
+}
+
+void Renderer::setupProjection() {
+	XMMATRIX matView = XMMatrixLookAtLH(XMVectorSet(0.0f, -5.0f, 0.0f, 1.0f), XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f), XMVectorSet(0.0f, 0.0f, 1.0f, 1.0f));
+	XMMATRIX matProj = XMMatrixPerspectiveFovLH((float)(Math::PI / 6), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 20.0f);
+	XMMATRIX matViewProj = matView * matProj;
+	XMVECTOR vecDeterminant;
+	XMMATRIX matInvViewProj = XMMatrixInverse(&vecDeterminant, matViewProj);
+	XMFLOAT4X4 matStoredIVP;
+	XMStoreFloat4x4(&matStoredIVP, matInvViewProj);
+	RLint locViewProjMatrix = m_pprgMain->getUniformLocation("g_matInvViewProj");
+	rlUniformMatrix4fv(locViewProjMatrix, 1, RL_FALSE, (RLfloat*)&matStoredIVP);
 }
 
 void Renderer::render() {
 	rlClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	rlClear(RL_COLOR_BUFFER_BIT);
 
+	for (Drawable* pDrawable : m_vpDrawables) {
+		pDrawable->draw(m_pprgDrawable);
+	}
+
 	rlBindPrimitive(RL_PRIMITIVE, RL_NULL_PRIMITIVE);
-	m_pMainProgram->use();
+	m_pprgMain->use();
+
+	setupProjection();
 	rlRenderFrame();
 
 	rlBindBuffer(RL_PIXEL_PACK_BUFFER, m_rlTempBuffer);
@@ -127,7 +165,14 @@ void Renderer::render() {
 	// Here is where you copy the data out.
 	CComPtr<ID3D11Resource> pResource;
 	m_pSRVResult->GetResource(&pResource);
-	m_pd3dDeviceContext->UpdateSubresource(pResource, 0, nullptr, pixels, m_rectView.Width() * sizeof(float) * 4, 0);
+	D3D11_MAPPED_SUBRESOURCE mapped;
+	D3DHelper::checkFailure(m_pd3dDeviceContext->Map(pResource, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped),
+		_T("Failed to map texture for write"));
+	// Copy one row at a time
+	for (int i = 0; i < m_rectView.Height(); i++)
+		memcpy((void*)((ULONG_PTR)mapped.pData + mapped.RowPitch * i), pixels + m_rectView.Width() * 4 * i,
+			m_rectView.Width() * sizeof(float) * 4);
+	m_pd3dDeviceContext->Unmap(pResource, 0);
 
 	// We no longer need access to the original pixels
 	rlUnmapBuffer(RL_PIXEL_PACK_BUFFER);
@@ -152,7 +197,7 @@ void Renderer::render() {
 	ID3D11ShaderResourceView* pNullSRV = nullptr;
 	m_pd3dDeviceContext->PSSetShaderResources(0, 1, &pNullSRV);
 
-	m_pd3dSwapChain->Present(1, 0);
+	m_pd3dSwapChain->Present(0, 0);
 }
 
 HRESULT Renderer::initDX() {
@@ -229,8 +274,11 @@ HRESULT Renderer::initDX() {
 void Renderer::initDXMiscellaneous() {
 	using namespace D3DHelper;
 	// Temporary texture for drawing the result
-	checkFailure(createShaderResourceView2D(m_pd3dDevice, m_rectView.Width(), m_rectView.Height(), DXGI_FORMAT_R32G32B32A32_FLOAT,
-		&m_pSRVResult, D3D11_BIND_SHADER_RESOURCE), _T("Failed to create SRV for OpenRL result"));
+	CComPtr<ID3D11Texture2D> pTexture2D;
+	checkFailure(createDynamicTexture2D(m_pd3dDevice, m_rectView.Width(), m_rectView.Height(), DXGI_FORMAT_R32G32B32A32_FLOAT,
+		&pTexture2D, D3D11_BIND_SHADER_RESOURCE), _T("Failed to create dynamic texture for OpenRL result"));
+	checkFailure(createSRVFromTexture2D(m_pd3dDevice, pTexture2D, DXGI_FORMAT_R32G32B32A32_FLOAT, &m_pSRVResult),
+		_T("Failed to create SRV for OpenRL result"));
 
 	checkFailure(createSamplerState(m_pd3dDevice, D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_CLAMP,
 		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pd3dLinearSampler),

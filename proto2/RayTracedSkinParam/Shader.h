@@ -4,37 +4,21 @@
 
 #pragma once
 
+#include "RLUnknown.h"
+#include "RLHelper.h"
+
 namespace RLSkin {
-	// base class for shaders
-	class Program;
-	class Shader {
+	class Shader : public RLUnknown {
 	private:
-		Shader(const Shader&);
-		Shader& operator=(const Shader&);
-	protected:
-		Shader(const Utils::TString& fileName, RLenum shaderType);
-
 		RLshader m_shader;
+		Shader(const Utils::TString& fileName, RLenum shaderType);
+	protected:
+		~Shader() override;
 	public:
-		virtual ~Shader() = 0;
-		friend class Program;
-	};
+		static void createInstance(const Utils::TString& fileName, RLenum shaderType, Shader** oppShader) {
+			*oppShader = new Shader(fileName, shaderType);
+		}
 
-	class FrameShader : public Shader {
-	public:
-		FrameShader(const Utils::TString& fileName)
-			: Shader(fileName, RL_FRAME_SHADER) { }
-	};
-
-	class VertexShader : public Shader {
-	public:
-		VertexShader(const Utils::TString& fileName)
-			: Shader(fileName, RL_VERTEX_SHADER) { }
-	};
-
-	class RayShader : public Shader {
-	public:
-		RayShader(const Utils::TString& fileName)
-			: Shader(fileName, RL_RAY_SHADER) { }
+		void attachToProgram(RLprogram program);
 	};
 } // namespace RLSkin

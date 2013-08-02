@@ -549,6 +549,30 @@ HRESULT D3DHelper::createTexture2DEx(ID3D11Device* pDevice, UINT width, UINT hei
 	return S_OK;
 }
 
+HRESULT D3DHelper::createDynamicTexture2D(ID3D11Device* pDevice, UINT width, UINT height, DXGI_FORMAT format,
+										  ID3D11Texture2D** ppTexture2D, D3D11_BIND_FLAG bindFlags)
+{
+	D3D11_TEXTURE2D_DESC desc;
+	ZeroMemory(&desc, sizeof(desc));
+	desc.Width = width;
+	desc.Height = height;
+	desc.MipLevels = 1;
+	desc.ArraySize = 1;
+	desc.Format = format;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Usage = D3D11_USAGE_DYNAMIC;
+	desc.BindFlags = bindFlags;
+	desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	desc.MiscFlags = 0;
+
+	HRESULT hr = pDevice->CreateTexture2D(&desc, nullptr, ppTexture2D);
+	if (FAILED(hr))
+		return hr;
+
+	return S_OK;
+}
+
 HRESULT D3DHelper::createSRVFromTexture2D(ID3D11Device* pDevice, ID3D11Texture2D* pTexture2D, DXGI_FORMAT format,
 										  ID3D11ShaderResourceView** ppShaderResourceView)
 {

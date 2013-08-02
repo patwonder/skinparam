@@ -68,9 +68,13 @@ CMainWindow::CMainWindow() {
 
 void CMainWindow::init() {
 	m_pRenderer = new Renderer(m_hWnd, m_rectClient);
+	m_pHead = new Head();
+	m_pRenderer->addDrawable(m_pHead);
 }
 
 CMainWindow::~CMainWindow() {
+	m_pRenderer->removeAllDrawables();
+	delete m_pHead;
 	delete m_pRenderer;
 }
 
