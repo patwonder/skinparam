@@ -20,6 +20,7 @@ namespace RLSkin {
 		}
 
 		void bind(RLenum target = RL_ARRAY_BUFFER);
+		RLbuffer getRLHandle() const { return m_buffer; }
 		void updateData(RLenum usage, UINT size = 0, const void* pData = nullptr);
 	};
 } // namespace RLSkin

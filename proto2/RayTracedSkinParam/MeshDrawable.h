@@ -70,7 +70,7 @@ namespace RLSkin {
 		~MeshDrawable() override;
 
 		void init() override;
-		void draw(Program* pProgram) override;
+		void draw(Program* pProgram, Buffer* pLightBuffer, Primitive* pEnvironmentPrimitive) override;
 		void cleanup() override;
 
 		void getBoundingSphere(Utils::FVector& oVecCenter, float& oRadius) const override;

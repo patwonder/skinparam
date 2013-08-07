@@ -101,19 +101,17 @@ void MeshDrawable::init() {
 			Texture::createInstance(_T("model\\") + TStringFromANSIString(objMt.TextureFileName), &pTexture);
 			m_vpTextures[objMtPair.first] = pTexture;
 		}
-#if 0
 		if (objMt.BumpMapFileName.length()) {
-			RLPtr<Texture> pBumpMap;
-			Texture::createInstance(_T("model\\") + TStringFromANSIString(objMt.BumpMapFileName), &pBumpMap);
-			m_vpBumpMaps[objMtPair.first] = pBumpMap;
+			//RLPtr<Texture> pBumpMap;
+			//Texture::createInstance(_T("model\\") + TStringFromANSIString(objMt.BumpMapFileName), &pBumpMap);
+			m_vpBumpMaps[objMtPair.first] = nullptr;
 		}
-#endif
 	}
 
-	//computeNormalMaps();
+	computeNormalMaps();
 }
 
-void MeshDrawable::draw(Program* pProgram) {
+void MeshDrawable::draw(Program* pProgram, Buffer* pLightBuffer, Primitive* pEnvironmentPrimitive) {
 	// Get the transformation matrix
 	XMMATRIX matWorld = getWorldMatrix();
 	XMFLOAT4X4 matTransposedWorld;
@@ -127,6 +125,8 @@ void MeshDrawable::draw(Program* pProgram) {
 		pPrimitive->useProgram(pProgram);
 		RLint locPosition = pProgram->getAttributeLocation("attr_position");
 		RLint locNormal = pProgram->getAttributeLocation("attr_normal");
+		RLint locTangent = pProgram->getAttributeLocation("attr_tangent");
+		RLint locBinormal = pProgram->getAttributeLocation("attr_binormal");
 		RLint locTexCoord = pProgram->getAttributeLocation("attr_texCoord");
 		// TODO: add other attributes
 		m_buffers.pPositionBuffer->bind();
@@ -135,14 +135,28 @@ void MeshDrawable::draw(Program* pProgram) {
 		m_buffers.pNormalBuffer->bind();
 		rlVertexAttribBuffer(locNormal, sizeof(ObjNormal) / sizeof(float), RL_FLOAT, RL_FALSE, sizeof(ObjNormal),
 			trianglesDrawn * 3 * sizeof(ObjNormal));
+		m_buffers.pTangentBuffer->bind();
+		rlVertexAttribBuffer(locTangent, sizeof(ObjTangent) / sizeof(float), RL_FLOAT, RL_FALSE, sizeof(ObjTangent),
+			trianglesDrawn * 3 * sizeof(ObjTangent));
+		m_buffers.pBinormalBuffer->bind();
+		rlVertexAttribBuffer(locBinormal, sizeof(ObjBinormal) / sizeof(float), RL_FLOAT, RL_FALSE, sizeof(ObjBinormal),
+			trianglesDrawn * 3 * sizeof(ObjBinormal));
 		m_buffers.pTexCoordBuffer->bind();
 		rlVertexAttribBuffer(locTexCoord, sizeof(ObjTexCoord) / sizeof(float), RL_FLOAT, RL_FALSE, sizeof(ObjTexCoord),
 			trianglesDrawn * 3 * sizeof(ObjTexCoord));
 		rlPrimitiveParameterMatrixf(RL_PRIMITIVE, RL_PRIMITIVE_TRANSFORM_MATRIX, (RLfloat*)&matTransposedWorld);
 
+		RLint idxGLight = pProgram->getUniformBlockIndex("g_light");
+		rlUniformBlockBuffer(idxGLight, pLightBuffer->getRLHandle());
+
+		RLint locGEnvironment = pProgram->getUniformLocation("g_environmentPrimitive");
+		rlUniformp(locGEnvironment, pEnvironmentPrimitive->getRLHandle());
+
 		// Setup the texture
 		RLint locGTexture = pProgram->getUniformLocation("g_texture");
 		rlUniformt(locGTexture, m_vpTextures[part.MaterialName]->getRLHandle());
+		RLint locGNormal = pProgram->getUniformLocation("g_normal");
+		rlUniformt(locGNormal, m_vpNormalMaps[part.MaterialName]->getRLHandle());
 
 		// Register the mesh
 		rlDrawArrays(RL_TRIANGLES, trianglesDrawn * 3, 3 * (part.TriIdxMax - part.TriIdxMin));

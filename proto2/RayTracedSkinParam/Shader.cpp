@@ -37,3 +37,7 @@ Shader::~Shader() {
 void Shader::attachToProgram(RLprogram program) {
 	rlAttachShader(program, m_shader);
 }
+
+void Shader::detachFromProgram(RLprogram program) {
+	rlDetachShader(program, m_shader);
+}

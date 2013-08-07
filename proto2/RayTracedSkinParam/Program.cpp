@@ -16,6 +16,7 @@ Program::Program(const vector<Shader*>& vpShaders) {
 	m_program = rlCreateProgram();
 	for (Shader* pShader : vpShaders) {
 		pShader->attachToProgram(m_program);
+		m_vpAttachedShaders.push_back(pShader);
 	}
 	rlLinkProgram(m_program);
 
@@ -32,6 +33,10 @@ Program::Program(const vector<Shader*>& vpShaders) {
 }
 
 Program::~Program() {
+	for (RLPtr<Shader> pShader : m_vpAttachedShaders) {
+		pShader->detachFromProgram(m_program);
+	}
+	m_vpAttachedShaders.clear();
 	rlDeleteProgram(m_program);
 }
 
@@ -45,4 +50,8 @@ RLint Program::getAttributeLocation(const char* name) {
 
 RLint Program::getUniformLocation(const char* name) {
 	return rlGetUniformLocation(m_program, name);
+}
+
+RLint Program::getUniformBlockIndex(const char* name) {
+	return rlGetUniformBlockIndex(m_program, name);
 }

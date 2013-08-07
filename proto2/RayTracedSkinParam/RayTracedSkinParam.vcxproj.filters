@@ -49,6 +49,7 @@
     <ClInclude Include="Primitive.h" />
     <ClInclude Include="Buffer.h" />
     <ClInclude Include="Head.h" />
+    <ClInclude Include="Camera.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -92,6 +93,7 @@
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="Primitive.cpp" />
     <ClCompile Include="Buffer.cpp" />
+    <ClCompile Include="Camera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Utils">
@@ -118,6 +120,15 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="Shaders\vertex.rlsl.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\light.ray.rlsl.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\env.ray.rlsl.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\default.vertex.rlsl.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

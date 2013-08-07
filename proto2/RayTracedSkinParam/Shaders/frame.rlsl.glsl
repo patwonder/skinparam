@@ -6,6 +6,7 @@ void main() {
 	accumulate(color);
 }
 */
+rayattribute vec3 color;
 
 void setup() {
 	rl_OutputRayCount = 1;
@@ -25,5 +26,6 @@ void main() {
 	createRay();
 	rl_OutRay.origin = vOriginWS4.xyz / vOriginWS4.w;
 	rl_OutRay.direction = vDestWS4.xyz / vDestWS4.w - rl_OutRay.origin;
+	rl_OutRay.color = vec3(1.0);
 	emitRay();
 }

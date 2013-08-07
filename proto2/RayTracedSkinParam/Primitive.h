@@ -21,6 +21,7 @@ namespace RLSkin {
 		}
 
 		void bind();
+		RLprimitive getRLHandle() const { return m_primitive; }
 		void useProgram(Program* pProgram);
 	};
 } // namespace RLSkin

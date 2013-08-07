@@ -5,8 +5,10 @@
 #pragma once
 
 #include "Program.h"
+#include "Primitive.h"
 #include "RLPtr.h"
 #include "Drawable.h"
+#include "Camera.h"
 
 namespace RLSkin {
 	class ShaderGroup;
@@ -15,6 +17,7 @@ namespace RLSkin {
 		// constructor parameters
 		HWND m_hwnd;
 		CRect m_rectView;
+		Camera* m_pCamera;
 
 		// Drawables management
 		std::vector<Drawable*> m_vpDrawables;
@@ -26,11 +29,21 @@ namespace RLSkin {
 		RLbuffer m_rlTempBuffer;
 
 		// Shaders
-		RLPtr<Shader> m_pvsdDrawable;
-		RLPtr<Shader> m_prsdDrawable;
 		RLPtr<Program> m_pprgDrawable;
-		RLPtr<Shader> m_pfsdMain;
 		RLPtr<Program> m_pprgMain;
+		RLPtr<Program> m_pprgLight;
+		RLPtr<Program> m_pprgEnvironment;
+
+		// Uniform blocks
+		RLPtr<Buffer> m_pLightBuffer;
+		struct UB_Light {
+			XMFLOAT4 position_radius;
+			RLprimitive prim;
+		} m_ubLight;
+
+		// Primitives
+		RLPtr<Primitive> m_pLightPrimitive;
+		RLPtr<Primitive> m_pEnvironmentPrimitive;
 
 		// Direct3D backend
 		D3D_DRIVER_TYPE m_d3dDriverType;
@@ -49,6 +62,9 @@ namespace RLSkin {
 		void initRL();
 		void initShaders();
 		void uninitShaders();
+		void initLight();
+		void updateLight();
+		void drawLight();
 
 		HRESULT initDX();
 		void initDXMiscellaneous();
@@ -58,7 +74,7 @@ namespace RLSkin {
 
 		void setupProjection();
 	public:
-		Renderer(HWND hwnd, CRect rectView);
+		Renderer(HWND hwnd, CRect rectView, Camera* pCamera);
 		~Renderer();
 
 		void addDrawable(Drawable* pDrawable);

@@ -6,6 +6,7 @@
 
 #include "Renderer.h"
 #include "Head.h"
+#include "Camera.h"
 
 namespace RLSkin {
 	class CMainWindow;
@@ -24,6 +25,17 @@ namespace RLSkin {
 
 		// Renderer
 		Renderer* m_pRenderer;
+		Camera m_camera;
+
+		// Mouse actions
+		bool m_bChangingView;
+		bool m_bChangingLight;
+		CPoint m_ptStart;
+
+		static double getViewModifier(UINT nFlags);
+
+		static const double CTRL_MINIFIER;
+		static const double SHIFT_MAGNIFIER;
 
 		// Drawables
 		Head* m_pHead;

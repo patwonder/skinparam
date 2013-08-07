@@ -20,5 +20,7 @@ namespace RLSkin {
 		}
 
 		void attachToProgram(RLprogram program);
+		void detachFromProgram(RLprogram program);
+		RLshader getRLHandle() const { return m_shader; }
 	};
 } // namespace RLSkin

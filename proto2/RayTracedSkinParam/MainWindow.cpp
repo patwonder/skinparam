@@ -6,6 +6,7 @@
 #include "MainWindow.h"
 
 using namespace RLSkin;
+using namespace Utils;
 
 namespace RLSkin {
 	CMainApp app;
@@ -52,7 +53,12 @@ BEGIN_MESSAGE_MAP(CMainWindow, CFrameWnd)
 	ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
-CMainWindow::CMainWindow() {
+const double CMainWindow::CTRL_MINIFIER = 1 / 3.0;
+const double CMainWindow::SHIFT_MAGNIFIER = 3.0;
+
+CMainWindow::CMainWindow() 
+	: m_camera(Vector(0, -5, 0), Vector::ZERO, Vector(0, 0, 1))
+{
 	CSize resolution(800, 600);
 	Create(NULL, APP_NAME, WS_OVERLAPPEDWINDOW & (~WS_SIZEBOX) & (~WS_MAXIMIZEBOX), 
 		CRect(0, 0, resolution.cx, resolution.cy));
@@ -67,9 +73,14 @@ CMainWindow::CMainWindow() {
 }
 
 void CMainWindow::init() {
-	m_pRenderer = new Renderer(m_hWnd, m_rectClient);
+	m_pRenderer = new Renderer(m_hWnd, m_rectClient, &m_camera);
 	m_pHead = new Head();
 	m_pRenderer->addDrawable(m_pHead);
+
+	m_bChangingView = false;
+	m_camera.restrictView(1.2, 8.0);
+
+	m_bChangingLight = false;
 }
 
 CMainWindow::~CMainWindow() {
@@ -91,6 +102,14 @@ BOOL CMainWindow::OnIdle(LONG lCount) {
 	return TRUE;
 }
 
+double CMainWindow::getViewModifier(UINT nFlags) {
+	if (nFlags & MK_CONTROL)
+		return CTRL_MINIFIER;
+	if (nFlags & MK_SHIFT)
+		return SHIFT_MAGNIFIER;
+	return 1.0;
+}
+
 BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {
 	return FALSE;
 }
@@ -109,30 +128,59 @@ afx_msg void CMainWindow::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags) {
 }
 
 afx_msg void CMainWindow::OnLButtonDown(UINT nFlags, CPoint point) {
-
+	if (!m_bChangingView)
+		SetCapture();
+	m_bChangingLight = true;
+	m_ptStart = point;
 }
 
 afx_msg void CMainWindow::OnRButtonDown(UINT nFlags, CPoint point) {
-
+	if (!m_bChangingLight)
+		SetCapture();
+	m_bChangingView = true;
+	m_ptStart = point;
 }
 
 afx_msg void CMainWindow::OnLButtonUp(UINT nFlags, CPoint point) {
-
+	m_bChangingLight = false;
+	if (!m_bChangingView)
+		ReleaseCapture();
 }
 
 afx_msg void CMainWindow::OnRButtonUp(UINT nFlags, CPoint point) {
-
+	m_bChangingView = false;
+	if (!m_bChangingLight)
+		ReleaseCapture();
 }
 
 afx_msg void CMainWindow::OnLButtonDblClk(UINT nFlags, CPoint point) {
-
 }
 
 afx_msg void CMainWindow::OnMouseMove(UINT nFlags, CPoint point) {
+	if (m_bChangingView) {
+		CPoint ptDist = (point - m_ptStart);
 
+		double modifier = getViewModifier(nFlags);
+		m_camera.changeView(modifier * ptDist.x * Math::PI / 720, modifier * ptDist.y * Math::PI / 720);
+	}
+	if (m_bChangingLight) {
+		/* TODO: change light position
+		Camera c = m_pRenderer->getLightCamera(*m_pCurrentLight);
+		CPoint ptDist = (point - m_ptStart);
+
+		double modifier = getViewModifier(nFlags);
+		c.changeView(modifier * ptDist.x * Math::PI / 720, modifier * ptDist.y * Math::PI / 720);
+		m_pCurrentLight->vecPosition = c.getVecEye();
+		*/
+	}
+	if (m_bChangingView || m_bChangingLight)
+		m_ptStart = point;
 }
 
 afx_msg BOOL CMainWindow::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt) {
+	double delta = 0.2 / WHEEL_DELTA * zDelta;
+	m_camera.moveView(getViewModifier(nFlags) * delta);
+
 	return FALSE;
 }
 

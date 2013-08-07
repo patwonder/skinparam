@@ -11,12 +11,13 @@
 using namespace RLSkin;
 using namespace Utils;
 
-Renderer::Renderer(HWND hwnd, CRect rectView)
-	: m_hwnd(hwnd), m_rectView(rectView),
+Renderer::Renderer(HWND hwnd, CRect rectView, Camera* pCamera)
+	: m_hwnd(hwnd), m_rectView(rectView), m_pCamera(pCamera),
 	  m_psgDirectDraw(nullptr)
 {
 	initRL();
 	initShaders();
+	initLight();
 
 	D3DHelper::checkFailure(initDX(), _T("Failed to initialize Direct3D"));
 	initDXMiscellaneous();
@@ -90,25 +91,39 @@ void Renderer::initRL() {
 }
 
 void Renderer::initShaders() {
-	Shader::createInstance(_T("Shaders/frame.rlsl.glsl"), RL_FRAME_SHADER, &m_pfsdMain);
-	Program::createInstance(std::vector<Shader*>(&m_pfsdMain.p, &m_pfsdMain.p + 1), &m_pprgMain);
+	RLPtr<Shader> pfsdMain, prsdDrawable, pvsdDrawable, pvsdDefault, prsdLight, prsdEnvironment;
+	Shader::createInstance(_T("Shaders/frame.rlsl.glsl"), RL_FRAME_SHADER, &pfsdMain);
+	Program::createInstance(std::vector<Shader*>(&pfsdMain.p, &pfsdMain.p + 1), &m_pprgMain);
 
-	Shader::createInstance(_T("Shaders/ray.rlsl.glsl"), RL_RAY_SHADER, &m_prsdDrawable);
-	Shader::createInstance(_T("Shaders/vertex.rlsl.glsl"), RL_VERTEX_SHADER, &m_pvsdDrawable);
+	Shader::createInstance(_T("Shaders/ray.rlsl.glsl"), RL_RAY_SHADER, &prsdDrawable);
+	Shader::createInstance(_T("Shaders/vertex.rlsl.glsl"), RL_VERTEX_SHADER, &pvsdDrawable);
 	Shader* apDrawableShaders[] = {
-		m_prsdDrawable.p,
-		m_pvsdDrawable.p
+		prsdDrawable.p,
+		pvsdDrawable.p
 	};
 	Program::createInstance(std::vector<Shader*>(apDrawableShaders, apDrawableShaders + ARRAYSIZE(apDrawableShaders)),
 		&m_pprgDrawable);
+
+	Shader::createInstance(_T("Shaders/default.vertex.rlsl.glsl"), RL_VERTEX_SHADER, &pvsdDefault);
+
+	Shader::createInstance(_T("Shaders/light.ray.rlsl.glsl"), RL_RAY_SHADER, &prsdLight);
+	Shader* apLightShaders[] = {
+		prsdLight.p,
+		pvsdDefault.p
+	};
+	Program::createInstance(std::vector<Shader*>(apLightShaders, apLightShaders + ARRAYSIZE(apLightShaders)), &m_pprgLight);
+
+	Shader::createInstance(_T("Shaders/env.ray.rlsl.glsl"), RL_RAY_SHADER, &prsdEnvironment);
+	Shader* apEnvironmentShaders[] = {
+		prsdEnvironment.p,
+		pvsdDefault.p
+	};
+	Program::createInstance(std::vector<Shader*>(apEnvironmentShaders, apEnvironmentShaders + ARRAYSIZE(apEnvironmentShaders)),
+		&m_pprgEnvironment);
 }
 
 void Renderer::uninitShaders() {
-	m_pfsdMain.Release();
 	m_pprgMain.Release();
-
-	m_prsdDrawable.Release();
-	m_pvsdDrawable.Release();
 	m_pprgDrawable.Release();
 }
 
@@ -132,7 +147,11 @@ void Renderer::removeAllDrawables() {
 }
 
 void Renderer::setupProjection() {
-	XMMATRIX matView = XMMatrixLookAtLH(XMVectorSet(0.0f, -5.0f, 0.0f, 1.0f), XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f), XMVectorSet(0.0f, 0.0f, 1.0f, 1.0f));
+	Vector vecEye, vecLookAt, vecUp;
+	m_pCamera->look(vecEye, vecLookAt, vecUp);
+	XMMATRIX matView = XMMatrixLookAtLH(XMVectorSet((float)vecEye.x, (float)vecEye.y, (float)vecEye.z, 1.0f),
+										XMVectorSet((float)vecLookAt.x, (float)vecLookAt.y, (float)vecLookAt.z, 1.0f),
+										XMVectorSet((float)vecUp.x, (float)vecUp.y, (float)vecUp.z, 1.0f));
 	XMMATRIX matProj = XMMatrixPerspectiveFovLH((float)(Math::PI / 6), (float)m_rectView.Width() / m_rectView.Height(), 0.1f, 20.0f);
 	XMMATRIX matViewProj = matView * matProj;
 	XMVECTOR vecDeterminant;
@@ -143,18 +162,44 @@ void Renderer::setupProjection() {
 	rlUniformMatrix4fv(locViewProjMatrix, 1, RL_FALSE, (RLfloat*)&matStoredIVP);
 }
 
+void Renderer::initLight() {
+	Primitive::createInstance(&m_pLightPrimitive);
+	Primitive::createInstance(&m_pEnvironmentPrimitive);
+	m_ubLight.prim = m_pLightPrimitive->getRLHandle();
+	RLHelper::createUniformBuffer(m_ubLight, &m_pLightBuffer);
+}
+
+void Renderer::updateLight() {
+	m_ubLight.position_radius = XMFLOAT4(7.0f, -2.0f, 0.0f, 3.0f);
+	RLHelper::updateUniformBuffer(m_pLightBuffer, m_ubLight);
+}
+
+void Renderer::drawLight() {
+	m_pLightPrimitive->useProgram(m_pprgLight);
+	RLint locColor = m_pprgLight->getUniformLocation("g_color");
+	rlUniform3f(locColor, 1.0f, 1.0f, 1.0f);
+
+	m_pEnvironmentPrimitive->useProgram(m_pprgEnvironment);
+	locColor = m_pprgEnvironment->getUniformLocation("g_color");
+	rlUniform3f(locColor, 0.01f, 0.01f, 0.01f);
+}
+
 void Renderer::render() {
 	rlClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	rlClear(RL_COLOR_BUFFER_BIT);
 
+	updateLight();
+	drawLight();
+
 	for (Drawable* pDrawable : m_vpDrawables) {
-		pDrawable->draw(m_pprgDrawable);
+		pDrawable->draw(m_pprgDrawable, m_pLightBuffer, m_pEnvironmentPrimitive);
 	}
 
 	rlBindPrimitive(RL_PRIMITIVE, RL_NULL_PRIMITIVE);
 	m_pprgMain->use();
 
 	setupProjection();
+
 	rlRenderFrame();
 
 	rlBindBuffer(RL_PIXEL_PACK_BUFFER, m_rlTempBuffer);
