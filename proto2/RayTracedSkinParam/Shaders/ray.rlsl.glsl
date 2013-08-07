@@ -3,11 +3,11 @@
 // 2 - global illumination ray
 rayattribute vec3 color;
 
-#define EXTRA_OCCLUSION_RAYS 32
-#define EXTRA_OCCLUSION_RAYS_PLUS_ONE 33
+#define PI 3.141592654
+#define OCCLUSION_RAYS 16
 
 void setup() {
-    rl_OutputRayCount[0] = EXTRA_OCCLUSION_RAYS + 1;
+    rl_OutputRayCount[0] = OCCLUSION_RAYS;
     rl_OutputRayCount[2] = 2;
 }
 
@@ -46,6 +46,10 @@ vec3 calcNormalFromNormalMap(sampler2D sampler, vec2 texCoord, vec3 vNormalWS, v
     return vFinalNormalWS;
 }
 
+int gray(int i) {
+	return i ^ (i >> 1);
+}
+
 void main() {
     vec3 tex_color = srgb(g_texture, var_texCoord).rgb;
     vec3 vNormalWS = normalize(calcNormalFromNormalMap(g_normal, var_texCoord, var_normal, var_tangent, var_binormal));
@@ -55,20 +59,23 @@ void main() {
 	vec3 mainDirection = lightPos - rl_IntersectionPoint;
     vec3 lightXAxis = normalize(cross(vec3(1.0, 0.0, 0.0), mainDirection));
     vec3 lightYAxis = normalize(cross(lightXAxis, mainDirection));
-    vec3 targets[EXTRA_OCCLUSION_RAYS_PLUS_ONE];
-	targets[0] = lightPos;
-	float PI = 3.141592654;
-	for (int i = 1; i < EXTRA_OCCLUSION_RAYS + 1; i++) {
-		float angle = 2.0 * PI / float(EXTRA_OCCLUSION_RAYS) * float(i - 1);
-		targets[i] = lightPos + lightRadius * (lightXAxis * cos(angle) + lightYAxis * sin(angle));
+    vec4 targets[OCCLUSION_RAYS];
+	float totalWeight = 0.0;
+	for (int i = 0; i < OCCLUSION_RAYS; i++) {
+		float angle = 2.0 * PI / float(OCCLUSION_RAYS) * float(i);
+		vec3 targetPos = lightPos + float(gray(gray(gray(gray(gray(i)))))) / float(OCCLUSION_RAYS) * lightRadius * (lightXAxis * cos(angle) + lightYAxis * sin(angle));
+		float targetWeight = 1.0;
+		totalWeight += targetWeight;
+		targets[i] = vec4(targetPos, targetWeight);
 	};
-    for (int i = 0; i < EXTRA_OCCLUSION_RAYS + 1; i++) {
-        vec3 target = targets[i];
+    for (int i = 0; i < OCCLUSION_RAYS; i++) {
+        vec3 target = targets[i].xyz;
+		float weight = targets[i].w / totalWeight;
 		float NdotL = clamp(dot(vNormalWS, normalize(target - rl_IntersectionPoint)), 0.0, 1.0);
         createRay();
         rl_OutRay.origin = rl_IntersectionPoint;
         rl_OutRay.direction = target - rl_IntersectionPoint;
-        rl_OutRay.color *= 1.0 / float(EXTRA_OCCLUSION_RAYS + 1) * tex_color * NdotL;
+        rl_OutRay.color *= weight * tex_color * NdotL;
         rl_OutRay.rayClass = 1;
         rl_OutRay.occlusionTest = true;
         rl_OutRay.maxT = length(target - rl_IntersectionPoint);

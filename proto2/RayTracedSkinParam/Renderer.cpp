@@ -170,7 +170,7 @@ void Renderer::initLight() {
 }
 
 void Renderer::updateLight() {
-	m_ubLight.position_radius = XMFLOAT4(7.0f, -2.0f, 0.0f, 3.0f);
+	m_ubLight.position_radius = XMFLOAT4(6.0f, -4.0f, 2.0f, 3.0f);
 	RLHelper::updateUniformBuffer(m_pLightBuffer, m_ubLight);
 }
 
