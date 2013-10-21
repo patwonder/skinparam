@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="targetver.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="Resource.h" />
+    <ClInclude Include="Obj2Pbrt.h" />
+    <ClInclude Include="..\SkinParam\Utils\TString.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SkinParam\Utils\ObjLoader.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SkinParam\Utils\FVector.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SkinParam\Utils\NormalCalc.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Obj2Pbrt.cpp" />
+    <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="..\SkinParam\Utils\TString.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SkinParam\Utils\ObjLoader.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SkinParam\Utils\FVector.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SkinParam\Utils\NormalCalc.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Utils">
+      <UniqueIdentifier>{7d9be4f9-c294-4b35-a965-33b1b08055f6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

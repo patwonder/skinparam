@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SkinParam", "SkinParam\SkinParam.vcxproj", "{BEB33AF8-CFCC-45EA-8C70-B1731E21AA3E}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Obj2Pbrt", "Obj2Pbrt\Obj2Pbrt.vcxproj", "{EE219369-9D83-45F4-89D6-77E70D00EB99}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -13,6 +15,10 @@ Global
 		{BEB33AF8-CFCC-45EA-8C70-B1731E21AA3E}.Debug|Win32.Build.0 = Debug|Win32
 		{BEB33AF8-CFCC-45EA-8C70-B1731E21AA3E}.Release|Win32.ActiveCfg = Release|Win32
 		{BEB33AF8-CFCC-45EA-8C70-B1731E21AA3E}.Release|Win32.Build.0 = Release|Win32
+		{EE219369-9D83-45F4-89D6-77E70D00EB99}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EE219369-9D83-45F4-89D6-77E70D00EB99}.Debug|Win32.Build.0 = Debug|Win32
+		{EE219369-9D83-45F4-89D6-77E70D00EB99}.Release|Win32.ActiveCfg = Release|Win32
+		{EE219369-9D83-45F4-89D6-77E70D00EB99}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
