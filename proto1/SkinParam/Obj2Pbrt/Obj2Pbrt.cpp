@@ -15,6 +15,8 @@
 #include "ObjLoader.h"
 #include "TString.h"
 #include "NormalCalc.h"
+#include <unordered_map>
+#include <vector>
 
 // 唯一的应用程序对象
 
@@ -22,6 +24,13 @@ CWinApp theApp;
 
 using namespace std;
 using namespace Utils;
+
+struct MapEntry {
+	int id;
+	int texCoord;
+	int normal;
+	int tangent;
+};
 
 void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName)
 {
@@ -32,6 +41,32 @@ void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName)
 	// Calculate smoothed normals
 	computeNormals(pModel);
 	computeTangentSpace(pModel);
+	duplicateVerticesForDifferentTexCoords(pModel);
+
+	// for each triangle iterator
+	auto forEachTriangle = [&] (function<void (const ObjTriangle&)> callback) {
+		for (const ObjPart& part : pModel->Parts) {
+			for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
+				const ObjTriangle& tri = pModel->Triangles[idxTri];
+				callback(tri);
+			}
+		}
+	};
+
+	// Build vector -> { texCoord, normal, tangent } mapping
+	unordered_map<int, MapEntry> mapVectorToEntry;
+	forEachTriangle([&] (const ObjTriangle& tri) {
+		for (int j = 0; j < 3; j++) {
+			auto iter = mapVectorToEntry.find(tri.Vertex[j]);
+			if (iter != mapVectorToEntry.end()) continue;
+
+			MapEntry& entry = mapVectorToEntry[tri.Vertex[j]];
+			entry.id = -1;
+			entry.normal = tri.Normal[j];
+			entry.tangent = tri.Tangent[j];
+			entry.texCoord  = tri.TexCoord[j];
+		}
+	});
 
 	ofstream pbrtOut;
 	if (pbrtFileName)
@@ -44,59 +79,59 @@ void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName)
 	}
 	ostream& out = pbrtFileName ? pbrtOut : cout;
 
-	auto forEachTriangle = [&] (function<void (const ObjTriangle&)> callback) {
-		for (const ObjPart& part : pModel->Parts) {
-			for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
-				const ObjTriangle& tri = pModel->Triangles[idxTri];
-				callback(tri);
-			}
-		}
-	};
 	out << "AttributeBegin" << endl;
 	out << "  Shape \"trianglemesh\"" << endl;
     out << "    \"point P\" [" << endl;
+	// record order of vertices
+	vector<int> vertexOrder;
 	forEachTriangle([&] (const ObjTriangle& tri) {
 		for (int j = 0; j < 3; j++) {
-			const ObjVertex& v = pModel->Vertices[tri.Vertex[j]];
-			out << "      " << v.x << " " << v.y << " " << v.z << endl;
+			int vertexId = tri.Vertex[j];
+			auto iter = mapVectorToEntry.find(vertexId);
+			if (iter != mapVectorToEntry.end()) {
+				MapEntry& entry = iter->second;
+				if (entry.id < 0) {
+					entry.id = vertexOrder.size();
+					vertexOrder.push_back(vertexId);
+					const ObjVertex& v = pModel->Vertices[vertexId];
+					out << "      " << v.x << " " << v.y << " " << v.z << endl;
+				}
+			}
 		}
 	});
 	out << "    ]" << endl;
 	if (pModel->Normals.size() > 1) {
 		out << "    \"normal N\" [" << endl;
-		forEachTriangle([&] (const ObjTriangle& tri) {
-			for (int j = 0; j < 3; j++) {
-				const ObjNormal& n = pModel->Normals[tri.Normal[j]];
-				out << "      " << n.x << " " << n.y << " " << n.z << endl;
-			}
-		});
+		for (int vertexId : vertexOrder) {
+			const MapEntry& entry = mapVectorToEntry[vertexId];
+			const ObjNormal& n = pModel->Normals[entry.normal];
+			out << "      " << n.x << " " << n.y << " " << n.z << endl;
+		}
 		out << "    ]" << endl;
 	}
 	if (pModel->Tangents.size() > 1) {
 		out << "    \"vector S\" [" << endl;
-		forEachTriangle([&] (const ObjTriangle& tri) {
-			for (int j = 0; j < 3; j++) {
-				const ObjTangent& t = pModel->Tangents[tri.Tangent[j]];
-				out << "      " << t.x << " " << t.y << " " << t.z << endl;
-			}
-		});
+		for (int vertexId : vertexOrder) {
+			const MapEntry& entry = mapVectorToEntry[vertexId];
+			const ObjTangent& t = pModel->Tangents[entry.tangent];
+			out << "      " << t.x << " " << t.y << " " << t.z << endl;
+		}
 		out << "    ]" << endl;
 	}
 	if (pModel->TexCoords.size() > 1) {
 		out << "    \"float uv\" [" << endl;
-		forEachTriangle([&] (const ObjTriangle& tri) {
-			for (int j = 0; j < 3; j++) {
-				const ObjTexCoord& tc = pModel->TexCoords[tri.TexCoord[j]];
-				out << "      " << tc.U << " " << tc.V << endl;
-			}
-		});
+		for (int vertexId : vertexOrder) {
+			const MapEntry& entry = mapVectorToEntry[vertexId];
+			const ObjTexCoord& tc = pModel->TexCoords[entry.texCoord];
+			out << "      " << tc.U << " " << tc.V << endl;
+		}
 		out << "    ]" << endl;
 	}
 	out << "    \"integer indices\" [" << endl;
-	int index = 0;
 	forEachTriangle([&] (const ObjTriangle& tri) {
-		out << "      " << index << " " << index + 1 << " " << index + 2 << endl;
-		index += 3;
+		out << "      " << mapVectorToEntry[tri.Vertex[0]].id
+			     << " " << mapVectorToEntry[tri.Vertex[1]].id
+				 << " " << mapVectorToEntry[tri.Vertex[2]].id << endl;
 	});
 	out << "    ]" << endl;
 	out << "AttributeEnd" << endl;

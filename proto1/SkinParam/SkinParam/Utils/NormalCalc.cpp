@@ -1,4 +1,6 @@
 #include "NormalCalc.h"
+#include <unordered_map>
+#include <unordered_set>
 
 void Utils::computeNormals(ObjModel* pModel) {
 	// quit if there's already some normals in the model
@@ -130,6 +132,51 @@ void Utils::computeTangentSpace(ObjModel* pModel) {
 			ObjTriangle& tri = pModel->Triangles[idxTri];
 			for (int j = 0; j < 3; j++) {
 				tri.Tangent[j] = tri.Binormal[j] = tri.Vertex[j];
+			}
+		}
+	}
+}
+
+void Utils::duplicateVerticesForDifferentTexCoords(ObjModel* pModel) {
+	for (const ObjPart& part : pModel->Parts) {
+		std::unordered_map<size_t, size_t> mapVertexToTexCoord;
+		std::unordered_map<size_t, std::unordered_set<size_t> > mapVertexDuplicates;
+
+		for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
+			ObjTriangle& tri = pModel->Triangles[idxTri];
+			for (int j = 0; j < 3; j++) {
+				auto iter = mapVertexToTexCoord.find(tri.Vertex[j]);
+				if (iter != mapVertexToTexCoord.end()) {
+					if (iter->second != tri.TexCoord[j]) {
+						const ObjTexCoord& t1 = pModel->TexCoords[iter->second];
+						const ObjTexCoord& t2 = pModel->TexCoords[tri.TexCoord[j]];
+						if (t1.U != t2.U || t1.V != t2.V) {
+							// contour vertex, look for duplicates
+							auto& setDuplicates = mapVertexDuplicates[tri.Vertex[j]];
+							for (size_t dupId : setDuplicates) {
+								size_t texId = mapVertexToTexCoord[dupId];
+								const ObjTexCoord& t3 = pModel->TexCoords[texId];
+								if (texId == tri.TexCoord[j] || (t2.U == t3.U && t2.V == t3.V)) {
+									// already duplicated, assign index to triangle vertex
+									tri.Vertex[j] = dupId;
+									goto NextVertex;
+								}
+							}
+							// no duplicates yet, create one
+							size_t dupId = pModel->Vertices.size();
+							pModel->Vertices.push_back(pModel->Vertices[tri.Vertex[j]]);
+							// record the duplicate
+							mapVertexDuplicates[tri.Vertex[j]].insert(dupId);
+							// assign duplicate index
+							tri.Vertex[j] = dupId;
+							mapVertexToTexCoord[dupId] = tri.TexCoord[j];
+						}
+					}
+				} else {
+					mapVertexToTexCoord[tri.Vertex[j]] = tri.TexCoord[j];
+				}
+	NextVertex:
+				;
 			}
 		}
 	}
