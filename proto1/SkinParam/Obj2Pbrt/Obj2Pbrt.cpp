@@ -32,7 +32,7 @@ struct MapEntry {
 	int tangent;
 };
 
-void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName)
+void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName, bool mirrorX = false)
 {
 	ObjLoader loader;
 	loader.LoadObj(ANSIStringFromTString(objFileName));
@@ -94,7 +94,7 @@ void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName)
 					entry.id = vertexOrder.size();
 					vertexOrder.push_back(vertexId);
 					const ObjVertex& v = pModel->Vertices[vertexId];
-					out << "      " << v.x << " " << v.y << " " << v.z << endl;
+					out << "      " << (mirrorX ? -v.x : v.x) << " " << v.y << " " << v.z << endl;
 				}
 			}
 		}
@@ -105,7 +105,7 @@ void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName)
 		for (int vertexId : vertexOrder) {
 			const MapEntry& entry = mapVectorToEntry[vertexId];
 			const ObjNormal& n = pModel->Normals[entry.normal];
-			out << "      " << n.x << " " << n.y << " " << n.z << endl;
+			out << "      " << (mirrorX ? -n.x : n.x) << " " << n.y << " " << n.z << endl;
 		}
 		out << "    ]" << endl;
 	}
@@ -114,7 +114,7 @@ void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName)
 		for (int vertexId : vertexOrder) {
 			const MapEntry& entry = mapVectorToEntry[vertexId];
 			const ObjTangent& t = pModel->Tangents[entry.tangent];
-			out << "      " << t.x << " " << t.y << " " << t.z << endl;
+			out << "      " << (mirrorX ? -t.x : t.x) << " " << t.y << " " << t.z << endl;
 		}
 		out << "    ]" << endl;
 	}
@@ -162,12 +162,17 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 			const TCHAR* objFileName = NULL;
 			const TCHAR* pbrtFileName = NULL;
 			bool needPbrtFileName = false;
+			bool mirrorX = false;
 			for (int i = 1; i < argc; i++)
 			{
 				const TCHAR* arg = argv[i];
 				if (!_tcsicmp(arg, _T("-o")))
 				{
 					needPbrtFileName = true;
+				}
+				else if (!_tcsicmp(arg, _T("-mx")))
+				{
+					mirrorX = true;
 				}
 				else
 				{
@@ -189,7 +194,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 				return 0;
 			}
 
-			doConvert(objFileName, pbrtFileName);
+			doConvert(objFileName, pbrtFileName, mirrorX);
 
 			return 0;
 		}
