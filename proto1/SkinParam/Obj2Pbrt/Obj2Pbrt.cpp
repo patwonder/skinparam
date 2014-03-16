@@ -32,12 +32,17 @@ struct MapEntry {
 	int tangent;
 };
 
-void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName, bool mirrorX = false)
+void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName, bool mirrorX = false,
+			   bool cut = false, float a = 0, float b = 0, float c = 0, float d = -1)
 {
 	ObjLoader loader;
 	loader.LoadObj(ANSIStringFromTString(objFileName));
 
 	ObjModel* pModel = loader.ReturnObj();
+	// Cut the model first
+	if (cut)
+		removeModelPart(pModel, a, b, c, d);
+
 	// Calculate smoothed normals
 	computeNormals(pModel);
 	computeTangentSpace(pModel);
@@ -163,6 +168,8 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 			const TCHAR* pbrtFileName = NULL;
 			bool needPbrtFileName = false;
 			bool mirrorX = false;
+			bool cut = false;
+			float a, b, c, d;
 			for (int i = 1; i < argc; i++)
 			{
 				const TCHAR* arg = argv[i];
@@ -173,6 +180,14 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 				else if (!_tcsicmp(arg, _T("-mx")))
 				{
 					mirrorX = true;
+				}
+				else if (!_tcsicmp(arg, _T("-cut")) && i + 4 < argc)
+				{
+					cut = true;
+					a = (float)_tcstod(argv[++i], NULL);
+					b = (float)_tcstod(argv[++i], NULL);
+					c = (float)_tcstod(argv[++i], NULL);
+					d = (float)_tcstod(argv[++i], NULL);
 				}
 				else
 				{
@@ -194,7 +209,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 				return 0;
 			}
 
-			doConvert(objFileName, pbrtFileName, mirrorX);
+			doConvert(objFileName, pbrtFileName, mirrorX, cut, a, b, c, d);
 
 			return 0;
 		}

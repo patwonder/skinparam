@@ -181,3 +181,27 @@ void Utils::duplicateVerticesForDifferentTexCoords(ObjModel* pModel) {
 		}
 	}
 }
+
+// Remove part of the model in the hemispace Ax+By+Cz+D>0
+void Utils::removeModelPart(ObjModel* pModel, float A, float B, float C, float D) {
+	int triIdxBase = 0;
+	std::vector<ObjTriangle> newTriangles;
+	for (ObjPart& part : pModel->Parts) {
+		for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
+			const ObjTriangle& tri = pModel->Triangles[idxTri];
+			bool keep = true;
+			for (int j = 0; j < 3; j++) {
+				const ObjVertex& v = pModel->Vertices[tri.Vertex[j]];
+				if (A * v.x + B * v.y + C * v.z + D > 0) {
+					keep = false; break;
+				}
+			}
+			if (keep) {
+				newTriangles.push_back(tri);
+			}
+		}
+		part.TriIdxMin = triIdxBase;
+		part.TriIdxMax = triIdxBase = newTriangles.size();
+	}
+	pModel->Triangles.swap(newTriangles);
+}

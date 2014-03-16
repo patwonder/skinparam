@@ -5,11 +5,13 @@
 #include "stdafx.h"
 
 #include "Head.h"
+#include "Utils/NormalCalc.h"
 
 using namespace Skin;
 using namespace Utils;
 
 Head::Head() : MeshRenderable(_T("model\\head.OBJ")) {
+	removeModelPart(m_pModel, 0, -1, 0, -0.15f);
 }
 
 Head::~Head() {}
