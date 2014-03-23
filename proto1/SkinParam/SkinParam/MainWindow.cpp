@@ -426,6 +426,58 @@ void CMainWindow::updateUI() {
 	m_psldSSSStrength->SetEnabled(m_pchkEnableSSS->GetChecked());
 }
 
+static TOstream& operator<<(TOstream& os, const Vector& vec) {
+	return os << vec.x << _T(" ") << vec.y << _T(" ") << vec.z;
+}
+
+static TOstream& operator<<(TOstream& os, const Color& vec) {
+	return os << vec.red << _T(" ") << vec.green << _T(" ") << vec.blue;
+}
+
+void CMainWindow::copyViewAsPBRT() {
+	TStringStream tss;
+	static const TCHAR* eol = _T("\r\n");
+	tss << _T("LookAt ") << m_camera.getVecEye() << _T(" ")
+		<< m_camera.getVecLookAt() << _T(" ") << m_camera.getVecUp()
+		<< eol;
+	tss << _T("Camera \"perspective\" \"float fov\" [")
+		<< m_pRenderer->getFOVDegrees() << _T("]") << eol;
+	tss << eol;
+
+	for (int i = 0; i < NUM_LIGHTS; i++) {
+		const Light* pLight = m_pLights[i];
+		if (pLight && !pLight->coDiffuse.colorEquals(Color::Black)) {
+			tss << _T("  AttributeBegin") << eol;
+			tss << _T("    AreaLightSource \"area\" \"color L\" [ ")
+				<< pLight->coDiffuse * 1e3f << _T(" ] \"integer nsamples\" [4]")
+				<< eol;
+			tss << _T("    Translate ") << pLight->vecPosition << eol;
+			tss << _T("    Shape \"sphere\" \"float radius\" 0.5") << eol;
+			tss << _T("  AttributeEnd") << eol;
+			tss << eol;
+		}
+	}
+
+	TString str = tss.str();
+
+	if (!OpenClipboard())
+		return;
+	EmptyClipboard();
+	HGLOBAL hglbCopy = GlobalAlloc(GMEM_MOVEABLE, (str.length() + 1) * sizeof(TCHAR));
+	if (!hglbCopy) {
+		CloseClipboard();
+		return;
+	}
+	LPTSTR lpstrCopy = (LPTSTR)GlobalLock(hglbCopy);
+	memcpy(lpstrCopy, str.c_str(), (str.length() + 1) * sizeof(TCHAR));
+	GlobalUnlock(hglbCopy);
+
+	SetClipboardData(CF_UNICODETEXT, hglbCopy);
+
+	CloseClipboard();
+}
+
+
 void CMainWindow::OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl) {
 	auto iter = m_mapMessages.find(nControlID);
 	if (m_mapMessages.end() == iter) return;
@@ -581,6 +633,9 @@ afx_msg void CMainWindow::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 	case VK_F8:
 		m_pRenderer->dump();
 		break;
+	case 'C':
+		if (nFlags & MK_CONTROL)
+			copyViewAsPBRT();
 	}
 }
 

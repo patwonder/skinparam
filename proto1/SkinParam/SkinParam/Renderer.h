@@ -363,6 +363,7 @@ namespace Skin {
 
 		// Statistics
 		float getFPS() const { return m_fps; }
+		float getFOVDegrees() const { return FOV_SCENE; }
 
 		// Toggleables
 		bool getWireframe() const;

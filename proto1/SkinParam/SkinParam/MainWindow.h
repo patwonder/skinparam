@@ -68,6 +68,9 @@ namespace Skin {
 		void initGeneralDialog();
 		void initSSSDialog();
 
+		// Utilities
+		void copyViewAsPBRT();
+
 		// Renders UI as a renderable
 		class UIRenderable;
 
