@@ -32,7 +32,7 @@ struct MapEntry {
 	int tangent;
 };
 
-void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName, bool mirrorX = false,
+void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName, bool mirror = false,
 			   bool cut = false, float a = 0, float b = 0, float c = 0, float d = -1)
 {
 	ObjLoader loader;
@@ -99,7 +99,7 @@ void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName, bool mirrorX
 					entry.id = vertexOrder.size();
 					vertexOrder.push_back(vertexId);
 					const ObjVertex& v = pModel->Vertices[vertexId];
-					out << "      " << (mirrorX ? -v.x : v.x) << " " << v.y << " " << v.z << endl;
+					out << "      " << v.x << " " << v.y << " " << v.z << endl;
 				}
 			}
 		}
@@ -110,7 +110,7 @@ void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName, bool mirrorX
 		for (int vertexId : vertexOrder) {
 			const MapEntry& entry = mapVectorToEntry[vertexId];
 			const ObjNormal& n = pModel->Normals[entry.normal];
-			out << "      " << (mirrorX ? -n.x : n.x) << " " << n.y << " " << n.z << endl;
+			out << "      " << n.x << " " << n.y << " " << n.z << endl;
 		}
 		out << "    ]" << endl;
 	}
@@ -119,7 +119,7 @@ void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName, bool mirrorX
 		for (int vertexId : vertexOrder) {
 			const MapEntry& entry = mapVectorToEntry[vertexId];
 			const ObjTangent& t = pModel->Tangents[entry.tangent];
-			out << "      " << (mirrorX ? -t.x : t.x) << " " << t.y << " " << t.z << endl;
+			out << "      " << t.x << " " << t.y << " " << t.z << endl;
 		}
 		out << "    ]" << endl;
 	}
@@ -128,7 +128,7 @@ void doConvert(const TCHAR* objFileName, const TCHAR* pbrtFileName, bool mirrorX
 		for (int vertexId : vertexOrder) {
 			const MapEntry& entry = mapVectorToEntry[vertexId];
 			const ObjTexCoord& tc = pModel->TexCoords[entry.texCoord];
-			out << "      " << tc.U << " " << tc.V << endl;
+			out << "      " << tc.U << " " << (mirror ? 1 - tc.V : tc.V) << endl;
 		}
 		out << "    ]" << endl;
 	}
@@ -167,7 +167,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 			const TCHAR* objFileName = NULL;
 			const TCHAR* pbrtFileName = NULL;
 			bool needPbrtFileName = false;
-			bool mirrorX = false;
+			bool mirror = false;
 			bool cut = false;
 			float a, b, c, d;
 			for (int i = 1; i < argc; i++)
@@ -177,9 +177,9 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 				{
 					needPbrtFileName = true;
 				}
-				else if (!_tcsicmp(arg, _T("-mx")))
+				else if (!_tcsicmp(arg, _T("-mv")))
 				{
-					mirrorX = true;
+					mirror = true;
 				}
 				else if (!_tcsicmp(arg, _T("-cut")) && i + 4 < argc)
 				{
@@ -209,7 +209,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 				return 0;
 			}
 
-			doConvert(objFileName, pbrtFileName, mirrorX, cut, a, b, c, d);
+			doConvert(objFileName, pbrtFileName, mirror, cut, a, b, c, d);
 
 			return 0;
 		}
