@@ -101,6 +101,7 @@
     <ClInclude Include="Utils\NormalCalc.h">
       <Filter>Utils</Filter>
     </ClInclude>
+    <ClInclude Include="GaussianParams.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -178,6 +179,7 @@
     <ClCompile Include="Utils\NormalCalc.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
+    <ClCompile Include="GaussianParams.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Lighting.fx">

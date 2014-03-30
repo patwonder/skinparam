@@ -91,7 +91,8 @@ const double CMainWindow::SHIFT_MAGNIFIER = 3.0;
 const float CMainWindow::BLINK_DIM_FACTOR = 0.5f;
 
 CMainWindow::CMainWindow()
-	: m_camera(Vector(0, -5, 0), Vector(0, 0, 0), Vector(0, 0, 1))
+	: m_camera(Vector(0, -5, 0), Vector(0, 0, 0), Vector(0, 0, 1)),
+	  m_vps(0.005, 0.7, 0.01, 0.75)
 {
 	CSize resolution(1284, 724);
 	Create(NULL, _APP_NAME_, WS_OVERLAPPEDWINDOW & (~WS_SIZEBOX) & (~WS_MAXIMIZEBOX), 
@@ -136,6 +137,8 @@ void CMainWindow::init() {
 	m_nCurrentLightID = 0;
 
 	m_nBlinkStartTick = 0;
+
+	updateSkinParams();
 
 	initUIDialogs();
 
@@ -320,18 +323,38 @@ void CMainWindow::initSSSDialog() {
 	int tmp;
 	CDXUTStatic* lblTmp;
 	DBG_UNREFERENCED_LOCAL_VARIABLE(lblTmp);
-	m_pdlgSSS->AddStatic(CID_SSS_LBL_CAPTION, _T("Subsurface Scattering"), 6, tmp = height - 106, 200, 20);
+	m_pdlgSSS->AddStatic(CID_SSS_LBL_CAPTION, _T("Subsurface Scattering"), 6, tmp = height - 246, 200, 20);
 	m_pdlgSSS->AddCheckBox(CID_SSS_CHK_ENABLE_SSS, _T("Enable (S)SS"), 6, tmp += 20, 200, 20, m_pRenderer->getSSS(), 0, false, &m_pchkEnableSSS);
 	m_pdlgSSS->AddCheckBox(CID_SSS_CHK_ADAPTIVE_GAUSSIAN, _T("A(d)aptive Blurring"), 6, tmp += 20, 200, 20, m_pRenderer->getAdaptiveGaussian(), 0, false, &m_pchkAdaptiveGaussian);
 	m_pdlgSSS->AddStatic(CID_SSS_LBL_SSS_STRENGTH_LABEL, _T("SSS Strength: "), 6, tmp += 20, 200, 20);
 	m_pdlgSSS->AddSlider(CID_SSS_SLD_SSS_STRENGTH, 6, tmp += 20, 120, 20, 0, 300, (int)(100.0f * m_pRenderer->getSSSStrength() + 0.5f), false, &m_psldSSSStrength);
 	m_pdlgSSS->AddStatic(CID_SSS_LBL_SSS_STRENGTH, _T("1.00"), 140, tmp, 60, 20, false, &m_plblSSSStrength);
-	
+
+#define AddControlsForParam(param, PARAM, label, minv, maxv, curv) do { \
+	m_pdlgSSS->AddStatic(CID_SSS_LBL_F_##PARAM##_LABEL, _T(label), 6, tmp += 20, 40, 20); \
+	m_pdlgSSS->AddSlider(CID_SSS_SLD_F_##PARAM, 46, tmp, 120, 20, minv, maxv, curv, false, &m_psldSSS_f_##param); \
+	m_pdlgSSS->AddStatic(CID_SSS_LBL_F_##PARAM, getParamDescription(vps.f_##param).c_str(), 180, tmp, 60, 20, false, &m_plblSSS_f_##param); \
+} while (false)
+#define RegisterHandlerForParam(param, PARAM) registerEventHandler(CID_SSS_SLD_F_##PARAM, &CMainWindow::sldSSS_f_##param##_Handler)
+#define SetupControlsForParam(param, PARAM, label, minv, maxv, curv) do { AddControlsForParam(param, PARAM, label, minv, maxv, curv); \
+	RegisterHandlerForParam(param, PARAM); } while (false)
+
+	const VariableParams& vps = m_vps;
+	SetupControlsForParam(mel,   MEL,   "mel",  0, 100, (int)(sqrt(vps.f_mel * 20000) + .5));
+	SetupControlsForParam(eu,    EU,    "eum",  0, 100, (int)(vps.f_eu    *  100 +   .5));
+	SetupControlsForParam(blood, BLOOD, "bld",  0, 100, (int)(sqrt(vps.f_blood * 100000) + .5));
+	SetupControlsForParam(ohg,   OHG,   "ohg", 40,  80, (int)(vps.f_ohg   *   40 + 40.5));
+
+	m_pdlgSSS->AddStatic(CID_SSS_LBL_ROUGHNESS_LABEL, _T("Rough"), 6, tmp += 20, 60, 20);
+	m_pdlgSSS->AddSlider(CID_SSS_SLD_ROUGHNESS, 66, tmp, 100, 20, 5, 100, 30, false, &m_psldSSSRoughness);
+	m_pdlgSSS->AddStatic(CID_SSS_LBL_ROUGHNESS, _T("0.30"), 180, tmp, 60, 20, false, &m_plblSSSRoughness);
+
 	m_pdlgSSS->SetVisible(true);
 
 	registerEventHandler(CID_SSS_CHK_ENABLE_SSS, &CMainWindow::chkEnableSSS_Handler);
 	registerEventHandler(CID_SSS_CHK_ADAPTIVE_GAUSSIAN, &CMainWindow::chkAdaptiveGaussian_Handler);
 	registerEventHandler(CID_SSS_SLD_SSS_STRENGTH, &CMainWindow::sldSSSStrength_Handler);
+	registerEventHandler(CID_SSS_SLD_ROUGHNESS, &CMainWindow::sldSSSRoughness_Handler);
 }
 
 void CMainWindow::initUIDialogs() {
@@ -477,6 +500,15 @@ void CMainWindow::copyViewAsPBRT() {
 	CloseClipboard();
 }
 
+void CMainWindow::updateSkinParams() {
+	m_pRenderer->setSkinParams(m_vps);
+}
+
+TString CMainWindow::getParamDescription(float param) {
+	TStringStream tss;
+	tss << std::setiosflags(std::ios::fixed) << std::setw(4) << std::setprecision(1) << param * 100 << _T("%");
+	return tss.str();
+}
 
 void CMainWindow::OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl) {
 	auto iter = m_mapMessages.find(nControlID);
@@ -569,6 +601,57 @@ void CALLBACK CMainWindow::sldAmbient_Handler(CDXUTControl* sender, UINT nEvent)
 
 void CALLBACK CMainWindow::btnDump_Handler(CDXUTControl* sender, UINT nEvent) {
 	m_pRenderer->dump();
+}
+
+void CALLBACK CMainWindow::sldSSS_f_mel_Handler(CDXUTControl* sender, UINT nEvent) {
+	UINT imel = m_psldSSS_f_mel->GetValue();
+	float fmel = (float)(imel * imel) / 20000.f;
+
+	m_vps.f_mel = fmel;
+	m_plblSSS_f_mel->SetText(getParamDescription(fmel).c_str());
+
+	updateSkinParams();
+}
+
+void CALLBACK CMainWindow::sldSSS_f_eu_Handler(CDXUTControl* sender, UINT nEvent) {
+	UINT ieu = m_psldSSS_f_eu->GetValue();
+	float feu = (float)ieu / 100.f;
+
+	m_vps.f_eu = feu;
+	m_plblSSS_f_eu->SetText(getParamDescription(feu).c_str());
+
+	updateSkinParams();
+}
+
+void CALLBACK CMainWindow::sldSSS_f_blood_Handler(CDXUTControl* sender, UINT nEvent) {
+	UINT iblood = m_psldSSS_f_blood->GetValue();
+	float fblood = (float)(iblood * iblood) / 100000.f;
+
+	m_vps.f_blood = fblood;
+	m_plblSSS_f_blood->SetText(getParamDescription(fblood).c_str());
+
+	updateSkinParams();
+}
+
+void CALLBACK CMainWindow::sldSSS_f_ohg_Handler(CDXUTControl* sender, UINT nEvent) {
+	UINT iohg = m_psldSSS_f_ohg->GetValue();
+	float fohg = (float)iohg / 100.f;
+
+	m_vps.f_ohg = fohg;
+	m_plblSSS_f_ohg->SetText(getParamDescription(fohg).c_str());
+
+	updateSkinParams();
+}
+
+void CALLBACK CMainWindow::sldSSSRoughness_Handler(CDXUTControl* sender, UINT nEvent) {
+	UINT irough = m_psldSSSRoughness->GetValue();
+	float frough = (float)irough / 100.f;
+
+	m_pHead->setRoughness(frough);
+
+	TStringStream tss;
+	tss << std::setiosflags(std::ios::fixed) << std::setprecision(2) << frough;
+	m_plblSSSRoughness->SetText(tss.str().c_str());
 }
 
 BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {

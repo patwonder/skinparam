@@ -9,7 +9,11 @@ cbuffer Tessellation : register(b3) {
 	float4 g_vTessellationFactor; // Edge, inside, minimum tessellation factor and (half screen height/desired triangle size)
 };
 
+static const uint NUM_GAUSSIANS = 6;
+
 cbuffer SSS : register(b4) {
+	float4 g_sss_coeff_sigma2[NUM_GAUSSIANS];
+	float4 g_sss_color_tone;
 	float g_sss_intensity;
 	float g_sss_strength;
 };
@@ -237,8 +241,8 @@ PS_INPUT_IRRADIANCE DS_Irradiance(HSCF_OUTPUT tes, float3 uvwCoord : SV_DomainLo
 }
 
 // kernel width calculation
-// one unit length in world space equals 120mm
-static const float MM_PER_LENGTH = 120;
+// one unit length in world space equals 80mm
+static const float MM_PER_LENGTH = 80;
 static const float FOV_ANGLE = 30;
 // calculate depth * (length per mm in texture space)
 static const float SIZE_ALPHA = 1 / (2 * tan((FOV_ANGLE / 180 * PI) / 2) * MM_PER_LENGTH);
@@ -342,12 +346,13 @@ float3 trans_atten(float s) {
 	return lerp(lower, upper, lerps);
 	*/
 	float ns2 = -s * s;
-	return float3(0.233, 0.455, 0.649) * exp(ns2 / 0.0064)
-		 + float3(0.100, 0.336, 0.344) * exp(ns2 / 0.0484)
-		 + float3(0.118, 0.198, 0.000) * exp(ns2 / 0.1870)
-		 + float3(0.113, 0.007, 0.007) * exp(ns2 / 0.5670)
-		 + float3(0.358, 0.004, 0.000) * exp(ns2 / 1.9900)
-		 + float3(0.078, 0.000, 0.000) * exp(ns2 / 7.4100);
+	float3 result = 0;
+	for (int i = 0; i < NUM_GAUSSIANS; i++) {
+		if (g_sss_coeff_sigma2[i].a != 0) {
+			result += g_sss_coeff_sigma2[i].rgb * exp(ns2 / g_sss_coeff_sigma2[i].a);
+		}
+	}
+	return result / g_sss_color_tone;
 }
 
 float distance(float3 vPosWS, float3 vNormalWS, float NdotL, float3 vPosLightWS, matrix matViewProjLight,
@@ -363,7 +368,7 @@ float distance(float3 vPosWS, float3 vNormalWS, float NdotL, float3 vPosLightWS,
 float3 backlit_amount(float3 vPosWS, float3 vNormalWS, float3 L, float3 vPosLightWS, matrix matViewProjLight,
 					  Texture2D shadowMap, SamplerState samShadow) {
 	float NdotL = dot(vNormalWS, L);
-	float s = 0.30 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, NdotL, vPosLightWS, matViewProjLight, shadowMap, samShadow) * (1.0f / max(0.01f, g_sss_strength));
+	float s = 0.3 * MM_PER_LENGTH * distance(vPosWS, vNormalWS, NdotL, vPosLightWS, matViewProjLight, shadowMap, samShadow) * (1.0f / max(0.01f, g_sss_strength));
 	float3 atten = trans_atten(s);
 	float NdotL2 = saturate(0.3 - NdotL);
 	return NdotL2 * atten;
@@ -373,7 +378,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 	PS_OUTPUT_IRRADIANCE output;
 	// textured irradiance color
 	float4 sample = g_texture.Sample(g_samTexture, input.texCoord);
-	float3 tex_color = input.color.rgb * sample.rgb;
+	float3 tex_color = input.color.rgb * sample.rgb * 2;
 	float3 sq_tex_color = sqrt(tex_color);
 	float ao = sample.a;
 
@@ -387,9 +392,9 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 #endif
 
 	// specular light scaling factor
-	float rho_s = 0.27;
+	float rho_s = 1.f;
 	// surface roughness
-	float m = RMS_SLOPE;
+	float m = g_material.roughness;
 	// shading
 	// global ambient
 	float3 totalambient = g_ambient * g_material.ambient;
@@ -468,7 +473,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 float4 PS_Irradiance_NoGaussian(PS_INPUT_IRRADIANCE input) : SV_Target {
 	PS_OUTPUT_IRRADIANCE output = PS_Irradiance(input);
 	// combine immediately
-	float3 color = output.irradiance.rgb * output.albedo.rgb + output.specular.rgb;
+	float3 color = output.irradiance.rgb * output.albedo.rgb * g_sss_color_tone + output.specular.rgb;
 	return float4(color, 1.0);
 }
 

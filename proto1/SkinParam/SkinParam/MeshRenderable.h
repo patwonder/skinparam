@@ -64,6 +64,7 @@ namespace Skin {
 		};
 
 		Utils::ObjModel* m_pModel;
+		float m_roughness;
 
 		CComPtr<ID3D11Buffer> m_pVertexBuffer;
 		CComPtr<ID3D11Buffer> m_pIndexBuffer;
@@ -83,5 +84,9 @@ namespace Skin {
 		void cleanup(IRenderer* pRenderer) override;
 
 		void getBoundingSphere(Utils::FVector& oVecCenter, float& oRadius) const override;
+		void getBoundingBox(Utils::FVector& oVecLower, Utils::FVector& oVecUpper) const;
+
+		void setRoughness(float roughness) { m_roughness = roughness; }
+		float getRoughness() const { return m_roughness; }
 	};
 } // namespace Skin

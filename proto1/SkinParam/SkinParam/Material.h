@@ -14,11 +14,12 @@ namespace Skin {
 		Utils::Color coEmissive;
 		float fShininess;
 		float fBumpMultiplier;
+		float fRoughness;
 
 		Material(const Utils::Color& coAmbient, const Utils::Color& coDiffuse, const Utils::Color& coSpecular,
-			const Utils::Color& coEmissive, float fShininess, float fBumpMultiplier = 0.0f)
+			const Utils::Color& coEmissive, float fShininess, float fBumpMultiplier = 0.0f, float fRoughness = 1.f)
 			: coAmbient(coAmbient), coDiffuse(coDiffuse), coSpecular(coSpecular), coEmissive(coEmissive),
-			  fShininess(fShininess), fBumpMultiplier(fBumpMultiplier)
+			  fShininess(fShininess), fBumpMultiplier(fBumpMultiplier), fRoughness(fRoughness)
 		{
 		}
 

@@ -11,7 +11,14 @@ using namespace Skin;
 using namespace Utils;
 
 Head::Head() : MeshRenderable(_T("model\\head.OBJ")) {
-	removeModelPart(m_pModel, 0, -1, 0, -0.15f);
+	//removeModelPart(m_pModel, 0, -1, 0, -0.15f);
+	//FVector vl, vu;
+	//getBoundingBox(vl, vu);
+	//FVector extent = vu - vl;
+	//TStringStream tss;
+	//tss << extent.x << " * " << extent.y << " * " << extent.z;
+	//MessageBox(AfxGetMainWnd()->m_hWnd, tss.str().c_str(), NULL, MB_OK);
+	m_roughness = 0.3f;
 }
 
 Head::~Head() {}

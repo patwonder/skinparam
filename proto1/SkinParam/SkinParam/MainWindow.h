@@ -9,6 +9,7 @@
 #include "RenderableManager.h"
 #include "DXUT.h"
 #include "DXUTgui.h"
+#include "GaussianParams.h"
 #include <unordered_map>
 
 namespace Skin {
@@ -38,6 +39,8 @@ namespace Skin {
 		Triangle* m_pTriangle;
 		Head* m_pHead;
 		Light* m_pLights[NUM_LIGHTS];
+
+		VariableParams m_vps;
 
 		// mouse actions
 		bool m_bChangingView;
@@ -70,6 +73,8 @@ namespace Skin {
 
 		// Utilities
 		void copyViewAsPBRT();
+		void updateSkinParams();
+		static Utils::TString getParamDescription(float param);
 
 		// Renders UI as a renderable
 		class UIRenderable;
@@ -115,6 +120,21 @@ namespace Skin {
 		static const UINT CID_SSS_SLD_SSS_STRENGTH = 203;
 		static const UINT CID_SSS_LBL_SSS_STRENGTH = 204;
 		static const UINT CID_SSS_CHK_ADAPTIVE_GAUSSIAN = 205;
+		static const UINT CID_SSS_LBL_F_MEL_LABEL = 206;
+		static const UINT CID_SSS_SLD_F_MEL = 207;
+		static const UINT CID_SSS_LBL_F_MEL = 208;
+		static const UINT CID_SSS_LBL_F_EU_LABEL = 209;
+		static const UINT CID_SSS_SLD_F_EU = 210;
+		static const UINT CID_SSS_LBL_F_EU = 211;
+		static const UINT CID_SSS_LBL_F_BLOOD_LABEL = 212;
+		static const UINT CID_SSS_SLD_F_BLOOD = 213;
+		static const UINT CID_SSS_LBL_F_BLOOD = 214;
+		static const UINT CID_SSS_LBL_F_OHG_LABEL = 215;
+		static const UINT CID_SSS_SLD_F_OHG = 216;
+		static const UINT CID_SSS_LBL_F_OHG = 217;
+		static const UINT CID_SSS_LBL_ROUGHNESS_LABEL = 218;
+		static const UINT CID_SSS_SLD_ROUGHNESS = 219;
+		static const UINT CID_SSS_LBL_ROUGHNESS = 220;
 
 		// Info dialog
 		CDXUTStatic* m_plblScreenSize;
@@ -138,6 +158,16 @@ namespace Skin {
 		CDXUTCheckBox* m_pchkAdaptiveGaussian;
 		CDXUTSlider* m_psldSSSStrength;
 		CDXUTStatic* m_plblSSSStrength;
+		CDXUTSlider* m_psldSSS_f_mel;
+		CDXUTStatic* m_plblSSS_f_mel;
+		CDXUTSlider* m_psldSSS_f_eu;
+		CDXUTStatic* m_plblSSS_f_eu;
+		CDXUTSlider* m_psldSSS_f_blood;
+		CDXUTStatic* m_plblSSS_f_blood;
+		CDXUTSlider* m_psldSSS_f_ohg;
+		CDXUTStatic* m_plblSSS_f_ohg;
+		CDXUTSlider* m_psldSSSRoughness;
+		CDXUTStatic* m_plblSSSRoughness;
 
 		// UI Controls Message Mapping
 		CDXUTDialogResourceManager* m_pDialogResourceManager;
@@ -162,6 +192,12 @@ namespace Skin {
 		void CALLBACK sldLight_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK sldAmbient_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK btnDump_Handler(CDXUTControl* sender, UINT nEvent);
+#define DeclareHandlerForParam(param) void CALLBACK sldSSS_f_##param##_Handler(CDXUTControl* sender, UINT nEvent)
+		DeclareHandlerForParam(mel);
+		DeclareHandlerForParam(eu);
+		DeclareHandlerForParam(blood);
+		DeclareHandlerForParam(ohg);
+		void CALLBACK sldSSSRoughness_Handler(CDXUTControl* sender, UINT nEvent);
 
 		// Message mapping
 		BOOL PreTranslateMessage(MSG* pMsg);

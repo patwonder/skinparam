@@ -42,19 +42,6 @@ const float Renderer::CLIPPING_SCENE_FAR = 20.0f;
 const float Renderer::FOV_SCENE = 30.0f;
 const float Renderer::MM_PER_LENGTH = 120.0f;
 
-const float Renderer::SSS_GAUSSIAN_KERNEL_SIGMA[NUM_SSS_GAUSSIANS] = {
-	0.0064f, 0.0484f, 0.187f, 0.567f, 1.99f, 7.41f
-};
-
-const float Renderer::SSS_GAUSSIAN_WEIGHTS[NUM_SSS_GAUSSIANS][3] = {
-	{ 0.233f, 0.455f, 0.649f },
-	{ 0.100f, 0.336f, 0.344f },
-	{ 0.118f, 0.198f, 0.000f },
-	{ 0.113f, 0.007f, 0.007f },
-	{ 0.358f, 0.004f, 0.000f },
-	{ 0.078f, 0.000f, 0.000f }
-};
-
 const TCHAR* Renderer::DEFAULT_DUMP_FOLDER = _T("dump");
 
 Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, RenderableManager* pRenderableManager)
@@ -105,7 +92,9 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_bBloom(true),
 	  m_bDump(false),
 	  m_rsCurrent(RS_NotRendering),
-	  m_bPRAttenuationTexture(false)
+	  m_bPRAttenuationTexture(false),
+	  m_sssGaussianParamsCalculator(_T("model/profilefit.txt")),
+	  m_sssSkinParams(0, 0, 0, 0)
 {
 	m_vppShaderGroups.push_back(&m_psgShadow);
 	m_vppShaderGroups.push_back(&m_psgTessellatedPhong);
@@ -137,6 +126,8 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	m_vppShaderGroups.push_back(&m_psgBloomHorizontal);
 	m_vppShaderGroups.push_back(&m_psgBloomCombine);
 	m_vppShaderGroups.push_back(&m_psgBloomCombineAA);
+
+	m_sssGaussianParams = m_sssGaussianParamsCalculator.getParams(m_sssSkinParams);
 
 	checkFailure(initDX(), _T("Failed to initialize DirectX 11"));
 
@@ -707,13 +698,14 @@ void Renderer::initSSS() {
 		_T("Failed to create gaussian constant buffer"));
 
 	for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
-		m_cbCombine.g_weights[i].value = XMFLOAT3(SSS_GAUSSIAN_WEIGHTS[i]);
+		m_cbCombine.g_weights[i].value = m_sssGaussianParams.coeffs[i];
 	}
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbCombine, &m_pCombineConstantBuffer),
 		_T("Failed to create combine constant buffer"));
 
 	m_cbSSS.g_sss_intensity = 0.0f;
 	m_cbSSS.g_sss_strength = 1.0f;
+	updateSSSConstantBufferForParams();
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbSSS, &m_pSSSConstantBuffer),
 		_T("Failed to create SSS constant buffer"));
 
@@ -1068,7 +1060,7 @@ void Renderer::doGaussianBlurs(ID3D11ShaderResourceView* oapSRVGaussians[]) {
 	float minDepth = m_bAdaptiveGaussian ? getMinDepthForScene() : CLIPPING_SCENE_NEAR;
 	float prevVariance = 0;
 	for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
-		float variance = SSS_GAUSSIAN_KERNEL_SIGMA[i];
+		float variance = m_sssGaussianParams.sigmas[i] * m_sssGaussianParams.sigmas[i];
 		float size = sqrt(variance - prevVariance);
 
 		setGaussianKernelSize(size);
@@ -1630,6 +1622,7 @@ void Renderer::setMaterial(const Material& mt) {
 	m_cbMaterial.g_mtEmissive = XMColor3(mt.coEmissive);
 	m_cbMaterial.g_mtShininess = mt.fShininess;
 	m_cbMaterial.g_mtBumpMultiplier = m_bBump ? mt.fBumpMultiplier : 0.0f;
+	m_cbMaterial.g_mtRoughness = mt.fRoughness;
 	m_pDeviceContext->UpdateSubresource(m_pMaterialConstantBuffer, 0, NULL, &m_cbMaterial, 0, 0);
 }
 
@@ -1704,4 +1697,29 @@ void Renderer::computeStats() {
 		m_nStartTick = tick - remainder;
 		m_nFrameCount = 0;
 	}
+}
+
+void Renderer::updateSSSConstantBufferForParams() {
+	XMFLOAT4 tone(0, 0, 0, 1);
+	for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
+		XMFLOAT3 coeff = m_sssGaussianParams.coeffs[i];
+		tone.x += m_cbSSS.g_sss_coeff_sigma2[i].x = coeff.x;
+		tone.y += m_cbSSS.g_sss_coeff_sigma2[i].y = coeff.y;
+		tone.z += m_cbSSS.g_sss_coeff_sigma2[i].z = coeff.z;
+		float sigma = m_sssGaussianParams.sigmas[i];
+		m_cbSSS.g_sss_coeff_sigma2[i].w = sigma * sigma;
+	}
+	m_cbSSS.g_sss_color_tone = tone;
+	// no need to update m_cbSSS, it will be set every render cycle
+}
+
+void Renderer::setSkinParams(const VariableParams& vps) {
+	m_sssSkinParams = vps;
+	m_sssGaussianParams = m_sssGaussianParamsCalculator.getParams(vps);
+	for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
+		XMFLOAT3 coeff = m_sssGaussianParams.coeffs[i];
+		m_cbCombine.g_weights[i].value = coeff;
+	}
+	m_pDeviceContext->UpdateSubresource(m_pCombineConstantBuffer, 0, NULL, &m_cbCombine, 0, 0);
+	updateSSSConstantBufferForParams();
 }

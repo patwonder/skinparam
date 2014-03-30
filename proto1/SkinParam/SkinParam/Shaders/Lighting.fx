@@ -7,7 +7,6 @@
 
 static const uint NUM_LIGHTS = 2;
 static const float SHADOW_BIAS = 1.5e-2;
-static const float RMS_SLOPE = 0.27;
 static const uint SM_SIZE = 2048;
 
 Texture2D g_texture : register(t0);
@@ -50,6 +49,7 @@ cbuffer Lighting : register(b1) {
 struct Material {
 	float3 ambient;
 	float3 diffuse;
+	float roughness;
 	float3 specular;
 	float shininess;
 	float3 emmisive;
@@ -114,7 +114,7 @@ float3 phong_shadow(Material mt, float3 ambient, Light lights[NUM_LIGHTS],
 		float3 diffuse = atten * l.diffuse * mt.diffuse * diffuseLight;
 		// specular
 		float3 H = normalize(L + V);
-		float specularLight = CookTorrance(N, V, L, H, RMS_SLOPE);//saturate(pow(max(dot(N, H), 0), mt.shininess));
+		float specularLight = CookTorrance(N, V, L, H, g_material.roughness);
 		float3 specular = atten * l.specular * mt.specular * specularLight;
 		// look up shadow map for light amount
 		float lightAmount = light_amount(worldPos, shadowMaps[i], samShadow, ldepth, matViewProjLights[i]);

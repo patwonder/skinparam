@@ -10,6 +10,7 @@
 #include "RenderableManager.h"
 #include "Color.h"
 #include "Frustum.h"
+#include "GaussianParams.h"
 
 namespace Skin {
 	class Config;
@@ -44,7 +45,7 @@ namespace Skin {
 		D3D11_VIEWPORT m_vpScreen;
 
 		// Subsurface scattering
-		static const UINT NUM_SSS_GAUSSIANS = 6;
+		static const UINT NUM_SSS_GAUSSIANS = GaussianParams::NUM_GAUSSIANS;
 		static const UINT IDX_SSS_IRRADIANCE = 0;
 		static const UINT IDX_SSS_ALBEDO = 1;
 		static const UINT IDX_SSS_SPECULAR = 2;
@@ -76,8 +77,9 @@ namespace Skin {
 		ShaderGroup* m_psgSSSCombine;
 		ShaderGroup* m_psgSSSCombineAA;
 		ShaderGroup* m_psgSSSAttenuationTexture;
-		static const float SSS_GAUSSIAN_KERNEL_SIGMA[NUM_SSS_GAUSSIANS];
-		static const float SSS_GAUSSIAN_WEIGHTS[NUM_SSS_GAUSSIANS][3];
+		GaussianParams m_sssGaussianParams;
+		VariableParams m_sssSkinParams;
+		GaussianParamsCalculator m_sssGaussianParamsCalculator;
 
 		struct GaussianConstantBuffer {
 			float g_blurWidth; // blur width
@@ -92,6 +94,8 @@ namespace Skin {
 			} g_weights[NUM_SSS_GAUSSIANS];
 		};
 		struct SSSConstantBuffer {
+			XMFLOAT4 g_sss_coeff_sigma2[NUM_SSS_GAUSSIANS];
+			XMFLOAT4 g_sss_color_tone;
 			float g_sss_intensity;
 			float g_sss_strength;
 			float pad[2];
@@ -158,7 +162,7 @@ namespace Skin {
 			XMFLOAT3 g_mtAmbient;
 			float pad1;
 			XMFLOAT3 g_mtDiffuse;
-			float pad2;
+			float g_mtRoughness;
 			XMFLOAT3 g_mtSpecular;
 			float g_mtShininess;
 			XMFLOAT3 g_mtEmissive;
@@ -345,6 +349,8 @@ namespace Skin {
 		void computeStats();
 		void renderScene(bool* opbNeedBlur = nullptr);
 		void renderRest();
+
+		void updateSSSConstantBufferForParams();
 	public:
 		Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, RenderableManager* pRenderableManager);
 		~Renderer();
@@ -385,6 +391,8 @@ namespace Skin {
 
 		float getSSSStrength() const { return m_cbSSS.g_sss_strength; }
 		void setSSSStrength(float strength) { m_cbSSS.g_sss_strength = strength; }
+		VariableParams getSkinParams() const { return m_sssSkinParams; }
+		void setSkinParams(const VariableParams& vps);
 		void dump();
 
 		D3D_DRIVER_TYPE getDriverType() const { return m_driverType; }

@@ -28,6 +28,7 @@ MeshRenderable::BumpMapSampleData::~BumpMapSampleData() {
 
 MeshRenderable::MeshRenderable(const TString& strObjFilePath) {
 	m_pModel = nullptr;
+	m_roughness = 1.f;
 
 	std::string path = ANSIStringFromTString(strObjFilePath);
 	ObjLoader loader(path);
@@ -567,7 +568,8 @@ void MeshRenderable::render(ID3D11DeviceContext* pDeviceContext, IRenderer* pRen
 						Color(omt.Diffuse[0], omt.Diffuse[1], omt.Diffuse[2], 1.0f),
 						Color(omt.Specular[0], omt.Specular[1], omt.Specular[2], 1.0f),
 						Color(omt.Emission[0], omt.Emission[1], omt.Emission[2], 1.0f),
-						omt.Shininess, fBumpMultiplierScale * omt.BumpMultiplier);
+						omt.Shininess, fBumpMultiplierScale * omt.BumpMultiplier,
+						m_roughness);
 			pRenderer->setMaterial(mt);
 
 			auto iterTex = m_vpTextures.find(part.MaterialName);
@@ -610,4 +612,25 @@ void MeshRenderable::getBoundingSphere(FVector& oVecCenter, float& oRadius) cons
 	oRadius = m_fBoundingSphereRadius * getBumpMultiplierScale(matWorld);
 	XMVECTOR vecTrans = XMVector4Transform(XMVectorSet(m_vCenter.x, m_vCenter.y, m_vCenter.z, 1.0f), matWorld);
 	oVecCenter = FVector(XMVectorGetX(vecTrans), XMVectorGetY(vecTrans), XMVectorGetZ(vecTrans));
+}
+
+void MeshRenderable::getBoundingBox(Utils::FVector& oVecLower, Utils::FVector& oVecUpper) const {
+	oVecLower = FVector(FLT_MAX, FLT_MAX, FLT_MAX);
+	oVecUpper = FVector::ZERO;
+	XMMATRIX matWorld = getWorldMatrix();
+	for (const ObjPart& part : m_pModel->Parts) {
+		for (int idxTri = part.TriIdxMin; idxTri < part.TriIdxMax; idxTri++) {
+			const ObjTriangle& tri = m_pModel->Triangles[idxTri];
+			for (int j = 0; j < 3; j++) {
+				const ObjVertex& v = m_pModel->Vertices[tri.Vertex[j]];
+				XMVECTOR vec = XMVector4Transform(XMVectorSet(v.x, v.y, v.z, 1.0f), matWorld);
+				oVecLower.x = min(oVecLower.x, XMVectorGetX(vec));
+				oVecLower.y = min(oVecLower.y, XMVectorGetY(vec));
+				oVecLower.z = min(oVecLower.z, XMVectorGetZ(vec));
+				oVecUpper.x = max(oVecUpper.x, XMVectorGetX(vec));
+				oVecUpper.y = max(oVecUpper.y, XMVectorGetY(vec));
+				oVecUpper.z = max(oVecUpper.z, XMVectorGetZ(vec));
+			}
+		}
+	}
 }
