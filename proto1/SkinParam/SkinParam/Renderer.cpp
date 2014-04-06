@@ -40,7 +40,7 @@ const float Renderer::FOV_LIGHT = 50.0f;
 const float Renderer::CLIPPING_SCENE_NEAR = 0.1f;
 const float Renderer::CLIPPING_SCENE_FAR = 20.0f;
 const float Renderer::FOV_SCENE = 30.0f;
-const float Renderer::MM_PER_LENGTH = 120.0f;
+const float Renderer::MM_PER_LENGTH = 80.f;
 
 const TCHAR* Renderer::DEFAULT_DUMP_FOLDER = _T("dump");
 

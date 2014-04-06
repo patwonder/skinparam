@@ -443,7 +443,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 
 	// consider ambient occlusion, reflection & transmittance
 	totalambient *= ao;
-	//specular += totalambient * rho_s * specRef * 0.2;
+	//specular += totalambient * rho_s * specRef;
 	irradiance += totalambient * FRESNEL_TRANS_TOTAL;
 
 	// calculate fresnel outgoing factor

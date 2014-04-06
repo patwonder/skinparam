@@ -343,7 +343,7 @@ void CMainWindow::initSSSDialog() {
 	SetupControlsForParam(mel,   MEL,   "mel",  0, 100, (int)(sqrt(vps.f_mel * 20000) + .5));
 	SetupControlsForParam(eu,    EU,    "eum",  0, 100, (int)(vps.f_eu    *  100 +   .5));
 	SetupControlsForParam(blood, BLOOD, "bld",  0, 100, (int)(sqrt(vps.f_blood * 100000) + .5));
-	SetupControlsForParam(ohg,   OHG,   "ohg", 40,  80, (int)(vps.f_ohg   *   40 + 40.5));
+	SetupControlsForParam(ohg,   OHG,   "ohg",  0, 100, (int)(vps.f_ohg   *  100 +   .5));
 
 	m_pdlgSSS->AddStatic(CID_SSS_LBL_ROUGHNESS_LABEL, _T("Rough"), 6, tmp += 20, 60, 20);
 	m_pdlgSSS->AddSlider(CID_SSS_SLD_ROUGHNESS, 66, tmp, 100, 20, 5, 100, 30, false, &m_psldSSSRoughness);
