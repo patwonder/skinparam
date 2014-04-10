@@ -92,7 +92,7 @@ const float CMainWindow::BLINK_DIM_FACTOR = 0.5f;
 
 CMainWindow::CMainWindow()
 	: m_camera(Vector(0, -5, 0), Vector(0, 0, 0), Vector(0, 0, 1)),
-	  m_vps(0.005, 0.7, 0.01, 0.75)
+	  m_vps(0.005f, 0.7f, 0.01f, 0.75f)
 {
 	CSize resolution(1284, 724);
 	Create(NULL, _APP_NAME_, WS_OVERLAPPEDWINDOW & (~WS_SIZEBOX) & (~WS_MAXIMIZEBOX), 
@@ -447,6 +447,10 @@ void CMainWindow::updateUI() {
 	m_pchkAdaptiveGaussian->SetChecked(m_pRenderer->getAdaptiveGaussian());
 	m_pchkAdaptiveGaussian->SetEnabled(m_pchkEnableSSS->GetChecked());
 	m_psldSSSStrength->SetEnabled(m_pchkEnableSSS->GetChecked());
+	m_psldSSS_f_mel->SetEnabled(m_pchkEnableSSS->GetChecked());
+	m_psldSSS_f_eu->SetEnabled(m_pchkEnableSSS->GetChecked());
+	m_psldSSS_f_blood->SetEnabled(m_pchkEnableSSS->GetChecked());
+	m_psldSSS_f_ohg->SetEnabled(m_pchkEnableSSS->GetChecked());
 }
 
 static TOstream& operator<<(TOstream& os, const Vector& vec) {

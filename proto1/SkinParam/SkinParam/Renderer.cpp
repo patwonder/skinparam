@@ -93,7 +93,7 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_bDump(false),
 	  m_rsCurrent(RS_NotRendering),
 	  m_bPRAttenuationTexture(false),
-	  m_sssGaussianParamsCalculator(_T("model/profilefit.txt")),
+	  m_sssGaussianParamsCalculator(_T("model/profilefit_6.txt")),
 	  m_sssSkinParams(0, 0, 0, 0)
 {
 	m_vppShaderGroups.push_back(&m_psgShadow);

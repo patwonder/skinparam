@@ -295,7 +295,7 @@ GaussianParams GaussianParamsCalculator::getParams(const VariableParams& vps) co
 				if (sw1.weight > sw2.weight)
 					return true;
 				if (sw1.weight == sw2.weight)
-					return sw1.id < sw2.id;
+					return sw1.id > sw2.id;
 				return false;
 			}
 		);

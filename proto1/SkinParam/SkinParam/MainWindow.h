@@ -185,6 +185,7 @@ namespace Skin {
 //		DeclareHandlerForBool(VSMBlur);
 		DeclareHandlerForBool(PostProcessAA);
 		DeclareHandlerForBool(Bloom);
+
 		void CALLBACK chkEnableSSS_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK chkAdaptiveGaussian_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK sldSSSStrength_Handler(CDXUTControl* sender, UINT nEvent);
