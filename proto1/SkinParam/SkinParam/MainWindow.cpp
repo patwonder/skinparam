@@ -9,6 +9,7 @@
 #include "Triangle.h"
 #include "Head.h"
 #include "Light.h"
+#include "Parallel/parallel.h"
 
 using namespace Skin;
 using namespace Utils;
@@ -64,6 +65,12 @@ BOOL CMainApp::InitInstance() {
 	m_pMainWnd->UpdateWindow();
 
 	return TRUE;
+}
+
+int CMainApp::ExitInstance() {
+	Parallel::TaskQueue::Cleanup();
+
+	return EXIT_SUCCESS;
 }
 
 BOOL CMainApp::OnIdle(LONG lCount) {

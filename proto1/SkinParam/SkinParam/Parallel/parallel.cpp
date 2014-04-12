@@ -782,6 +782,13 @@ void TaskQueue::TasksInit() {
 }
 
 
+void TaskQueue::Cleanup() {
+	TasksCleanup();
+	delete taskQueueCondition;
+	taskQueueCondition = NULL;
+}
+
+
 void TaskQueue::TasksCleanup() {
 	taskQueueCondition->Lock();
 	taskQueue.clear();
@@ -792,7 +799,7 @@ void TaskQueue::TasksCleanup() {
 
 	if (threads != NULL) {
 		cleanup = true;
-		taskQueueCondition->Signal();
+		taskQueueCondition->SignalAll();
 
 		localThreads = (decltype(threads))malloc(sizeof(*localThreads) * nThreads);
 		memcpy(localThreads, threads, sizeof(*localThreads) * nThreads);
@@ -870,8 +877,10 @@ void *taskEntry(void *arg) {
 			taskQueueCondition->Lock();
 			while (!cleanup && taskQueue.size() == 0)
 				taskQueueCondition->Wait();
-			if (cleanup)
+			if (cleanup) {
+				taskQueueCondition->Unlock();
 				break;
+			}
 			myTask = taskQueue.front().first;
 			tq = taskQueue.front().second;
 			taskQueue.pop_front();

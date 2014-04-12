@@ -432,6 +432,8 @@ public:
 	void WaitForAllTasks();
 	void Abort();
 	double Progress();
+
+	static void Cleanup();
 private:
 	uint32_t numUnfinishedTasks;
 	uint32_t numTotalTasks;

@@ -25,6 +25,7 @@ namespace Skin {
 	public:
 		BOOL InitInstance() override; // C++11 explicit override
 		BOOL OnIdle(LONG lCount) override;
+		int ExitInstance() override;
 	};
 
 	class CMainWindow : public CFrameWnd, public RenderableManager {
