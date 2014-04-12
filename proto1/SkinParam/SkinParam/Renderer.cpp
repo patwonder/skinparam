@@ -91,10 +91,13 @@ Renderer::Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, 
 	  m_bAdaptiveGaussian(true),
 	  m_bBloom(true),
 	  m_bDump(false),
+	  m_bUseLiveFit(false),
+	  m_bLiveFitAvailable(false),
 	  m_rsCurrent(RS_NotRendering),
 	  m_bPRAttenuationTexture(false),
 	  m_sssGaussianParamsCalculator(_T("model/profilefit_6.txt")),
-	  m_sssSkinParams(0, 0, 0, 0)
+	  m_sssSkinParams(0, 0, 0, 0),
+	  m_pfutSSSGaussian(nullptr)
 {
 	m_vppShaderGroups.push_back(&m_psgShadow);
 	m_vppShaderGroups.push_back(&m_psgTessellatedPhong);
@@ -159,6 +162,12 @@ Renderer::~Renderer() {
 
 	if (m_pDeviceContext)
 		m_pDeviceContext->ClearState();
+
+	if (m_pfutSSSGaussian) {
+		m_pfutSSSGaussian->abortWait();
+		delete m_pfutSSSGaussian;
+		m_pfutSSSGaussian = nullptr;
+	}
 }
 
 HRESULT Renderer::initDX() {
@@ -705,7 +714,7 @@ void Renderer::initSSS() {
 
 	m_cbSSS.g_sss_intensity = 0.0f;
 	m_cbSSS.g_sss_strength = 1.0f;
-	updateSSSConstantBufferForParams();
+	updateSSSConstantBufferForParams(m_sssGaussianParams);
 	checkFailure(createConstantBuffer(m_pDevice, &m_cbSSS, &m_pSSSConstantBuffer),
 		_T("Failed to create SSS constant buffer"));
 
@@ -1306,6 +1315,8 @@ void Renderer::copyRender(ID3D11ShaderResourceView* pSRV, ID3D11RenderTargetView
 }
 
 void Renderer::render(const Camera* pSecondaryView) {
+	checkFutureGaussianParams();
+
 	updateLighting();
 	updateTessellation();
 	setConstantBuffers();
@@ -1699,27 +1710,89 @@ void Renderer::computeStats() {
 	}
 }
 
-void Renderer::updateSSSConstantBufferForParams() {
+void Renderer::updateSSSConstantBufferForParams(const GaussianParams& params) {
 	XMFLOAT4 tone(0, 0, 0, 1);
 	for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
-		XMFLOAT3 coeff = m_sssGaussianParams.coeffs[i];
+		XMFLOAT3 coeff = params.coeffs[i];
 		tone.x += m_cbSSS.g_sss_coeff_sigma2[i].x = coeff.x;
 		tone.y += m_cbSSS.g_sss_coeff_sigma2[i].y = coeff.y;
 		tone.z += m_cbSSS.g_sss_coeff_sigma2[i].z = coeff.z;
-		float sigma = m_sssGaussianParams.sigmas[i];
+		float sigma = params.sigmas[i];
 		m_cbSSS.g_sss_coeff_sigma2[i].w = sigma * sigma;
 	}
 	m_cbSSS.g_sss_color_tone = tone;
 	// no need to update m_cbSSS, it will be set every render cycle
 }
 
-void Renderer::setSkinParams(const VariableParams& vps) {
-	m_sssSkinParams = vps;
-	m_sssGaussianParams = m_sssGaussianParamsCalculator.getParams(vps);
+void Renderer::setGaussianParams(const GaussianParams& params) {
 	for (UINT i = 0; i < NUM_SSS_GAUSSIANS; i++) {
-		XMFLOAT3 coeff = m_sssGaussianParams.coeffs[i];
+		XMFLOAT3 coeff = params.coeffs[i];
 		m_cbCombine.g_weights[i].value = coeff;
 	}
 	m_pDeviceContext->UpdateSubresource(m_pCombineConstantBuffer, 0, NULL, &m_cbCombine, 0, 0);
-	updateSSSConstantBufferForParams();
+	updateSSSConstantBufferForParams(params);
+}
+
+void Renderer::setSkinParams(const VariableParams& vps) {
+	m_sssSkinParams = vps;
+	m_sssGaussianParams = m_sssGaussianParamsCalculator.getParams(vps);
+	setGaussianParams(m_sssGaussianParams);
+
+	m_bLiveFitAvailable = false;
+
+	if (m_bUseLiveFit)
+		startLiveComputation();
+	else if (m_pfutSSSGaussian) {
+		m_pfutSSSGaussian->abort();
+		delete m_pfutSSSGaussian;
+		m_pfutSSSGaussian = nullptr;
+	}
+}
+
+void Renderer::checkFutureGaussianParams() {
+	if (m_pfutSSSGaussian && std::future_status::ready == m_pfutSSSGaussian->wait_for(std::chrono::milliseconds(0))) {
+		m_sssLiveFitGaussianParams = m_pfutSSSGaussian->get();
+		m_bLiveFitAvailable = true;
+		if (m_bUseLiveFit)
+			setGaussianParams(m_sssLiveFitGaussianParams);
+
+		delete m_pfutSSSGaussian;
+		m_pfutSSSGaussian = nullptr;
+	}
+}
+
+
+double Renderer::getLiveFitProgress() const {
+	if (m_pfutSSSGaussian)
+		return m_pfutSSSGaussian->progress();
+
+	return m_bLiveFitAvailable ? 1. : 0.;
+}
+
+
+void Renderer::startLiveComputation() {
+	// start live computation of SoG
+	if (m_pfutSSSGaussian) {
+		m_pfutSSSGaussian->abort();
+		delete m_pfutSSSGaussian;
+	}
+
+	m_pfutSSSGaussian = new GaussianParamsCalculator::GaussianFuture(
+		m_sssGaussianParamsCalculator.getLiveFitParams(m_sssSkinParams));
+}
+
+
+void Renderer::setUseLiveFit(bool bUseLiveFit) {
+	m_bUseLiveFit = bUseLiveFit;
+
+	if (!m_bUseLiveFit) {
+		setGaussianParams(m_sssGaussianParams);
+	} else {
+		if (m_bLiveFitAvailable) {
+			setGaussianParams(m_sssLiveFitGaussianParams);
+		} else {
+			if (!m_pfutSSSGaussian)
+				startLiveComputation();
+		}
+	}
 }

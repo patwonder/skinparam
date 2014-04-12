@@ -80,6 +80,9 @@ namespace Skin {
 		GaussianParams m_sssGaussianParams;
 		VariableParams m_sssSkinParams;
 		GaussianParamsCalculator m_sssGaussianParamsCalculator;
+		GaussianParamsCalculator::GaussianFuture* m_pfutSSSGaussian;
+		bool m_bLiveFitAvailable;
+		GaussianParams m_sssLiveFitGaussianParams;
 
 		struct GaussianConstantBuffer {
 			float g_blurWidth; // blur width
@@ -275,6 +278,7 @@ namespace Skin {
 		bool m_bBloom;
 		bool m_bDump;
 		UINT m_nDumpCount;
+		bool m_bUseLiveFit;
 
 		static const TCHAR* DEFAULT_DUMP_FOLDER;
 
@@ -350,7 +354,10 @@ namespace Skin {
 		void renderScene(bool* opbNeedBlur = nullptr);
 		void renderRest();
 
-		void updateSSSConstantBufferForParams();
+		void checkFutureGaussianParams();
+		void startLiveComputation();
+		void setGaussianParams(const GaussianParams& params);
+		void updateSSSConstantBufferForParams(const GaussianParams& params);
 	public:
 		Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, RenderableManager* pRenderableManager);
 		~Renderer();
@@ -388,11 +395,14 @@ namespace Skin {
 		void setPostProcessAA(bool bPostProcessAA);
 		GST_BOOL(AdaptiveGaussian)
 		GST_BOOL(Bloom)
+		GETTER(UseLiveFit, bool, b) TOGGLE(UseLiveFit)
+		void setUseLiveFit(bool bUseLiveFit);
 
 		float getSSSStrength() const { return m_cbSSS.g_sss_strength; }
 		void setSSSStrength(float strength) { m_cbSSS.g_sss_strength = strength; }
 		VariableParams getSkinParams() const { return m_sssSkinParams; }
 		void setSkinParams(const VariableParams& vps);
+		double getLiveFitProgress() const;
 		void dump();
 
 		D3D_DRIVER_TYPE getDriverType() const { return m_driverType; }

@@ -2,6 +2,8 @@
 
 #pragma warning( disable : 4005 ) // disable duplicate macro definition warnings for vs2012
 
+#define NOMINMAX
+
 #include "Constants.h"
 #include "version.h"
 
@@ -16,6 +18,10 @@
 #include <D3DX10math.h>
 #include <D3Dcompiler.h>
 #include <xnamath.h>
+
+#include <algorithm>
+using std::min;
+using std::max;
 
 #include "TString.h"
 #include "UMath.h"

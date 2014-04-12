@@ -92,7 +92,7 @@ const float CMainWindow::BLINK_DIM_FACTOR = 0.5f;
 
 CMainWindow::CMainWindow()
 	: m_camera(Vector(0, -5, 0), Vector(0, 0, 0), Vector(0, 0, 1)),
-	  m_vps(0.005f, 0.7f, 0.01f, 0.75f)
+	  m_vps(0.008f, 0.6f, 0.016f, 0.8f)
 {
 	CSize resolution(1284, 724);
 	Create(NULL, _APP_NAME_, WS_OVERLAPPEDWINDOW & (~WS_SIZEBOX) & (~WS_MAXIMIZEBOX), 
@@ -349,12 +349,17 @@ void CMainWindow::initSSSDialog() {
 	m_pdlgSSS->AddSlider(CID_SSS_SLD_ROUGHNESS, 66, tmp, 100, 20, 5, 100, 30, false, &m_psldSSSRoughness);
 	m_pdlgSSS->AddStatic(CID_SSS_LBL_ROUGHNESS, _T("0.30"), 180, tmp, 60, 20, false, &m_plblSSSRoughness);
 
+	m_pdlgSSS->AddCheckBox(CID_SSS_CHK_USELIVEFIT, _T("Compute live fit Sum of Gaussians"), 6, tmp += 20, 200, 20, m_pRenderer->getUseLiveFit(), 0, false, &m_pchkSSSUseLiveFit);
+	m_pdlgSSS->AddStatic(CID_SSS_LBL_PROGRESS_LABEL, _T("Live fit progress: "), 6, tmp += 20, 120, 20);
+	m_pdlgSSS->AddStatic(CID_SSS_LBL_PROGRESS, _T("  0%"), 150, tmp, 60, 20, false, &m_plblSSSProgress);
+
 	m_pdlgSSS->SetVisible(true);
 
 	registerEventHandler(CID_SSS_CHK_ENABLE_SSS, &CMainWindow::chkEnableSSS_Handler);
 	registerEventHandler(CID_SSS_CHK_ADAPTIVE_GAUSSIAN, &CMainWindow::chkAdaptiveGaussian_Handler);
 	registerEventHandler(CID_SSS_SLD_SSS_STRENGTH, &CMainWindow::sldSSSStrength_Handler);
 	registerEventHandler(CID_SSS_SLD_ROUGHNESS, &CMainWindow::sldSSSRoughness_Handler);
+	registerEventHandler(CID_SSS_CHK_USELIVEFIT, &CMainWindow::chkSSSUseLiveFit_Handler);
 }
 
 void CMainWindow::initUIDialogs() {
@@ -451,6 +456,13 @@ void CMainWindow::updateUI() {
 	m_psldSSS_f_eu->SetEnabled(m_pchkEnableSSS->GetChecked());
 	m_psldSSS_f_blood->SetEnabled(m_pchkEnableSSS->GetChecked());
 	m_psldSSS_f_ohg->SetEnabled(m_pchkEnableSSS->GetChecked());
+	m_pchkSSSUseLiveFit->SetChecked(m_pRenderer->getUseLiveFit());
+	{
+		TStringStream tss;
+		tss << std::setiosflags(std::ios::fixed) << std::setprecision(0) << std::setw(4)
+			<< m_pRenderer->getLiveFitProgress() * 100 << "%";
+		m_plblSSSProgress->SetText(tss.str().c_str());
+	}
 }
 
 static TOstream& operator<<(TOstream& os, const Vector& vec) {
@@ -657,6 +669,12 @@ void CALLBACK CMainWindow::sldSSSRoughness_Handler(CDXUTControl* sender, UINT nE
 	tss << std::setiosflags(std::ios::fixed) << std::setprecision(2) << frough;
 	m_plblSSSRoughness->SetText(tss.str().c_str());
 }
+
+
+void CALLBACK CMainWindow::chkSSSUseLiveFit_Handler(CDXUTControl* sender, UINT nEvent) {
+	m_pRenderer->setUseLiveFit(m_pchkSSSUseLiveFit->GetChecked());
+}
+
 
 BOOL CMainWindow::PreTranslateMessage(MSG* pMsg) {
 	if (m_bChangingView || m_bChangingLight)

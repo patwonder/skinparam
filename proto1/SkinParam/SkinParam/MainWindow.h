@@ -135,6 +135,9 @@ namespace Skin {
 		static const UINT CID_SSS_LBL_ROUGHNESS_LABEL = 218;
 		static const UINT CID_SSS_SLD_ROUGHNESS = 219;
 		static const UINT CID_SSS_LBL_ROUGHNESS = 220;
+		static const UINT CID_SSS_CHK_USELIVEFIT = 221;
+		static const UINT CID_SSS_LBL_PROGRESS_LABEL = 222;
+		static const UINT CID_SSS_LBL_PROGRESS = 223;
 
 		// Info dialog
 		CDXUTStatic* m_plblScreenSize;
@@ -168,6 +171,8 @@ namespace Skin {
 		CDXUTStatic* m_plblSSS_f_ohg;
 		CDXUTSlider* m_psldSSSRoughness;
 		CDXUTStatic* m_plblSSSRoughness;
+		CDXUTCheckBox* m_pchkSSSUseLiveFit;
+		CDXUTStatic* m_plblSSSProgress;
 
 		// UI Controls Message Mapping
 		CDXUTDialogResourceManager* m_pDialogResourceManager;
@@ -199,6 +204,7 @@ namespace Skin {
 		DeclareHandlerForParam(blood);
 		DeclareHandlerForParam(ohg);
 		void CALLBACK sldSSSRoughness_Handler(CDXUTControl* sender, UINT nEvent);
+		void CALLBACK chkSSSUseLiveFit_Handler(CDXUTControl* sender, UINT nEvent);
 
 		// Message mapping
 		BOOL PreTranslateMessage(MSG* pMsg);

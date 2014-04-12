@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Utils/Color.h"
+#include "Parallel/AbortableFuture.h"
 #include <vector>
 
 namespace Skin {
@@ -41,13 +42,20 @@ namespace Skin {
 
 	class GaussianParamsCalculator {
 	public:
+		typedef Parallel::AbortableFuture<GaussianParams,
+			std::function<void()>, std::function<double()> > GaussianFuture;
+
 		GaussianParamsCalculator(const Utils::TString& filename);
 		GaussianParams getParams(const VariableParams& vps) const;
+		GaussianFuture getLiveFitParams(const VariableParams& vps) const;
 	private:
 		ProfileSpace psp;
 		RGBProfile sample(const float* params) const;
 		RGBProfile nsample(int baseId, int nDims, int dim, const LerpStruct* lerps) const;
 		void parseFile(const Utils::TString& filename);
+
+		static GaussianParams getParamsFromRGBProfile(const RGBProfile& rgbProfile,
+			const std::vector<float>& sigmas);
 	};
 
 };

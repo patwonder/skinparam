@@ -10,10 +10,14 @@
 #include <string>
 #include <sstream>
 #include "D3DHelper.h"
+#include "ProfileFit/GaussianFitTask.h"
+#include <atomic>
 
 using namespace std;
 using namespace Skin;
 using namespace Utils;
+using namespace Parallel;
+using namespace ProfileFit;
 
 namespace Skin {
 
@@ -274,12 +278,18 @@ GaussianParams GaussianParamsCalculator::getParams(const VariableParams& vps) co
 	params.push_back(vps.f_ohg);
 	RGBProfile profile = sample(&params[0]);
 
+	return getParamsFromRGBProfile(profile, psp.sigmas);
+}
+
+GaussianParams GaussianParamsCalculator::getParamsFromRGBProfile(const RGBProfile& profile,
+	const std::vector<float>& sigmas)
+{
 	GaussianParams gp;
-	if (psp.sigmas.size() > GaussianParams::NUM_GAUSSIANS) {
+	if (sigmas.size() > GaussianParams::NUM_GAUSSIANS) {
 		// Take most significant 6 sigmas
 		vector<SigmaWeight> sws;
 		float rtotal = 0, gtotal = 0, btotal = 0;
-		for (size_t sid = 0; sid < psp.sigmas.size(); sid++) {
+		for (size_t sid = 0; sid < sigmas.size(); sid++) {
 			SigmaWeight sw = { sid, 0.f };
 			float r = profile.red[sid] * 11;
 			float g = profile.green[sid] * 16;
@@ -315,21 +325,21 @@ GaussianParams GaussianParamsCalculator::getParams(const VariableParams& vps) co
 		// write values into GaussianParams
 		for (size_t swid = 0; swid < GaussianParams::NUM_GAUSSIANS; swid++) {
 			int sid = sws[swid].id;
-			gp.sigmas[swid] = psp.sigmas[sid];
+			gp.sigmas[swid] = sigmas[sid];
 			gp.coeffs[swid].x = profile.red[sid] * rtotal / rsel;
 			gp.coeffs[swid].y = profile.green[sid] * gtotal / gsel;
 			gp.coeffs[swid].z = profile.blue[sid] * btotal / bsel;
 		}
 	} else {
 		// pad zeros
-		int numZeros = GaussianParams::NUM_GAUSSIANS - psp.sigmas.size();
+		int numZeros = GaussianParams::NUM_GAUSSIANS - sigmas.size();
 		for (int i = 0; i < numZeros; i++) {
 			gp.sigmas[i] = 0.f;
 			gp.coeffs[i] = XMFLOAT3(0, 0, 0);
 		}
 		// write values into GaussianParams
-		for (size_t sid = 0; sid < psp.sigmas.size(); sid++) {
-			gp.sigmas[numZeros + sid] = psp.sigmas[sid];
+		for (size_t sid = 0; sid < sigmas.size(); sid++) {
+			gp.sigmas[numZeros + sid] = sigmas[sid];
 			gp.coeffs[numZeros + sid].x = profile.red[sid];
 			gp.coeffs[numZeros + sid].y = profile.green[sid];
 			gp.coeffs[numZeros + sid].z = profile.blue[sid];
@@ -337,4 +347,49 @@ GaussianParams GaussianParamsCalculator::getParams(const VariableParams& vps) co
 	}
 
 	return gp;
+}
+
+GaussianParamsCalculator::GaussianFuture
+	GaussianParamsCalculator::getLiveFitParams(const VariableParams& vps) const
+{
+	static bool firstCall = true;
+	if (firstCall) {
+		SampledSpectrum::Init();
+		firstCall = false;
+	}
+
+	shared_ptr<TaskQueue> tq(new TaskQueue);
+
+	future<GaussianParams> future =	std::async([vps, tq, this] () {
+		SkinCoefficients skinCoeffs(vps.f_mel, vps.f_eu, vps.f_blood, vps.f_ohg, 0, 0, 0);
+		SpectralGaussianCoeffs spectralGaussianCoeffs;
+
+		vector<Task*> tasks = CreateGaussianFitTasks(skinCoeffs, psp.sigmas, spectralGaussianCoeffs);
+		tq->EnqueueTasks(tasks);
+		tq->WaitForAllTasks();
+
+		DestroyGaussianTasks(tasks);
+		ClearGaussianTasksCache();
+
+		// Our coeffs should be ready here
+		RGBProfile profile;
+		for (size_t sid = 0; sid < spectralGaussianCoeffs.sigmas.size(); sid++) {
+			float rgb[3];
+			spectralGaussianCoeffs.coeffs[sid].ToRGB(rgb);
+			profile.red.push_back(rgb[0]);
+			profile.green.push_back(rgb[1]);
+			profile.blue.push_back(rgb[2]);
+		}
+		return getParamsFromRGBProfile(profile, spectralGaussianCoeffs.sigmas);
+	});
+
+	weak_ptr<TaskQueue> weak_tq(tq);
+	return GaussianFuture(std::move(future), [weak_tq] {
+		if (auto tq = weak_tq.lock())
+			tq->Abort();
+	}, [weak_tq] {
+		if (auto tq = weak_tq.lock())
+			return tq->Progress();
+		return 1.;
+	});
 }

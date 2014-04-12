@@ -13,6 +13,15 @@
     <Filter Include="DirectXTex">
       <UniqueIdentifier>{98bdb071-b778-40bf-9e02-d8f48a420f19}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Parallel">
+      <UniqueIdentifier>{aa0b0471-6aa0-4741-adc5-74560e22e4e5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ProfileFit">
+      <UniqueIdentifier>{c6464ed6-fbf0-42f5-9255-f070d5a79761}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="PbrtUtils">
+      <UniqueIdentifier>{6de3ac06-6b6d-4b1c-8050-32848e5cc938}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainWindow.h" />
@@ -102,6 +111,27 @@
       <Filter>Utils</Filter>
     </ClInclude>
     <ClInclude Include="GaussianParams.h" />
+    <ClInclude Include="Parallel\parallel.h">
+      <Filter>Parallel</Filter>
+    </ClInclude>
+    <ClInclude Include="Parallel\AbortableFuture.h">
+      <Filter>Parallel</Filter>
+    </ClInclude>
+    <ClInclude Include="ProfileFit\spectrum.h">
+      <Filter>ProfileFit</Filter>
+    </ClInclude>
+    <ClInclude Include="PbrtUtils\error.h">
+      <Filter>PbrtUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="PbrtUtils\types.h">
+      <Filter>PbrtUtils</Filter>
+    </ClInclude>
+    <ClInclude Include="ProfileFit\skincoeffs.h">
+      <Filter>ProfileFit</Filter>
+    </ClInclude>
+    <ClInclude Include="ProfileFit\GaussianFitTask.h">
+      <Filter>ProfileFit</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -180,6 +210,21 @@
       <Filter>Utils</Filter>
     </ClCompile>
     <ClCompile Include="GaussianParams.cpp" />
+    <ClCompile Include="Parallel\parallel.cpp">
+      <Filter>Parallel</Filter>
+    </ClCompile>
+    <ClCompile Include="ProfileFit\spectrum.cpp">
+      <Filter>ProfileFit</Filter>
+    </ClCompile>
+    <ClCompile Include="PbrtUtils\error.cpp">
+      <Filter>PbrtUtils</Filter>
+    </ClCompile>
+    <ClCompile Include="ProfileFit\skincoeffs.cpp">
+      <Filter>ProfileFit</Filter>
+    </ClCompile>
+    <ClCompile Include="ProfileFit\GaussianFitTask.cpp">
+      <Filter>ProfileFit</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\Lighting.fx">
