@@ -751,8 +751,11 @@ TaskQueue::~TaskQueue() {
 }
 
 
+static const int NUM_CORES_CAP = 4;
+
+
 void TaskQueue::TasksInit() {
-	static const int nThreads = NumSystemCores();
+	static const int nThreads = min(NumSystemCores(), NUM_CORES_CAP);
 #if !defined(PBRT_IS_WINDOWS)
     threads = new pthread_t[nThreads];
     for (int i = 0; i < nThreads; ++i) {
@@ -783,7 +786,7 @@ void TaskQueue::TasksCleanup() {
 	taskQueueCondition->Lock();
 	taskQueue.clear();
 	
-    static const int nThreads = NumSystemCores();
+    static const int nThreads = min(NumSystemCores(), NUM_CORES_CAP);
 
 	decltype(threads) localThreads = NULL;
 
@@ -939,7 +942,6 @@ double TaskQueue::Progress() {
 
 
 int NumSystemCores() {
-	return 4;
 #if defined(PBRT_IS_WINDOWS)
     SYSTEM_INFO sysinfo;
     GetSystemInfo(&sysinfo);
