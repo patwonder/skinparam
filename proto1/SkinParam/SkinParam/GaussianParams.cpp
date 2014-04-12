@@ -11,7 +11,7 @@
 #include <sstream>
 #include "D3DHelper.h"
 #include "ProfileFit/GaussianFitTask.h"
-#include <atomic>
+#include <condition_variable>
 
 using namespace std;
 using namespace Skin;
@@ -359,10 +359,24 @@ GaussianParamsCalculator::GaussianFuture
 	}
 
 	shared_ptr<TaskQueue> tq(new TaskQueue);
+	shared_ptr<mutex> pDelayMutex(new mutex);
+	shared_ptr<condition_variable_any> pDelayCondition(new condition_variable_any);
+	shared_ptr<bool> pCancel(new bool(false));
 
-	future<GaussianParams> future =	std::async([vps, tq, this] () {
+	future<GaussianParams> future =	std::async([vps, tq, pDelayMutex, pDelayCondition, pCancel, this] () {
 		SkinCoefficients skinCoeffs(vps.f_mel, vps.f_eu, vps.f_blood, vps.f_ohg, 0, 0, 0);
 		SpectralGaussianCoeffs spectralGaussianCoeffs;
+
+		{
+			chrono::system_clock::time_point targetTime = chrono::system_clock::now() + chrono::seconds(2);
+			lock_guard<mutex> lock(*pDelayMutex);
+			do {
+				pDelayCondition->wait_until(*pDelayMutex, targetTime);
+			}
+			while (!*pCancel && chrono::system_clock::now() < targetTime);
+			if (*pCancel)
+				return GaussianParams();
+		}
 
 		vector<Task*> tasks = CreateGaussianFitTasks(skinCoeffs, psp.sigmas, spectralGaussianCoeffs);
 		tq->EnqueueTasks(tasks);
@@ -384,9 +398,20 @@ GaussianParamsCalculator::GaussianFuture
 	});
 
 	weak_ptr<TaskQueue> weak_tq(tq);
-	return GaussianFuture(std::move(future), [weak_tq] {
+	weak_ptr<mutex> weak_pDelayMutex(pDelayMutex);
+	weak_ptr<condition_variable_any> weak_pDelayCondition(pDelayCondition);
+	weak_ptr<bool> weak_pCancel(pCancel);
+	return GaussianFuture(std::move(future), [weak_tq, weak_pDelayMutex, weak_pDelayCondition, weak_pCancel] {
 		if (auto tq = weak_tq.lock())
 			tq->Abort();
+		if (auto pDelayMutex = weak_pDelayMutex.lock()) {
+			if (auto pCancel = weak_pCancel.lock()) {
+				lock_guard<mutex> lock(*pDelayMutex);
+				*pCancel = true;
+			}
+		}
+		if (auto pDelayCondition = weak_pDelayCondition.lock())
+			pDelayCondition->notify_one();
 	}, [weak_tq] {
 		if (auto tq = weak_tq.lock())
 			return tq->Progress();
