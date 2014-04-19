@@ -10,6 +10,7 @@
 #include "Head.h"
 #include "Light.h"
 #include "Parallel/parallel.h"
+#include <fstream>
 
 using namespace Skin;
 using namespace Utils;
@@ -154,9 +155,13 @@ void CMainWindow::init() {
 	m_pRenderer->addRenderable(m_puirSSS);
 
 	updateUI();
+
+	loadViewFromFile(_T("lastview.scn"));
 }
 
 CMainWindow::~CMainWindow() {
+	saveViewToFile(_T("lastview.scn"));
+
 	m_pRenderer->removeAllRenderables();
 	m_pRenderer->removeAllLights();
 
@@ -314,8 +319,13 @@ void CMainWindow::initGeneralDialog() {
 	// dump
 	m_pdlgGeneral->AddButton(CID_GENERAL_BTN_DUMP, _T("Dump Pipeline (F8)"), width - 156, tmp += 30, 150, 30, 0,
 		false, &m_pbtnDump);
+	// load&save
+	m_pdlgGeneral->AddButton(CID_GENERAL_BTN_LOAD_SCENE, _T("Load Scene"), width - 156, tmp += 30, 150, 30);
+	m_pdlgGeneral->AddButton(CID_GENERAL_BTN_SAVE_SCENE, _T("Save Scene"), width - 156, tmp += 30, 150, 30);
 
 	registerEventHandler(CID_GENERAL_BTN_DUMP, &CMainWindow::btnDump_Handler);
+	registerEventHandler(CID_GENERAL_BTN_LOAD_SCENE, &CMainWindow::btnLoadScene_Handler);
+	registerEventHandler(CID_GENERAL_BTN_SAVE_SCENE, &CMainWindow::btnSaveScene_Handler);
 
 	//m_dlgTessellation.EnableNonUserEvents(true);
 	m_pdlgGeneral->SetVisible(true);
@@ -533,6 +543,87 @@ TString CMainWindow::getParamDescription(float param) {
 	return tss.str();
 }
 
+void CMainWindow::loadView() {
+	CFileDialog dlg(TRUE, _T("scn"), _T(""), OFN_FILEMUSTEXIST | OFN_HIDEREADONLY,
+		_T("Scene files (*.scn)|*.scn|"), this);
+	dlg.m_ofn.lpstrTitle = _T("Open Scene File");
+	if (dlg.DoModal() == IDOK) {
+		TString filename = dlg.GetPathName();
+		loadViewFromFile(filename);
+	}
+}
+
+void CMainWindow::loadViewFromFile(const TString& filename) {
+	using namespace std;
+	ifstream in(filename);
+	if (!in)
+		return;
+
+	double cx, cy, cz, amb;
+	struct { double x, y, z, p; } l[NUM_LIGHTS];
+	in >> cx >> cy >> cz;
+	for (UINT i = 0; i < NUM_LIGHTS; i++) {
+		in >> l[i].x >> l[i].y >> l[i].z >> l[i].p;
+	}
+	in >> amb;
+	string mark;
+	in >> mark;
+	in.close();
+
+	if (mark != "SkinParam")
+		return;
+
+	Vector vecLookAt = m_camera.getVecLookAt(), vecUp = m_camera.getVecUp();
+	m_camera.setView(Vector(cx, cy, cz), vecLookAt, vecUp);
+
+	for (UINT i = 0; i < NUM_LIGHTS; i++) {
+		Light& light = *m_pLights[i];
+		light.vecPosition = Vector(l[i].x, l[i].y, l[i].z);
+		light.coDiffuse = light.coSpecular = Color::White * l[i].p;
+		m_psldLights[i]->SetValue((int)(l[i].p * 10.0 + .5));
+		TStringStream tss;
+		tss << std::setiosflags(std::ios::fixed) << std::setprecision(1) << l[i].p;
+		m_plblLights[i]->SetText(tss.str().c_str());
+	}
+
+	m_pRenderer->setGlobalAmbient(Color::White * amb);
+	m_psldAmbient->SetValue((int)(amb * 100.0 + .5));
+	TStringStream tss;
+	tss << std::setiosflags(std::ios::fixed) << std::setprecision(1) << amb;
+	m_plblAmbient->SetText(tss.str().c_str());
+}
+
+void CMainWindow::saveView() {
+	CFileDialog dlg(FALSE, _T("txt"), _T(""),
+		OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY,
+		_T("Scene files (*.scn)|*.scn|"), this);
+	dlg.m_ofn.lpstrTitle = _T("Save Scene File");
+	if (dlg.DoModal() == IDOK) {
+		TString filename = dlg.GetPathName();
+		saveViewToFile(filename);
+	}
+}
+
+void CMainWindow::saveViewToFile(const TString& filename) {
+	using namespace std;
+	ofstream out(filename, ios::trunc);
+
+	if (!out)
+		return;
+
+	Vector vecEye = m_camera.getVecEye();
+	out << vecEye.x << " " << vecEye.y << " " << vecEye.z << endl;
+
+	for (UINT i = 0; i < NUM_LIGHTS; i++) {
+		Light& l = *m_pLights[i];
+		out << l.vecPosition.x << " " << l.vecPosition.y << " " << l.vecPosition.z << " " << l.coDiffuse.red << endl;
+	}
+	out << m_pRenderer->getGlobalAmbient().red << endl;
+
+	out << "SkinParam" << endl;
+	out.close();
+}
+
 void CMainWindow::OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl) {
 	auto iter = m_mapMessages.find(nControlID);
 	if (m_mapMessages.end() == iter) return;
@@ -624,6 +715,14 @@ void CALLBACK CMainWindow::sldAmbient_Handler(CDXUTControl* sender, UINT nEvent)
 
 void CALLBACK CMainWindow::btnDump_Handler(CDXUTControl* sender, UINT nEvent) {
 	m_pRenderer->dump();
+}
+
+void CALLBACK CMainWindow::btnLoadScene_Handler(CDXUTControl* sender, UINT nEvent) {
+	loadView();
+}
+
+void CALLBACK CMainWindow::btnSaveScene_Handler(CDXUTControl* sender, UINT nEvent) {
+	saveView();
 }
 
 void CALLBACK CMainWindow::sldSSS_f_mel_Handler(CDXUTControl* sender, UINT nEvent) {

@@ -76,6 +76,10 @@ namespace Skin {
 		void copyViewAsPBRT();
 		void updateSkinParams();
 		static Utils::TString getParamDescription(float param);
+		void loadView();
+		void loadViewFromFile(const Utils::TString& filename);
+		void saveView();
+		void saveViewToFile(const Utils::TString& filename);
 
 		// Renders UI as a renderable
 		class UIRenderable;
@@ -115,6 +119,8 @@ namespace Skin {
 		static const UINT CID_GENERAL_SLD_AMBIENT_INTENSITY = CID_GENERAL_LBL_AMBIENT_CAPTION + 1;
 		static const UINT CID_GENERAL_LBL_AMBIENT_INTENSITY = CID_GENERAL_LBL_AMBIENT_CAPTION + 2;
 		static const UINT CID_GENERAL_BTN_DUMP = CID_GENERAL_LBL_AMBIENT_CAPTION + 3;
+		static const UINT CID_GENERAL_BTN_LOAD_SCENE = CID_GENERAL_LBL_AMBIENT_CAPTION + 4;
+		static const UINT CID_GENERAL_BTN_SAVE_SCENE = CID_GENERAL_LBL_AMBIENT_CAPTION + 5;
 		static const UINT CID_SSS_LBL_CAPTION = 200;
 		static const UINT CID_SSS_CHK_ENABLE_SSS = 201;
 		static const UINT CID_SSS_LBL_SSS_STRENGTH_LABEL = 202;
@@ -199,6 +205,8 @@ namespace Skin {
 		void CALLBACK sldLight_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK sldAmbient_Handler(CDXUTControl* sender, UINT nEvent);
 		void CALLBACK btnDump_Handler(CDXUTControl* sender, UINT nEvent);
+		void CALLBACK btnLoadScene_Handler(CDXUTControl* sender, UINT nEvent);
+		void CALLBACK btnSaveScene_Handler(CDXUTControl* sender, UINT nEvent);
 #define DeclareHandlerForParam(param) void CALLBACK sldSSS_f_##param##_Handler(CDXUTControl* sender, UINT nEvent)
 		DeclareHandlerForParam(mel);
 		DeclareHandlerForParam(eu);

@@ -10,6 +10,9 @@
 // MFC headers
 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS
 #include <afxwin.h>
+// Add support for common dialogs,
+// such as the CFontDialog, CColorDialog and CFileDialog
+#include <afxdlgs.h>
 
 // Direct3D 11 headers
 #include <D3D11.h>
