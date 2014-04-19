@@ -314,21 +314,30 @@ GaussianParams GaussianParamsCalculator::getParamsFromRGBProfile(const RGBProfil
 				return sw1.id < sw2.id;
 			}
 		);
-		// normalize RGBProfile for the selected sigmas
-		float rsel = 0, gsel = 0, bsel = 0;
-		for (size_t swid = 0; swid < GaussianParams::NUM_GAUSSIANS; swid++) {
-			int sid = sws[swid].id;
-			rsel += profile.red[sid];
-			gsel += profile.green[sid];
-			bsel += profile.blue[sid];
-		}
 		// write values into GaussianParams
 		for (size_t swid = 0; swid < GaussianParams::NUM_GAUSSIANS; swid++) {
 			int sid = sws[swid].id;
 			gp.sigmas[swid] = sigmas[sid];
-			gp.coeffs[swid].x = profile.red[sid] * rtotal / rsel;
-			gp.coeffs[swid].y = profile.green[sid] * gtotal / gsel;
-			gp.coeffs[swid].z = profile.blue[sid] * btotal / bsel;
+			gp.coeffs[swid].x = profile.red[sid];
+			gp.coeffs[swid].y = profile.green[sid];
+			gp.coeffs[swid].z = profile.blue[sid];
+		}
+		// append rest Gaussian weights to the nearest selected sigma
+		for (size_t swid = GaussianParams::NUM_GAUSSIANS; swid < sigmas.size(); swid++) {
+			int sid = sws[swid].id;
+			float sigma = sigmas[sid];
+			size_t nearestswid = 0;
+			float nearestdiff = abs(sigma - sigmas[sws[0].id]);
+			for (size_t selswid = 1; selswid < GaussianParams::NUM_GAUSSIANS; selswid++) {
+				float diff = abs(sigma - sigmas[sws[selswid].id]);
+				if (diff < nearestdiff) {
+					nearestdiff = diff;
+					nearestswid = selswid;
+				}
+			}
+			gp.coeffs[nearestswid].x += profile.red[sid];
+			gp.coeffs[nearestswid].y += profile.green[sid];
+			gp.coeffs[nearestswid].z += profile.blue[sid];
 		}
 	} else {
 		// pad zeros
