@@ -16,12 +16,12 @@ float geometry_term(float NdotL, float NdotH, float NdotV, float VdotH) {
 }
 
 float distribution_term(float NdotH, float rms_slope) {
-	// using beckman distribution
-	float exponent = tan(acos(NdotH)) / rms_slope;
-	exponent *= -exponent;
-	float cosb2 = NdotH * NdotH;
-	float denominator = rms_slope * rms_slope * cosb2 * cosb2;
-	return exp(exponent) / denominator;
+	// using beckmann distribution
+	float rcpRMS2 = 1 / (rms_slope * rms_slope);
+	float c2 = NdotH * NdotH;
+	float d = PI * c2 * c2;
+	float e = (c2 - 1) * rcpRMS2 / c2;
+	return rcpRMS2 * exp(e) / d;
 }
 
 // assume normalized params
@@ -38,7 +38,7 @@ float CookTorrance(float3 N, float3 V, float3 L, float3 H, float rms_slope) {
 	float F = saturate(fresnel_term(VdotH));
 
 	// Cook-Torrance
-	return D * G * F / (4 * PI * NdotV);
+	return D * G * F / (4 * NdotV);
 
 	// Kelemen/Szirmay-Kalos Specular
 	//return max(D * F * NdotL / dot(L + V, L + V), 0);

@@ -262,9 +262,9 @@ float getDDYDepthPenalty(float depth) {
 	return saturate(1 - (abs(ddy(depth)) - DD_START) / DD_LEN);
 }
 
-// Fdt / 2pi, which equals to 1 - Fdr/2pi
+// Fdt, which equals to 1 - Fdr
 // using emprical equation from Jensen et al. 2001
-static const float FRESNEL_REF_TOTAL = (-1.440 / (INDEX * INDEX) + 0.710 / INDEX + 0.668 + 0.0636 * INDEX) / (2 * PI);
+static const float FRESNEL_REF_TOTAL = -0.44 + 0.71 * INDEX - 0.332 * INDEX * INDEX + 0.0636 * INDEX * INDEX * INDEX;
 static const float FRESNEL_TRANS_TOTAL = 1 - FRESNEL_REF_TOTAL;
 
 /*
