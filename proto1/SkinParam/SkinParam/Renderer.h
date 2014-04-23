@@ -443,6 +443,9 @@ namespace Skin {
 			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN) override;
 		void dumpResourceToFile(ID3D11Resource* pResource, const Utils::TString& strFileName, bool overrideAutoNaming = false,
 			DXGI_FORMAT preferredFormat = DXGI_FORMAT_UNKNOWN) override;
+		// Helper functions
+		void renderMelaninTexture(UINT width, UINT height);
+		void renderHemoglobinTexture(UINT width, UINT height);
 	};
 
 } // namespace Skin

@@ -1796,3 +1796,71 @@ void Renderer::setUseLiveFit(bool bUseLiveFit) {
 		}
 	}
 }
+
+void Renderer::renderMelaninTexture(UINT width, UINT height) {
+	typedef XMFLOAT4 MTT;
+	static const DXGI_FORMAT TexFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+	// Create a raw texture
+	MTT* pMelaninTextureData = new MTT[width * height];
+	VariableParams vps(0, 0, 0.016f, 0.8f);
+	for (UINT y = 0; y < height; y++) {
+		vps.f_eu = (float)y / (height - 1);
+		for (UINT x = 0; x < width; x++) {
+			vps.f_mel = 0.1f * (float)x / (width - 1);
+			GaussianParams gps = m_sssGaussianParamsCalculator.getParams(vps);
+			float r, g, b;
+			r = g = b = 0.f;
+			for (UINT i = 0; i < GaussianParams::NUM_GAUSSIANS; i++) {
+				r += gps.coeffs[i].x;
+				g += gps.coeffs[i].y;
+				b += gps.coeffs[i].z;
+			}
+			pMelaninTextureData[y * width + x] = MTT(r, g, b, 1.f);
+		}
+	}
+	// Create a SRV that wraps the texture
+	CComPtr<ID3D11ShaderResourceView> pView;
+	checkFailure(loadSRVFromMemory(m_pDevice, m_pDeviceContext, pMelaninTextureData, width, height, TexFormat,
+		width * sizeof(MTT), &pView),
+		_T("Failed to create SRV for melanin texture."));
+	delete [] pMelaninTextureData;
+
+	// Capture the SRV
+	dumpResourceToFile(pView.p, _T("melanin10.png"), true);
+	AfxGetMainWnd()->MessageBox(_T("Melanin texture written to melanin.png"), _T("Helpful rendering"), MB_OK);
+}
+
+void Renderer::renderHemoglobinTexture(UINT width, UINT height) {
+	typedef XMFLOAT4 HTT;
+	static const DXGI_FORMAT TexFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+	// Create a raw texture
+	HTT* pHemoglobinTextureData = new HTT[width * height];
+	VariableParams vps(0.405f, 0.8f, 0, 0);
+	for (UINT y = 0; y < height; y++) {
+		vps.f_ohg = (float)y / (height - 1);
+		for (UINT x = 0; x < width; x++) {
+			vps.f_blood = 0.1f * (float)x / (width - 1);
+			GaussianParams gps = m_sssGaussianParamsCalculator.getParams(vps);
+			float r, g, b;
+			r = g = b = 0.f;
+			for (UINT i = 0; i < GaussianParams::NUM_GAUSSIANS; i++) {
+				r += gps.coeffs[i].x;
+				g += gps.coeffs[i].y;
+				b += gps.coeffs[i].z;
+			}
+			pHemoglobinTextureData[y * width + x] = HTT(r, g, b, 1.f);
+		}
+	}
+	// Create a SRV that wraps the texture
+	CComPtr<ID3D11ShaderResourceView> pView;
+	checkFailure(loadSRVFromMemory(m_pDevice, m_pDeviceContext, pHemoglobinTextureData, width, height, TexFormat,
+		width * sizeof(HTT), &pView),
+		_T("Failed to create SRV for melanin texture."));
+	delete [] pHemoglobinTextureData;
+
+	// Capture the SRV
+	dumpResourceToFile(pView.p, _T("hemoglobin-africa.png"), true);
+	AfxGetMainWnd()->MessageBox(_T("Hemoglobin texture written to hemoglobin.png"), _T("Helpful rendering"), MB_OK);
+}

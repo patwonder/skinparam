@@ -136,6 +136,7 @@ void CMainWindow::init() {
 	m_pRenderer->addLight(m_pLights[1]);
 
 	m_pRenderer->setGlobalAmbient(Color::White * 0.25f);
+	m_pRenderer->setSSSStrength(2.f);
 
 	m_bChangingView = false;
 	m_camera.restrictView(1.2, 8.0);
@@ -344,8 +345,8 @@ void CMainWindow::initSSSDialog() {
 	m_pdlgSSS->AddCheckBox(CID_SSS_CHK_ENABLE_SSS, _T("Enable (S)SS"), 6, tmp += 20, 200, 20, m_pRenderer->getSSS(), 0, false, &m_pchkEnableSSS);
 	m_pdlgSSS->AddCheckBox(CID_SSS_CHK_ADAPTIVE_GAUSSIAN, _T("A(d)aptive Blurring"), 6, tmp += 20, 200, 20, m_pRenderer->getAdaptiveGaussian(), 0, false, &m_pchkAdaptiveGaussian);
 	m_pdlgSSS->AddStatic(CID_SSS_LBL_SSS_STRENGTH_LABEL, _T("SSS Strength: "), 6, tmp += 20, 200, 20);
-	m_pdlgSSS->AddSlider(CID_SSS_SLD_SSS_STRENGTH, 6, tmp += 20, 120, 20, 0, 300, (int)(100.0f * m_pRenderer->getSSSStrength() + 0.5f), false, &m_psldSSSStrength);
-	m_pdlgSSS->AddStatic(CID_SSS_LBL_SSS_STRENGTH, _T("1.00"), 140, tmp, 60, 20, false, &m_plblSSSStrength);
+	m_pdlgSSS->AddSlider(CID_SSS_SLD_SSS_STRENGTH, 6, tmp += 20, 120, 20, 0, 400, (int)(100.0f * m_pRenderer->getSSSStrength() + 0.5f), false, &m_psldSSSStrength);
+	m_pdlgSSS->AddStatic(CID_SSS_LBL_SSS_STRENGTH, _T("2.00"), 140, tmp, 60, 20, false, &m_plblSSSStrength);
 
 #define AddControlsForParam(param, PARAM, label, minv, maxv, curv) do { \
 	m_pdlgSSS->AddStatic(CID_SSS_LBL_F_##PARAM##_LABEL, _T(label), 6, tmp += 20, 40, 20); \
@@ -845,8 +846,17 @@ afx_msg void CMainWindow::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 		m_pRenderer->dump();
 		break;
 	case 'C':
-		if (nFlags & MK_CONTROL)
+		if (GetKeyState(VK_CONTROL))
 			copyViewAsPBRT();
+		break;
+	case 'M':
+		if (GetKeyState(VK_CONTROL) && GetKeyState(VK_MENU) && GetKeyState(VK_SHIFT))
+			m_pRenderer->renderMelaninTexture(1024, 1024);
+		break;
+	case 'H':
+		if (GetKeyState(VK_CONTROL) && GetKeyState(VK_MENU) && GetKeyState(VK_SHIFT))
+			m_pRenderer->renderHemoglobinTexture(1024, 1024);
+		break;
 	}
 }
 
