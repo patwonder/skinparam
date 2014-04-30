@@ -291,9 +291,14 @@ GaussianParams GaussianParamsCalculator::getParamsFromRGBProfile(const RGBProfil
 		float rtotal = 0, gtotal = 0, btotal = 0;
 		for (size_t sid = 0; sid < sigmas.size(); sid++) {
 			SigmaWeight sw = { sid, 0.f };
-			float r = profile.red[sid] * 11;
-			float g = profile.green[sid] * 16;
-			float b = profile.blue[sid] * 5;
+			// For RGB color spaces that use the ITU-R BT.709 primaries
+			// (or sRGB, which defines the same primaries), relative luminance
+			// can be calculated from linear RGB components:
+			// Y = 0.2126 R + 0.7152 G + 0.0722 B
+			// @ http://www.w3.org/Graphics/Color/sRGB
+			float r = profile.red[sid] * 0.2126f;
+			float g = profile.green[sid] * 0.7152f;
+			float b = profile.blue[sid] * 0.0722f;
 			rtotal += profile.red[sid];
 			gtotal += profile.green[sid];
 			btotal += profile.blue[sid];
