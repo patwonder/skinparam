@@ -421,7 +421,10 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 		float3 diffuse = atten * l.diffuse * g_material.diffuse * diffuseLight;
 		// specular
 		float3 H = normalize(L + V);
-		float specularLight = rho_s * CookTorrance(N, V, L, H, m);
+		// The "* PI" is needed to account for the relative change of BSSRDF
+		// in the Sum of Gaussians process, since we are not multiplying the
+		// resulting Gaussians by 1/pi
+		float specularLight = rho_s * CookTorrance(N, V, L, H, m) * PI;
 		// look up shadow map for light amount
 		float lightAmount = light_amount(input.vPosWS, g_shadowMaps[i], g_samShadow, ldepth, g_matViewProjLights[i]);
 		// fresnel transmittance for diffuse irradiance

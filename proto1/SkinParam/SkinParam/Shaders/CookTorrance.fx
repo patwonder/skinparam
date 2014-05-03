@@ -5,7 +5,12 @@ static const float INDEX = 1.4;
 static const float FRESNEL_R0 = (1 - INDEX) * (1 - INDEX) / ((1 + INDEX) * (1 + INDEX));
 
 float fresnel_term(float cosA) {
-	return lerp(1, FRESNEL_R0 + (1 - FRESNEL_R0) * pow(1.0 - cosA, 5.0), 0.88);
+	//return FRESNEL_R0 + (1 - FRESNEL_R0) * pow(1.0 - cosA, 5.0);
+	float sint = sqrt(1 - cosA * cosA) / INDEX;
+	float cost = sqrt(1 - sint * sint);
+	float parl = (INDEX * cosA - cost) / (INDEX * cosA + cost);
+	float perp = (cosA - INDEX * cost) / (cosA + INDEX * cost);
+	return 0.5 * (parl * parl + perp * perp);
 }
 
 float geometry_term(float NdotL, float NdotH, float NdotV, float VdotH) {
@@ -20,6 +25,7 @@ float distribution_term(float NdotH, float rms_slope) {
 	float rcpRMS2 = 1 / (rms_slope * rms_slope);
 	float c2 = NdotH * NdotH;
 	float d = PI * c2 * c2;
+	if (d == 0) return 0;
 	float e = (c2 - 1) * rcpRMS2 / c2;
 	return rcpRMS2 * exp(e) / d;
 }
@@ -36,7 +42,6 @@ float CookTorrance(float3 N, float3 V, float3 L, float3 H, float rms_slope) {
 	// Should use VdotH for the fresnel term for rough surfaces,
 	// as suggested in http://http.developer.nvidia.com/GPUGems3/gpugems3_ch14.html
 	float F = saturate(fresnel_term(VdotH));
-
 	// Cook-Torrance
 	return D * G * F / (4 * NdotV);
 

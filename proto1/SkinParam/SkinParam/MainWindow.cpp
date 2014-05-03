@@ -364,7 +364,7 @@ void CMainWindow::initSSSDialog() {
 	SetupControlsForParam(ohg,   OHG,   "ohg",  0, 100, (int)(vps.f_ohg   *  100 +   .5));
 
 	m_pdlgSSS->AddStatic(CID_SSS_LBL_ROUGHNESS_LABEL, _T("Rough"), 6, tmp += 20, 60, 20);
-	m_pdlgSSS->AddSlider(CID_SSS_SLD_ROUGHNESS, 66, tmp, 100, 20, 5, 100, 30, false, &m_psldSSSRoughness);
+	m_pdlgSSS->AddSlider(CID_SSS_SLD_ROUGHNESS, 66, tmp, 100, 20, 20, 40, 30, false, &m_psldSSSRoughness);
 	m_pdlgSSS->AddStatic(CID_SSS_LBL_ROUGHNESS, _T("0.30"), 180, tmp, 60, 20, false, &m_plblSSSRoughness);
 
 	m_pdlgSSS->AddCheckBox(CID_SSS_CHK_USELIVEFIT, _T("Compute live fit Sum of Gaussians"), 6, tmp += 20, 200, 20, m_pRenderer->getUseLiveFit(), 0, false, &m_pchkSSSUseLiveFit);
