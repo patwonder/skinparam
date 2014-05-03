@@ -358,6 +358,9 @@ namespace Skin {
 		void startLiveComputation();
 		void setGaussianParams(const GaussianParams& params);
 		void updateSSSConstantBufferForParams(const GaussianParams& params);
+
+		void dumpMelaninTexture(UINT width, UINT height, float maxmel, const Utils::TString& filename);
+		void dumpHemoglobinTexture(UINT width, UINT height, float mel, float eu, const Utils::TString& filename);
 	public:
 		Renderer(HWND hwnd, CRect rectView, Config* pConfig, Camera* pCamera, RenderableManager* pRenderableManager);
 		~Renderer();

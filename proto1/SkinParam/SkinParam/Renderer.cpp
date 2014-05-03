@@ -1797,17 +1797,17 @@ void Renderer::setUseLiveFit(bool bUseLiveFit) {
 	}
 }
 
-void Renderer::renderMelaninTexture(UINT width, UINT height) {
+void Renderer::dumpMelaninTexture(UINT width, UINT height, float maxmel, const TString& filename) {
 	typedef XMFLOAT4 MTT;
 	static const DXGI_FORMAT TexFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
 
 	// Create a raw texture
 	MTT* pMelaninTextureData = new MTT[width * height];
-	VariableParams vps(0, 0, 0.016f, 0.8f);
+	VariableParams vps(0, 0, 0.009f, 0.8f);
 	for (UINT y = 0; y < height; y++) {
 		vps.f_eu = (float)y / (height - 1);
 		for (UINT x = 0; x < width; x++) {
-			vps.f_mel = 0.1f * (float)x / (width - 1);
+			vps.f_mel = maxmel * (float)x / (width - 1);
 			GaussianParams gps = m_sssGaussianParamsCalculator.getParams(vps);
 			float r, g, b;
 			r = g = b = 0.f;
@@ -1827,17 +1827,22 @@ void Renderer::renderMelaninTexture(UINT width, UINT height) {
 	delete [] pMelaninTextureData;
 
 	// Capture the SRV
-	dumpResourceToFile(pView.p, _T("melanin10.png"), true);
-	AfxGetMainWnd()->MessageBox(_T("Melanin texture written to melanin.png"), _T("Helpful rendering"), MB_OK);
+	dumpResourceToFile(pView.p, filename, true);
+	AfxGetMainWnd()->MessageBox((_T("Melanin texture written to ") + filename).c_str(), _T("Helpful rendering"), MB_OK);
 }
 
-void Renderer::renderHemoglobinTexture(UINT width, UINT height) {
+void Renderer::renderMelaninTexture(UINT width, UINT height) {
+	dumpMelaninTexture(width, height, 0.5f, _T("melanin.png"));
+	dumpMelaninTexture(width, height, 0.1f, _T("melanin10.png"));
+}
+
+void Renderer::dumpHemoglobinTexture(UINT width, UINT height, float mel, float eu, const Utils::TString& filename) {
 	typedef XMFLOAT4 HTT;
 	static const DXGI_FORMAT TexFormat = DXGI_FORMAT_R32G32B32A32_FLOAT;
 
 	// Create a raw texture
 	HTT* pHemoglobinTextureData = new HTT[width * height];
-	VariableParams vps(0.405f, 0.8f, 0, 0);
+	VariableParams vps(mel, eu, 0, 0);
 	for (UINT y = 0; y < height; y++) {
 		vps.f_ohg = (float)y / (height - 1);
 		for (UINT x = 0; x < width; x++) {
@@ -1861,6 +1866,12 @@ void Renderer::renderHemoglobinTexture(UINT width, UINT height) {
 	delete [] pHemoglobinTextureData;
 
 	// Capture the SRV
-	dumpResourceToFile(pView.p, _T("hemoglobin-africa.png"), true);
-	AfxGetMainWnd()->MessageBox(_T("Hemoglobin texture written to hemoglobin.png"), _T("Helpful rendering"), MB_OK);
+	dumpResourceToFile(pView.p, filename, true);
+	AfxGetMainWnd()->MessageBox((_T("Hemoglobin texture written to ") + filename).c_str(), _T("Helpful rendering"), MB_OK);
+}
+
+void Renderer::renderHemoglobinTexture(UINT width, UINT height) {
+	dumpHemoglobinTexture(width, height, 0.008f, 0.6f, _T("hemoglobin.png"));
+	dumpHemoglobinTexture(width, height, 0.125f, 0.0f, _T("hemoglobin-asia.png"));
+	dumpHemoglobinTexture(width, height, 0.409f, 0.8f, _T("hemoglobin-africa.png"));
 }
