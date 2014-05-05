@@ -509,7 +509,7 @@ void CMainWindow::copyViewAsPBRT() {
 				<< pLight->coDiffuse * 1e3f << _T(" ] \"integer nsamples\" [4]")
 				<< eol;
 			tss << _T("    Translate ") << pLight->vecPosition << eol;
-			tss << _T("    Shape \"sphere\" \"float radius\" 0.5") << eol;
+			tss << _T("    Shape \"sphere\" \"float radius\" 0.2") << eol;
 			tss << _T("  AttributeEnd") << eol;
 			tss << eol;
 		}

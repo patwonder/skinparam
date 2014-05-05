@@ -345,11 +345,11 @@ float3 trans_atten(float s) {
 	float3 upper = float3(FALLOFF_DATA[iSamplePoint.r + 1].r, FALLOFF_DATA[iSamplePoint.g + 1].g, FALLOFF_DATA[iSamplePoint.b + 1].b);
 	return lerp(lower, upper, lerps);
 	*/
-	float ns2 = -s * s;
+	float halfns2 = -0.5 * s * s;
 	float3 result = 0;
 	for (int i = 0; i < NUM_GAUSSIANS; i++) {
 		if (g_sss_coeff_sigma2[i].a != 0) {
-			result += g_sss_coeff_sigma2[i].rgb * exp(ns2 / g_sss_coeff_sigma2[i].a);
+			result += g_sss_coeff_sigma2[i].rgb * exp(halfns2 / g_sss_coeff_sigma2[i].a);
 		}
 	}
 	return result / g_sss_color_tone;
@@ -437,8 +437,13 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 
 		// putting them together
 		totalambient += ambient;
+#if 1
 		specular += atten * l.specular * g_material.specular * specularLight * lightAmount;
 		irradiance += diffuse * lightAmount * fresnel_trans + backlit;
+#else
+		specular += atten * l.specular * g_material.specular * specularLight * lightAmount + backlit * g_sss_color_tone;
+		irradiance += diffuse * lightAmount * fresnel_trans;
+#endif
 	}
 
 	// specular reflection amount from view angle
