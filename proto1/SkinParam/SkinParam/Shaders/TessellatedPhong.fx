@@ -347,12 +347,12 @@ float3 trans_atten(float s) {
 	*/
 	float halfns2 = -0.5 * s * s;
 	float3 result = 0;
-	for (int i = 0; i < NUM_GAUSSIANS; i++) {
+	for (unsigned int i = 0; i < NUM_GAUSSIANS; i++) {
 		if (g_sss_coeff_sigma2[i].a != 0) {
 			result += g_sss_coeff_sigma2[i].rgb * exp(halfns2 / g_sss_coeff_sigma2[i].a);
 		}
 	}
-	return result / g_sss_color_tone;
+	return result / g_sss_color_tone.rgb;
 }
 
 float distance(float3 vPosWS, float3 vNormalWS, float NdotL, float3 vPosLightWS, matrix matViewProjLight,
@@ -404,6 +404,12 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 
 	float3 N = normalize(vNormalWS);
 	float3 V = normalize(g_posEye - input.vPosWS);
+
+	// specular reflection amount from view angle
+	float specRef = g_attenuation.SampleLevel(g_samAttenuation, float2(dot(N, V), m), 0).r;
+	// calculate fresnel outgoing factor
+	float fresnel_trans_view = saturate(1 - rho_s * specRef);
+
 	// lights
 	for (uint i = 0; i < NUM_LIGHTS; i++) {
 		Light l = g_lights[i];
@@ -441,21 +447,15 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 		specular += atten * l.specular * g_material.specular * specularLight * lightAmount;
 		irradiance += diffuse * lightAmount * fresnel_trans + backlit;
 #else
-		specular += atten * l.specular * g_material.specular * specularLight * lightAmount + backlit * g_sss_color_tone;
+		specular += atten * l.specular * g_material.specular * specularLight * lightAmount + backlit * g_sss_color_tone * tex_color * fresnel_trans_view;
 		irradiance += diffuse * lightAmount * fresnel_trans;
 #endif
 	}
-
-	// specular reflection amount from view angle
-	float specRef = g_attenuation.SampleLevel(g_samAttenuation, float2(dot(N, V), m), 0).r;
 
 	// consider ambient occlusion, reflection & transmittance
 	totalambient *= ao;
 	//specular += totalambient * rho_s * specRef;
 	irradiance += totalambient * FRESNEL_TRANS_TOTAL;
-
-	// calculate fresnel outgoing factor
-	float fresnel_trans_view = saturate(1 - rho_s * specRef);
 
 	// calculate kernel size reduction due to tilt surface
 	//  1 - calculate local orthogonal coordinate system
@@ -481,7 +481,7 @@ PS_OUTPUT_IRRADIANCE PS_Irradiance(PS_INPUT_IRRADIANCE input) {
 float4 PS_Irradiance_NoGaussian(PS_INPUT_IRRADIANCE input) : SV_Target {
 	PS_OUTPUT_IRRADIANCE output = PS_Irradiance(input);
 	// combine immediately
-	float3 color = output.irradiance.rgb * output.albedo.rgb * g_sss_color_tone + output.specular.rgb;
+	float3 color = output.irradiance.rgb * output.albedo.rgb * g_sss_color_tone.rgb + output.specular.rgb;
 	return float4(color, 1.0);
 }
 
