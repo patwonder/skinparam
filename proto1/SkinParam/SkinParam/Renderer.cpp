@@ -303,14 +303,14 @@ void Renderer::initMisc() {
 		D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, &m_pPlaceholderSamplerState),
 		_T("Failed to create placeholder sampler state"));
 
-	checkFailure(createShaderResourceView2D(m_pDevice, 1, 1, DXGI_FORMAT_R32_FLOAT, &m_pPlaceholderTexture),
+	checkFailure(createShaderResourceView2D(m_pDevice, 1, 1, DXGI_FORMAT_R8G8B8A8_UNORM, &m_pPlaceholderTexture),
 		_T("Failed to create placeholder texture"));
 
 	{
-		float initData[] = { 1.0f };
+		BYTE initData[] = { 127, 127, 127, 255 };
 		CComPtr<ID3D11Resource> pResource;
 		m_pPlaceholderTexture->GetResource(&pResource);
-		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 4, 0);
+		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, sizeof(initData), 0);
 	}
 
 	// Creates the placeholder bump texture for non-bumpmapped objects
@@ -325,7 +325,7 @@ void Renderer::initMisc() {
 		float initData[] = { 0.5f };
 		CComPtr<ID3D11Resource> pResource;
 		m_pBumpTexture->GetResource(&pResource);
-		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, 4, 0);
+		m_pDeviceContext->UpdateSubresource(pResource, 0, nullptr, initData, sizeof(initData), 0);
 	}
 
 	// Creates the placeholder normal texture for non-normalmapped objects
