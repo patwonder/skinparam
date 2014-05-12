@@ -6,8 +6,8 @@ static const float FRESNEL_R0 = (1 - INDEX) * (1 - INDEX) / ((1 + INDEX) * (1 + 
 
 float fresnel_term(float cosA) {
 	//return FRESNEL_R0 + (1 - FRESNEL_R0) * pow(1.0 - cosA, 5.0);
-	float sint = sqrt(1 - cosA * cosA) / INDEX;
-	float cost = sqrt(1 - sint * sint);
+	float sint2 = (1 - cosA * cosA) / (INDEX * INDEX);
+	float cost = sqrt(1 - sint2);
 	float parl = (INDEX * cosA - cost) / (INDEX * cosA + cost);
 	float perp = (cosA - INDEX * cost) / (cosA + INDEX * cost);
 	return 0.5 * (parl * parl + perp * perp);
