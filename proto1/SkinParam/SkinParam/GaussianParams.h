@@ -7,6 +7,7 @@
 #include "Utils/Color.h"
 #include "Parallel/AbortableFuture.h"
 #include <vector>
+#include <chrono>
 
 namespace Skin {
 	// Necessary structs to store the gaussian params
@@ -48,6 +49,7 @@ namespace Skin {
 		GaussianParamsCalculator(const Utils::TString& filename);
 		GaussianParams getParams(const VariableParams& vps) const;
 		GaussianFuture getLiveFitParams(const VariableParams& vps) const;
+		std::chrono::microseconds perf() const;
 	private:
 		ProfileSpace psp;
 		RGBProfile sample(const float* params) const;

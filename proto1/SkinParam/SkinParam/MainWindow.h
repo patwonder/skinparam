@@ -80,6 +80,7 @@ namespace Skin {
 		void loadViewFromFile(const Utils::TString& filename);
 		void saveView();
 		void saveViewToFile(const Utils::TString& filename);
+		void doPerf();
 
 		// Renders UI as a renderable
 		class UIRenderable;

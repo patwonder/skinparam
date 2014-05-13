@@ -11,6 +11,7 @@
 #include <sstream>
 #include "D3DHelper.h"
 #include "ProfileFit/GaussianFitTask.h"
+#include "PbrtUtils/rng.h"
 #include <condition_variable>
 
 using namespace std;
@@ -432,3 +433,29 @@ GaussianParamsCalculator::GaussianFuture
 		return 1.;
 	});
 }
+
+chrono::microseconds GaussianParamsCalculator::perf() const {
+	RNG rng(31);
+	vector<VariableParams> vps;
+	// initialize bunch of VariableParams
+	const UINT32 NUM = 100000;
+	for (UINT32 i = 0; i < NUM; i++) {
+		float r1 = rng.RandomFloat();
+		float r2 = rng.RandomFloat();
+		float r3 = rng.RandomFloat();
+		float r4 = rng.RandomFloat();
+		float f_mel = r1 * r1 * 0.5f;
+		float f_eu = r2;
+		float f_blood = r3 * r3 * 0.1f;
+		float f_ohg = r4;
+		vps.push_back(VariableParams(f_mel, f_eu, f_blood, f_ohg));
+	}
+	// test
+	chrono::high_resolution_clock::time_point startTime = chrono::high_resolution_clock::now();
+	for (const VariableParams& vp : vps) {
+		volatile GaussianParams gp = getParams(vp);
+	}
+	chrono::high_resolution_clock::time_point endTime = chrono::high_resolution_clock::now();
+	return chrono::duration_cast<chrono::microseconds>((endTime - startTime) / NUM);
+}
+

@@ -625,6 +625,13 @@ void CMainWindow::saveViewToFile(const TString& filename) {
 	out.close();
 }
 
+void CMainWindow::doPerf() {
+	double milliseconds = m_pRenderer->perfMilliseconds();
+	TStringStream tss;
+	tss << "Time per intepolation: " << milliseconds << "ms";
+	MessageBox(tss.str().c_str(), _T("Performance Test"), MB_OK);
+}
+
 void CMainWindow::OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl) {
 	auto iter = m_mapMessages.find(nControlID);
 	if (m_mapMessages.end() == iter) return;
@@ -856,6 +863,10 @@ afx_msg void CMainWindow::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 	case 'H':
 		if (GetKeyState(VK_CONTROL) && GetKeyState(VK_MENU) && GetKeyState(VK_SHIFT))
 			m_pRenderer->renderHemoglobinTexture(1024, 1024);
+		break;
+	case 'P':
+		if (GetKeyState(VK_CONTROL) && GetKeyState(VK_MENU) && GetKeyState(VK_SHIFT))
+			doPerf();
 		break;
 	}
 }

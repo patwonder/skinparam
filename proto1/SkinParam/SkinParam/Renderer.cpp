@@ -1875,3 +1875,7 @@ void Renderer::renderHemoglobinTexture(UINT width, UINT height) {
 	dumpHemoglobinTexture(width, height, 0.125f, 0.0f, _T("hemoglobin-asia.png"));
 	dumpHemoglobinTexture(width, height, 0.409f, 0.8f, _T("hemoglobin-africa.png"));
 }
+
+double Renderer::perfMilliseconds() const {
+	return m_sssGaussianParamsCalculator.perf().count() / 1000.;
+}

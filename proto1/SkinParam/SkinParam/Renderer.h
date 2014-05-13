@@ -449,6 +449,7 @@ namespace Skin {
 		// Helper functions
 		void renderMelaninTexture(UINT width, UINT height);
 		void renderHemoglobinTexture(UINT width, UINT height);
+		double perfMilliseconds() const;
 	};
 
 } // namespace Skin

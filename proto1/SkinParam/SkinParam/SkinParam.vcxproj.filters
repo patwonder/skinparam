@@ -132,6 +132,9 @@
     <ClInclude Include="ProfileFit\GaussianFitTask.h">
       <Filter>ProfileFit</Filter>
     </ClInclude>
+    <ClInclude Include="PbrtUtils\rng.h">
+      <Filter>PbrtUtils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="MainWindow.cpp" />
@@ -224,6 +227,9 @@
     </ClCompile>
     <ClCompile Include="ProfileFit\GaussianFitTask.cpp">
       <Filter>ProfileFit</Filter>
+    </ClCompile>
+    <ClCompile Include="PbrtUtils\rng.cpp">
+      <Filter>PbrtUtils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

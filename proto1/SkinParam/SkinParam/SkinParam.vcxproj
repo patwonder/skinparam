@@ -163,6 +163,7 @@
     <ClCompile Include="MeshRenderable.cpp" />
     <ClCompile Include="Parallel\parallel.cpp" />
     <ClCompile Include="PbrtUtils\error.cpp" />
+    <ClCompile Include="PbrtUtils\rng.cpp" />
     <ClCompile Include="ProfileFit\GaussianFitTask.cpp" />
     <ClCompile Include="ProfileFit\skincoeffs.cpp" />
     <ClCompile Include="ProfileFit\spectrum.cpp" />
@@ -237,6 +238,7 @@
     <ClInclude Include="Parallel\AbortableFuture.h" />
     <ClInclude Include="Parallel\parallel.h" />
     <ClInclude Include="PbrtUtils\error.h" />
+    <ClInclude Include="PbrtUtils\rng.h" />
     <ClInclude Include="PbrtUtils\types.h" />
     <ClInclude Include="ProfileFit\GaussianFitTask.h" />
     <ClInclude Include="ProfileFit\skincoeffs.h" />
