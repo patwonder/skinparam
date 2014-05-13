@@ -532,6 +532,8 @@ void CMainWindow::copyViewAsPBRT() {
 	SetClipboardData(CF_UNICODETEXT, hglbCopy);
 
 	CloseClipboard();
+
+	MessageBox((TString(_T("Copied to clipboard:")) + eol + str).c_str(), _T("Copy View as PBRT"), MB_OK | MB_ICONINFORMATION);
 }
 
 void CMainWindow::updateSkinParams() {
@@ -852,10 +854,6 @@ afx_msg void CMainWindow::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 	case VK_F8:
 		m_pRenderer->dump();
 		break;
-	case 'C':
-		if (GetKeyState(VK_CONTROL))
-			copyViewAsPBRT();
-		break;
 	case 'M':
 		if (GetKeyState(VK_CONTROL) && GetKeyState(VK_MENU) && GetKeyState(VK_SHIFT))
 			m_pRenderer->renderMelaninTexture(1024, 1024);
@@ -872,6 +870,12 @@ afx_msg void CMainWindow::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
 }
 
 afx_msg void CMainWindow::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags) {
+	switch (nChar) {
+	case 'C':
+		if (GetKeyState(VK_CONTROL))
+			copyViewAsPBRT();
+		break;
+	}
 }
 
 afx_msg void CMainWindow::OnLButtonDown(UINT nFlags, CPoint point) {
