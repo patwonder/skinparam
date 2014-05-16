@@ -21,6 +21,8 @@ pre-computed offline and then interpolated in real-time according to skin parame
 
 ## Demo
 
+![Screenshot](https://github.com/patwonder/pbrt-v2-skin/raw/gh-pages/screenshot.png)
+
 You can find the pre-built binaries here:
 
 https://github.com/patwonder/skinparam/tree/gh-pages/bin/
