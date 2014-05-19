@@ -1,6 +1,6 @@
 # SkinParam - Real-time skin renderer with adjustable skin parameters
 
-### Introduction
+## Introduction
 
 This is a real-time skin renderer with adjustable skin parameters. The adjustable skin parameters
 are listed as follows:
@@ -19,7 +19,7 @@ fitting of reflectance profiles in conjunction with a
 [screen-space diffusion](http://www.iryoku.com/sssss/) technique. The SoG coefficients are
 pre-computed offline and then interpolated in real-time according to skin parameters.
 
-### Demo
+## Demo
 
 ![Screenshot](https://github.com/patwonder/pbrt-v2-skin/raw/gh-pages/screenshot.png)
 
@@ -31,7 +31,7 @@ And a video demonstrating real-time adjusting of skin parameters:
 
 https://github.com/patwonder/pbrt-v2-skin/raw/gh-pages/video/demo.mp4
 
-### How to build
+## How to build
 
  1. Install the
 [June 2010 DirectX SDK](http://www.microsoft.com/en-us/download/details.aspx?id=6812).
@@ -51,9 +51,9 @@ choose your configuration, and build.
    * skinparam/proto1/SkinParam/SkinParam/Shaders
  7. Run SkinParam.exe.
 
-### License
+## License
 
-* Whole project: [GNU General Public License v3](http://www.gnu.org/licenses/gpl.html)
+* **Whole project**: [GNU General Public License v3](http://www.gnu.org/licenses/gpl.html)
 
     SkinParam - Real-time skin renderer with adjustable skin parameters
 
@@ -72,7 +72,7 @@ choose your configuration, and build.
     You should have received a copy of the GNU General Public License
     along with SkinParam.  If not, see <http://www.gnu.org/licenses/>.
 
-* Most source files, excluding DirectXTex, DXUT and ObjLoader: [BSD 2-Clause License](http://opensource.org/licenses/BSD-2-Clause)
+* **Most source files, excluding DirectXTex, DXUT and ObjLoader**: [BSD 2-Clause License](http://opensource.org/licenses/BSD-2-Clause)
 
     Copyright(c) 2013-2014 Yifan Wu.
 
@@ -99,4 +99,4 @@ choose your configuration, and build.
     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-* DirectXTex and DXUT: [Microsoft Public License](http://opensource.org/licenses/MS-PL)
+* **DirectXTex and DXUT**: [Microsoft Public License](http://opensource.org/licenses/MS-PL)
